@@ -37,11 +37,13 @@
 - `POST /users/{mailbox}/sendMail` - Send analysis reply
 
 ### 2. Phishing Analyzer
-**File**: `src/analysis/phishing-agent.ts`
+**File**: `src/agents/phishing-agent.ts`
 
 **Responsibilities**:
+- Orchestrate complete analysis pipeline
 - Validate email headers (SPF, DKIM, DMARC)
 - Analyze content (URLs, keywords, patterns)
+- Enrich with threat intelligence (optional)
 - Calculate risk score (0-10)
 - Generate threat indicators list
 - Return structured analysis result
@@ -53,8 +55,8 @@ Email → Header Validation → Content Analysis → [Threat Intel Enrichment] �
 
 **Note**: Threat intel enrichment runs in parallel with core analysis for speed.
 
-### 3. Threat Intel Enricher (NEW)
-**File**: `src/integrations/threat-intel-enricher.ts`
+### 3. Threat Intel Enricher
+**File**: `src/services/threat-intel.ts`
 
 **Responsibilities**:
 - Enrich analysis with external threat intelligence
@@ -64,11 +66,6 @@ Email → Header Validation → Content Analysis → [Threat Intel Enrichment] �
 - Gracefully degrade if APIs unavailable
 
 **Strategy**: Custom async orchestration with `Promise.allSettled()`
-
-**Sub-components**:
-- `src/integrations/virustotal-client.ts` - URL/domain/IP reputation
-- `src/integrations/abuseipdb-client.ts` - IP abuse scoring
-- `src/integrations/urlscan-client.ts` - URL screenshot + analysis
 
 **Parallel Execution**:
 ```typescript
@@ -112,13 +109,14 @@ const results = await Promise.allSettled([
 - `aggregateRiskScore(headerRisk, contentRisk)` - Combine scores
 - `determineSeverity(riskScore)` - Map to LOW/MEDIUM/HIGH/CRITICAL
 
-### 6. Email Sender
-**File**: `src/services/email-sender.ts`
+### 6. Graph Email Parser
+**File**: `src/services/graph-email-parser.ts`
 
 **Responsibilities**:
-- Format HTML email with analysis results
-- Send via Graph API
-- Handle delivery failures gracefully
+- Convert Microsoft Graph API email objects to analysis request format
+- Extract headers from `internetMessageHeaders` array
+- Parse URLs from email body
+- Handle attachments metadata
 
 ---
 
@@ -138,7 +136,7 @@ const results = await Promise.allSettled([
          │
          v
 ┌──────────────────────┐
-│ Email Parser         │
+│ Graph Email Parser   │
 │ Extract headers/body │
 └────────┬─────────────┘
          │
@@ -166,7 +164,7 @@ const results = await Promise.allSettled([
                │
                v
 ┌──────────────────────┐
-│ Email Sender         │
+│ Mailbox Monitor      │
 │ Format HTML reply    │
 │ Send via Graph API   │
 └──────────────────────┘

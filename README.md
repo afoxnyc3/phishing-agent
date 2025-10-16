@@ -2,6 +2,9 @@
 
 Email-triggered phishing analysis agent with automated risk assessment replies.
 
+**GitHub**: https://github.com/afoxnyc3/phishing-agent
+**Status**: v0.2.0 (MVP Complete - Ready for Testing)
+
 ## Overview
 
 **Purpose**: Monitor a designated email inbox → Analyze forwarded suspicious emails → Send risk assessment replies.
@@ -171,20 +174,23 @@ Response:
 
 ```
 src/
-├── analysis/           # Core analysis engine
-│   ├── phishing-agent.ts
-│   ├── header-validator.ts
-│   ├── content-analyzer.ts
-│   └── risk-scorer.ts
+├── agents/
+│   └── phishing-agent.ts      # Main orchestrator
+├── analysis/
+│   ├── header-validator.ts    # SPF/DKIM/DMARC
+│   ├── content-analyzer.ts    # URLs, keywords
+│   └── risk-scorer.ts         # Risk calculation
 ├── services/
-│   ├── mailbox-monitor.ts
-│   ├── email-parser.ts
-│   └── email-sender.ts
+│   ├── mailbox-monitor.ts     # Graph API polling
+│   ├── graph-email-parser.ts  # Email conversion
+│   └── threat-intel.ts        # VirusTotal, AbuseIPDB, URLScan
 ├── lib/
 │   ├── config.ts
 │   ├── logger.ts
-│   └── types.ts
-└── index.ts            # HTTP server
+│   ├── types.ts
+│   └── email-parser.ts
+├── server.ts                   # Express HTTP server
+└── index.ts                    # Main entry point
 ```
 
 ### Data Flow
@@ -235,26 +241,25 @@ export function validateSpfRecord(spfHeader: string | undefined): Result<string,
 
 ## Roadmap
 
-### v0.1.0 (Current)
-- [x] Project structure
-- [x] Documentation templates
-- [ ] Core analysis engine
-- [ ] Mailbox monitoring
-- [ ] Email reply functionality
+### v0.2.0 (Current - MVP Complete)
+- [x] Project structure and documentation
+- [x] Core analysis engine (header-validator, content-analyzer, risk-scorer)
+- [x] Mailbox monitoring via Microsoft Graph API
+- [x] HTML email reply functionality
+- [x] Threat intel integration (VirusTotal, AbuseIPDB, URLScan)
+- [x] Health checks and logging
 
-### v0.2.0 (MVP - Next)
-- [ ] Header validation (SPF, DKIM, DMARC)
-- [ ] Content analysis (URLs, keywords)
-- [ ] Risk scoring
-- [ ] HTML email replies
-- [ ] Health checks
+### v0.3.0 (Enhanced Detection - Next)
+- [ ] Brand impersonation detection (Issue #1)
+- [ ] Attachment analysis (Issue #2)
+- [ ] Testing framework (Jest, 90%+ coverage)
 
-### v0.3.0 (Enhanced Detection)
-- [ ] Threat intel integration (VirusTotal, AbuseIPDB)
-- [ ] Brand impersonation detection
-- [ ] Attachment analysis
+### v0.4.0 (Advanced Features - Future)
+- [ ] Machine learning model (Issue #3)
+- [ ] LLM-enhanced analysis (Issue #4)
+- [ ] Reporting dashboard (Issue #5)
 
-For complete roadmap, see [roadmap.md](./roadmap.md).
+For complete roadmap and GitHub issues, see [roadmap.md](./roadmap.md).
 
 ---
 
