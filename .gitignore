@@ -34,3 +34,8 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Test files with credentials (DO NOT COMMIT)
+test-graph-auth.js
+test-*.js
+*-credentials.*
