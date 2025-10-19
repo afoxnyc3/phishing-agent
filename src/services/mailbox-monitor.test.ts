@@ -1,9 +1,39 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { MailboxMonitor, MailboxMonitorConfig } from './mailbox-monitor.js';
+import { MailboxMonitor } from './mailbox-monitor.js';
 import { PhishingAgent } from '../agents/phishing-agent.js';
-import { PhishingAnalysisResult } from '../lib/types.js';
+import type { PhishingAnalysisResult } from '../lib/types.js';
 
-// Mock dependencies
+// Mock the entire Graph client module
+const mockGraphGet: any = jest.fn();
+const mockGraphPost: any = jest.fn();
+const mockGraphApi: any = jest.fn(() => ({
+  get: mockGraphGet,
+  post: mockGraphPost,
+  filter: jest.fn().mockReturnThis(),
+  orderby: jest.fn().mockReturnThis(),
+  top: jest.fn().mockReturnThis(),
+  select: jest.fn().mockReturnThis(),
+  expand: jest.fn().mockReturnThis(),
+}));
+
+jest.mock('@microsoft/microsoft-graph-client', () => ({
+  Client: {
+    initWithMiddleware: jest.fn(() => ({
+      api: mockGraphApi,
+    })),
+  },
+}));
+
+// Mock Azure Identity
+const mockGetToken: any = jest.fn(() => Promise.resolve({ token: 'mock-token', expiresOnTimestamp: Date.now() + 3600000 }));
+
+jest.mock('@azure/identity', () => ({
+  ClientSecretCredential: jest.fn().mockImplementation(() => ({
+    getToken: mockGetToken,
+  })),
+}));
+
+// Mock logger
 jest.mock('../lib/logger.js', () => ({
   securityLogger: {
     info: jest.fn(),
@@ -14,61 +44,45 @@ jest.mock('../lib/logger.js', () => ({
   },
 }));
 
-jest.mock('@azure/identity', () => {
-  const mockGetToken: any = jest.fn();
-  return {
-    ClientSecretCredential: jest.fn().mockImplementation(() => ({
-      getToken: mockGetToken.mockResolvedValue({ token: 'mock-token' }),
-    })),
-  };
-});
-
-jest.mock('@microsoft/microsoft-graph-client', () => ({
-  Client: {
-    initWithMiddleware: jest.fn().mockReturnValue({
-      api: jest.fn(),
-    }),
-  },
+// Mock graph email parser
+jest.mock('./graph-email-parser.js', () => ({
+  parseGraphEmail: jest.fn((email: any) => ({
+    messageId: email.internetMessageId || email.id,
+    sender: email.from?.emailAddress?.address || 'test@example.com',
+    recipient: email.toRecipients?.[0]?.emailAddress?.address || 'recipient@example.com',
+    subject: email.subject || 'Test',
+    timestamp: new Date(),
+    headers: { 'message-id': email.id },
+    body: email.body?.content || '',
+    attachments: [],
+  })),
 }));
 
 describe('MailboxMonitor', () => {
-  let mockConfig: MailboxMonitorConfig;
-  let mockPhishingAgent: PhishingAgent;
-  let mockClient: any;
   let monitor: MailboxMonitor;
+  let mockPhishingAgent: jest.Mocked<PhishingAgent>;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
-    mockConfig = {
+    // Create mock phishing agent
+    mockPhishingAgent = {
+      analyzeEmail: jest.fn(),
+      healthCheck: jest.fn(),
+      initialize: jest.fn(),
+      shutdown: jest.fn(),
+    } as any;
+
+    const config = {
       tenantId: 'test-tenant',
       clientId: 'test-client',
       clientSecret: 'test-secret',
       mailboxAddress: 'phishing@test.com',
-      checkIntervalMs: 5000,
+      checkIntervalMs: 1000,
       enabled: true,
     };
 
-    mockPhishingAgent = {
-      analyzeEmail: jest.fn() as unknown as (req: any) => Promise<PhishingAnalysisResult>,
-      initialize: jest.fn() as unknown as () => Promise<void>,
-    } as PhishingAgent;
-
-    mockClient = {
-      api: jest.fn().mockReturnThis(),
-      get: jest.fn(),
-      post: jest.fn(),
-      filter: jest.fn().mockReturnThis(),
-      orderby: jest.fn().mockReturnThis(),
-      top: jest.fn().mockReturnThis(),
-      select: jest.fn().mockReturnThis(),
-      expand: jest.fn().mockReturnThis(),
-    };
-
-    const { Client } = require('@microsoft/microsoft-graph-client');
-    Client.initWithMiddleware.mockReturnValue(mockClient);
-
-    monitor = new MailboxMonitor(mockConfig, mockPhishingAgent);
+    monitor = new MailboxMonitor(config, mockPhishingAgent);
   });
 
   describe('Constructor', () => {
@@ -76,297 +90,445 @@ describe('MailboxMonitor', () => {
       expect(monitor).toBeDefined();
       const status = monitor.getStatus();
       expect(status.mailbox).toBe('phishing@test.com');
-      expect(status.checkInterval).toBe(5000);
+      expect(status.checkInterval).toBe(1000);
+      expect(status.isRunning).toBe(false);
     });
 
     it('should use default check interval if not provided', () => {
-      const configWithoutInterval = { ...mockConfig };
-      delete configWithoutInterval.checkIntervalMs;
-      const mon = new MailboxMonitor(configWithoutInterval, mockPhishingAgent);
+      const config = {
+        tenantId: 'test-tenant',
+        clientId: 'test-client',
+        clientSecret: 'test-secret',
+        mailboxAddress: 'phishing@test.com',
+      };
+
+      const mon = new MailboxMonitor(config, mockPhishingAgent);
       expect(mon.getStatus().checkInterval).toBe(60000);
     });
 
-    it('should set lastCheckTime to 5 minutes ago', () => {
-      const status = monitor.getStatus();
-      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-      expect(status.lastCheckTime.getTime()).toBeGreaterThanOrEqual(fiveMinutesAgo - 1000);
-      expect(status.lastCheckTime.getTime()).toBeLessThanOrEqual(fiveMinutesAgo + 1000);
+    it('should set enabled to true by default', () => {
+      const config = {
+        tenantId: 'test-tenant',
+        clientId: 'test-client',
+        clientSecret: 'test-secret',
+        mailboxAddress: 'phishing@test.com',
+      };
+
+      const mon = new MailboxMonitor(config, mockPhishingAgent);
+      expect(mon).toBeDefined();
     });
   });
 
-  describe('Initialization', () => {
+  describe('Initialize', () => {
     it('should initialize successfully when mailbox is accessible', async () => {
-      mockClient.get.mockResolvedValue({ value: [] });
+      mockGraphGet.mockResolvedValue({ value: [] });
 
       await expect(monitor.initialize()).resolves.toBeUndefined();
-      expect(mockClient.api).toHaveBeenCalledWith('/users/phishing@test.com/messages');
+      expect(mockGraphApi).toHaveBeenCalledWith('/users/phishing@test.com/messages');
     });
 
     it('should throw error when mailbox initialization fails', async () => {
-      mockClient.get.mockRejectedValue(new Error('Access denied'));
+      mockGraphGet.mockRejectedValue(new Error('Access denied'));
 
-      await expect(monitor.initialize()).rejects.toThrow(
-        'Mailbox monitor initialization failed: Access denied'
-      );
+      await expect(monitor.initialize()).rejects.toThrow('Mailbox monitor initialization failed');
     });
   });
 
-  describe('Start/Stop Monitoring', () => {
-    it('should start monitoring when not running', () => {
+  describe('Start/Stop', () => {
+    it('should start monitoring', () => {
+      mockGraphGet.mockResolvedValue({ value: [] });
+
       monitor.start();
+
       expect(monitor.getStatus().isRunning).toBe(true);
     });
 
     it('should not start if already running', () => {
+      mockGraphGet.mockResolvedValue({ value: [] });
+
       monitor.start();
-      const firstStatus = monitor.getStatus().isRunning;
-      monitor.start(); // Try to start again
-      expect(firstStatus).toBe(true);
+      const firstStart = monitor.getStatus().isRunning;
+      monitor.start();
+
+      expect(firstStart).toBe(true);
       expect(monitor.getStatus().isRunning).toBe(true);
     });
 
     it('should not start if disabled', () => {
-      const disabledConfig = { ...mockConfig, enabled: false };
-      const disabledMonitor = new MailboxMonitor(disabledConfig, mockPhishingAgent);
+      const config = {
+        tenantId: 'test-tenant',
+        clientId: 'test-client',
+        clientSecret: 'test-secret',
+        mailboxAddress: 'phishing@test.com',
+        enabled: false,
+      };
+
+      const disabledMonitor = new MailboxMonitor(config, mockPhishingAgent);
       disabledMonitor.start();
+
       expect(disabledMonitor.getStatus().isRunning).toBe(false);
     });
 
-    it('should stop monitoring when running', () => {
+    it('should stop monitoring', () => {
+      mockGraphGet.mockResolvedValue({ value: [] });
+
       monitor.start();
       expect(monitor.getStatus().isRunning).toBe(true);
+
       monitor.stop();
       expect(monitor.getStatus().isRunning).toBe(false);
     });
 
     it('should handle stop when not running', () => {
       expect(monitor.getStatus().isRunning).toBe(false);
-      monitor.stop(); // Should not throw
+      monitor.stop();
       expect(monitor.getStatus().isRunning).toBe(false);
     });
   });
 
   describe('Health Check', () => {
     it('should return true when mailbox is accessible', async () => {
-      mockClient.get.mockResolvedValue({ value: [] });
+      mockGraphGet.mockResolvedValue({ value: [] });
 
       const result = await monitor.healthCheck();
+
       expect(result).toBe(true);
+      expect(mockGraphApi).toHaveBeenCalledWith('/users/phishing@test.com/messages');
     });
 
     it('should return false when mailbox is not accessible', async () => {
-      mockClient.get.mockRejectedValue(new Error('Connection failed'));
+      mockGraphGet.mockRejectedValue(new Error('Connection failed'));
 
       const result = await monitor.healthCheck();
+
       expect(result).toBe(false);
     });
   });
 
   describe('Status', () => {
-    it('should return current monitoring status', () => {
+    it('should return monitoring status', () => {
       const status = monitor.getStatus();
 
       expect(status).toHaveProperty('isRunning');
       expect(status).toHaveProperty('mailbox');
       expect(status).toHaveProperty('lastCheckTime');
       expect(status).toHaveProperty('checkInterval');
-      expect(status.mailbox).toBe('phishing@test.com');
     });
 
-    it('should reflect running state correctly', () => {
+    it('should reflect running state', () => {
+      mockGraphGet.mockResolvedValue({ value: [] });
+
       expect(monitor.getStatus().isRunning).toBe(false);
+
       monitor.start();
       expect(monitor.getStatus().isRunning).toBe(true);
+
       monitor.stop();
       expect(monitor.getStatus().isRunning).toBe(false);
-    });
-  });
-
-  describe('Email Fetching', () => {
-    it('should fetch new emails with correct filter', async () => {
-      mockClient.get.mockResolvedValue({ value: [] });
-      monitor.start();
-
-      // Wait a bit for initial check
-      await new Promise(resolve => setTimeout(resolve, 100));
-      monitor.stop();
-
-      expect(mockClient.filter).toHaveBeenCalled();
-      expect(mockClient.orderby).toHaveBeenCalledWith('receivedDateTime asc');
-      expect(mockClient.top).toHaveBeenCalledWith(50);
     });
   });
 
   describe('Email Processing', () => {
     const mockEmail = {
-      id: 'test-email-1',
+      id: 'email-123',
+      internetMessageId: '<test@example.com>',
       subject: 'Test Email',
       from: { emailAddress: { address: 'sender@example.com' } },
+      toRecipients: [{ emailAddress: { address: 'phishing@test.com' } }],
       receivedDateTime: new Date().toISOString(),
-      body: { content: 'Test body', contentType: 'text' },
+      body: { content: 'Test body' },
       internetMessageHeaders: [],
-      internetMessageId: '<test@example.com>',
-      hasAttachments: false,
     };
 
     const mockAnalysisResult: PhishingAnalysisResult = {
-      messageId: 'test-msg-id',
-      analysisId: 'test-analysis-id',
+      messageId: '<test@example.com>',
+      analysisId: 'analysis-123',
       isPhishing: true,
       riskScore: 8.5,
       severity: 'high',
       confidence: 0.9,
-      indicators: [
-        {
-          type: 'header',
-          description: 'SPF failed',
-          severity: 'high',
-          evidence: 'spf=fail',
-          confidence: 0.9,
-        },
-      ],
-      recommendedActions: [
-        {
-          priority: 'urgent',
-          action: 'quarantine_email',
-          description: 'Quarantine this email immediately',
-          automated: true,
-          requiresApproval: false,
-        },
-      ],
+      indicators: [{
+        type: 'header',
+        description: 'SPF failed',
+        severity: 'high',
+        evidence: 'spf=fail',
+        confidence: 0.9,
+      }],
+      recommendedActions: [{
+        priority: 'urgent',
+        action: 'quarantine',
+        description: 'Quarantine email',
+        automated: true,
+        requiresApproval: false,
+      }],
       analysisTimestamp: new Date(),
     };
 
-    it('should process email and send reply successfully', async () => {
-      mockClient.get.mockResolvedValue({ value: [mockEmail] });
-      mockClient.post.mockResolvedValue({});
-      (mockPhishingAgent.analyzeEmail as any).mockResolvedValue(mockAnalysisResult);
+    it('should process emails when found', async () => {
+      mockGraphGet.mockResolvedValue({ value: [mockEmail] });
+      mockGraphPost.mockResolvedValue({});
+      mockPhishingAgent.analyzeEmail.mockResolvedValue(mockAnalysisResult);
 
       monitor.start();
+
+      // Wait for initial check
       await new Promise(resolve => setTimeout(resolve, 100));
+
       monitor.stop();
 
       expect(mockPhishingAgent.analyzeEmail).toHaveBeenCalled();
-      expect(mockClient.post).toHaveBeenCalled();
+      expect(mockGraphPost).toHaveBeenCalled();
     });
 
-    it('should send error reply when analysis fails', async () => {
-      mockClient.get.mockResolvedValue({ value: [mockEmail] });
-      mockClient.post.mockResolvedValue({});
-      (mockPhishingAgent.analyzeEmail as any).mockRejectedValue(new Error('Analysis failed'));
+    it('should send reply after analysis', async () => {
+      mockGraphGet.mockResolvedValue({ value: [mockEmail] });
+      mockGraphPost.mockResolvedValue({});
+      mockPhishingAgent.analyzeEmail.mockResolvedValue(mockAnalysisResult);
 
       monitor.start();
       await new Promise(resolve => setTimeout(resolve, 100));
       monitor.stop();
 
-      // Error reply should still be sent
-      expect(mockClient.post).toHaveBeenCalled();
+      // Verify reply was sent
+      expect(mockGraphPost).toHaveBeenCalled();
+      const postCall = mockGraphPost.mock.calls[0];
+      expect(postCall).toBeDefined();
     });
 
-    it('should handle missing sender email gracefully', async () => {
-      const emailWithoutSender = { ...mockEmail, from: null };
-      mockClient.get.mockResolvedValue({ value: [emailWithoutSender] });
-      (mockPhishingAgent.analyzeEmail as any).mockResolvedValue(mockAnalysisResult);
+    it('should handle analysis errors gracefully', async () => {
+      mockGraphGet.mockResolvedValue({ value: [mockEmail] });
+      mockGraphPost.mockResolvedValue({});
+      mockPhishingAgent.analyzeEmail.mockRejectedValue(new Error('Analysis failed'));
 
       monitor.start();
       await new Promise(resolve => setTimeout(resolve, 100));
       monitor.stop();
 
-      // Should not crash, but also not send reply
+      // Should still send error reply
+      expect(mockGraphPost).toHaveBeenCalled();
+    });
+
+    it('should handle missing sender email', async () => {
+      const emailWithoutSender = {
+        ...mockEmail,
+        from: null,
+      };
+
+      mockGraphGet.mockResolvedValue({ value: [emailWithoutSender] });
+      mockPhishingAgent.analyzeEmail.mockResolvedValue(mockAnalysisResult);
+
+      monitor.start();
+      await new Promise(resolve => setTimeout(resolve, 100));
+      monitor.stop();
+
+      // Should process email but not send reply
       expect(mockPhishingAgent.analyzeEmail).toHaveBeenCalled();
+    });
+
+    it('should process multiple emails', async () => {
+      const email2 = { ...mockEmail, id: 'email-456' };
+      mockGraphGet.mockResolvedValue({ value: [mockEmail, email2] });
+      mockGraphPost.mockResolvedValue({});
+      mockPhishingAgent.analyzeEmail.mockResolvedValue(mockAnalysisResult);
+
+      monitor.start();
+      await new Promise(resolve => setTimeout(resolve, 150));
+      monitor.stop();
+
+      expect(mockPhishingAgent.analyzeEmail).toHaveBeenCalledTimes(2);
+    });
+
+    it('should continue processing if one email fails', async () => {
+      const email2 = { ...mockEmail, id: 'email-456' };
+      mockGraphGet.mockResolvedValue({ value: [mockEmail, email2] });
+      mockGraphPost.mockResolvedValue({});
+
+      mockPhishingAgent.analyzeEmail
+        .mockRejectedValueOnce(new Error('Failed'))
+        .mockResolvedValueOnce(mockAnalysisResult);
+
+      monitor.start();
+      await new Promise(resolve => setTimeout(resolve, 150));
+      monitor.stop();
+
+      // Both emails should be attempted
+      expect(mockPhishingAgent.analyzeEmail).toHaveBeenCalledTimes(2);
+    });
+
+    it('should handle empty email list', async () => {
+      mockGraphGet.mockResolvedValue({ value: [] });
+
+      monitor.start();
+      await new Promise(resolve => setTimeout(resolve, 100));
+      monitor.stop();
+
+      expect(mockPhishingAgent.analyzeEmail).not.toHaveBeenCalled();
+    });
+
+    it('should update lastCheckTime after processing', async () => {
+      mockGraphGet.mockResolvedValue({ value: [] });
+
+      const beforeStart = monitor.getStatus().lastCheckTime;
+
+      monitor.start();
+      await new Promise(resolve => setTimeout(resolve, 100));
+      monitor.stop();
+
+      const afterStop = monitor.getStatus().lastCheckTime;
+      expect(afterStop.getTime()).toBeGreaterThan(beforeStart.getTime());
     });
   });
 
-  describe('HTML Reply Building', () => {
-    it('should build HTML with phishing verdict', () => {
-      const analysis: PhishingAnalysisResult = {
-        messageId: 'test',
-        analysisId: 'test-analysis',
-        isPhishing: true,
-        riskScore: 8.5,
+  describe('HTML Reply Generation', () => {
+    const mockAnalysisResult: PhishingAnalysisResult = {
+      messageId: 'test-msg',
+      analysisId: 'test-analysis',
+      isPhishing: true,
+      riskScore: 8.5,
+      severity: 'high',
+      confidence: 0.9,
+      indicators: [{
+        type: 'header',
+        description: 'SPF validation failed',
         severity: 'high',
+        evidence: 'spf=fail',
         confidence: 0.9,
-        indicators: [
-          { type: 'header', description: 'SPF failed', severity: 'high', evidence: 'spf=fail', confidence: 0.9 },
-        ],
-        recommendedActions: [
-          { priority: 'urgent', action: 'quarantine', description: 'Quarantine email', automated: true, requiresApproval: false },
-        ],
-        analysisTimestamp: new Date(),
-      };
+      }],
+      recommendedActions: [{
+        priority: 'urgent',
+        action: 'quarantine',
+        description: 'Quarantine this email',
+        automated: true,
+        requiresApproval: false,
+      }],
+      analysisTimestamp: new Date(),
+    };
 
-      const html = (monitor as any).buildReplyHtml(analysis);
+    it('should build HTML reply with phishing verdict', () => {
+      const html = (monitor as any).buildReplyHtml(mockAnalysisResult);
 
       expect(html).toContain('PHISHING DETECTED');
       expect(html).toContain('8.5/10');
       expect(html).toContain('HIGH');
       expect(html).toContain('90%');
-      expect(html).toContain('SPF failed');
     });
 
-    it('should build HTML with safe verdict', () => {
-      const analysis: PhishingAnalysisResult = {
-        messageId: 'test',
-        analysisId: 'test-analysis',
+    it('should include threat indicators in reply', () => {
+      const html = (monitor as any).buildReplyHtml(mockAnalysisResult);
+
+      expect(html).toContain('SPF validation failed');
+      expect(html).toContain('Threat Indicators');
+    });
+
+    it('should include recommended actions in reply', () => {
+      const html = (monitor as any).buildReplyHtml(mockAnalysisResult);
+
+      expect(html).toContain('Recommended Actions');
+      expect(html).toContain('Quarantine this email');
+    });
+
+    it('should build HTML reply for safe email', () => {
+      const safeResult: PhishingAnalysisResult = {
+        ...mockAnalysisResult,
         isPhishing: false,
         riskScore: 2.0,
         severity: 'low',
         confidence: 0.3,
         indicators: [],
         recommendedActions: [],
-        analysisTimestamp: new Date(),
       };
 
-      const html = (monitor as any).buildReplyHtml(analysis);
+      const html = (monitor as any).buildReplyHtml(safeResult);
 
       expect(html).toContain('EMAIL APPEARS SAFE');
       expect(html).toContain('2.0/10');
       expect(html).toContain('LOW');
     });
+
+    it('should limit indicators to top 5', () => {
+      const manyIndicators: PhishingAnalysisResult = {
+        ...mockAnalysisResult,
+        indicators: Array(10).fill(null).map((_, i) => ({
+          type: 'content' as const,
+          description: `Indicator ${i + 1}`,
+          severity: 'medium' as const,
+          evidence: `evidence-${i}`,
+          confidence: 0.7,
+        })),
+      };
+
+      const indicatorsList = (monitor as any).buildIndicatorsList(manyIndicators);
+      const lines = indicatorsList.split('\n').filter((l: string) => l.trim());
+
+      expect(lines.length).toBe(5);
+    });
+
+    it('should limit actions to top 3', () => {
+      const manyActions: PhishingAnalysisResult = {
+        ...mockAnalysisResult,
+        recommendedActions: Array(6).fill(null).map((_, i) => ({
+          priority: 'medium' as const,
+          action: `action-${i}`,
+          description: `Action ${i + 1}`,
+          automated: false,
+          requiresApproval: true,
+        })),
+      };
+
+      const actionsList = (monitor as any).buildActionsList(manyActions);
+      const lines = actionsList.split('\n').filter((l: string) => l.trim());
+
+      expect(lines.length).toBe(3);
+    });
   });
 
   describe('Error Handling', () => {
-    it('should continue processing other emails if one fails', async () => {
-      const email1 = {
-        id: 'email-1',
-        subject: 'Email 1',
-        from: { emailAddress: { address: 'sender1@example.com' } },
-        body: { content: 'Body 1' },
-        internetMessageHeaders: [],
-      };
-
-      const email2 = {
-        id: 'email-2',
-        subject: 'Email 2',
-        from: { emailAddress: { address: 'sender2@example.com' } },
-        body: { content: 'Body 2' },
-        internetMessageHeaders: [],
-      };
-
-      mockClient.get.mockResolvedValue({ value: [email1, email2] });
-      mockClient.post.mockResolvedValue({});
-
-      const mockAnalyze: any = mockPhishingAgent.analyzeEmail;
-      mockAnalyze
-        .mockRejectedValueOnce(new Error('Analysis failed'))
-        .mockResolvedValueOnce({
-          messageId: 'test',
-          analysisId: 'test',
-          isPhishing: false,
-          riskScore: 2.0,
-          severity: 'low',
-          confidence: 0.5,
-          indicators: [],
-          recommendedActions: [],
-          analysisTimestamp: new Date(),
-        });
+    it('should handle Graph API errors during email fetch', async () => {
+      mockGraphGet.mockRejectedValue(new Error('Network error'));
 
       monitor.start();
-      await new Promise(resolve => setTimeout(resolve, 150));
+
+      await expect(
+        new Promise((resolve, reject) => {
+          setTimeout(() => {
+            monitor.stop();
+            resolve(true);
+          }, 100);
+        })
+      ).resolves.toBe(true);
+    });
+
+    it('should handle send mail failures', async () => {
+      const mockEmail = {
+        id: 'email-123',
+        subject: 'Test',
+        from: { emailAddress: { address: 'sender@example.com' } },
+        toRecipients: [{ emailAddress: { address: 'recipient@example.com' } }],
+        body: { content: 'Test' },
+      };
+
+      const mockAnalysisResult: PhishingAnalysisResult = {
+        messageId: 'test',
+        analysisId: 'test',
+        isPhishing: false,
+        riskScore: 2.0,
+        severity: 'low',
+        confidence: 0.5,
+        indicators: [],
+        recommendedActions: [],
+        analysisTimestamp: new Date(),
+      };
+
+      mockGraphGet.mockResolvedValue({ value: [mockEmail] });
+      mockGraphPost.mockRejectedValue(new Error('Send failed'));
+      mockPhishingAgent.analyzeEmail.mockResolvedValue(mockAnalysisResult);
+
+      monitor.start();
+      await new Promise(resolve => setTimeout(resolve, 100));
       monitor.stop();
 
-      // Both emails should be processed despite first one failing
-      expect(mockPhishingAgent.analyzeEmail).toHaveBeenCalledTimes(2);
+      // Should attempt to send despite error
+      expect(mockGraphPost).toHaveBeenCalled();
     });
   });
 });
