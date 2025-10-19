@@ -1,0 +1,68 @@
+# Dependencies (will install fresh in container)
+node_modules/
+# Keep package-lock.json (required for npm ci)
+
+# Build outputs (will build fresh in container)
+dist/
+*.tsbuildinfo
+
+# Environment files (NEVER include secrets)
+.env
+.env.*
+!.env.example
+
+# Git metadata
+.git/
+.gitignore
+.github/
+
+# Development and testing
+**/*.test.ts
+coverage/
+.nyc_output/
+jest.config.js
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation (not needed at runtime, except README for labels)
+*.md
+!README.md
+docs/
+DEPLOYMENT_PLAN.md
+
+# Security and credentials
+SECURITY.md
+test-graph-auth.js
+test-*.js
+*-credentials.*
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# ESLint and linting
+eslint.config.js
+.eslintrc*
+
+# CI/CD (not needed in container image)
+.github/
+
+# Other development files
+changelog.md
+decision-log.md
+roadmap.md
+STATUS.md

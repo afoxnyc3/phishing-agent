@@ -55,6 +55,96 @@ npm run dev  # Hot reload with tsx
 
 ---
 
+## Docker Deployment
+
+### Quick Start with Docker
+
+**Option 1: Docker Run**
+```bash
+# Build image
+docker build -t phishing-agent:latest .
+
+# Run container
+docker run -d \
+  --name phishing-agent \
+  --env-file .env \
+  -p 3000:3000 \
+  phishing-agent:latest
+
+# View logs
+docker logs -f phishing-agent
+
+# Stop container
+docker stop phishing-agent && docker rm phishing-agent
+```
+
+**Option 2: Docker Compose** (Recommended for local development)
+```bash
+# Start service
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Check status
+docker-compose ps
+
+# Stop service
+docker-compose down
+```
+
+### Docker Image Details
+
+- **Base Image**: `node:18-alpine`
+- **Size**: ~264MB
+- **Architecture**: Multi-stage build (builder + production)
+- **Security**: Runs as non-root user (`node`)
+- **Health Check**: Integrated `/health` endpoint monitoring
+
+### Environment Variables
+
+All environment variables must be provided at runtime:
+
+```bash
+# Required
+AZURE_TENANT_ID=your-tenant-id
+AZURE_CLIENT_ID=your-app-client-id
+AZURE_CLIENT_SECRET=your-app-secret
+PHISHING_MAILBOX_ADDRESS=phishing@company.com
+
+# Optional (with defaults)
+PORT=3000
+NODE_ENV=production
+MAILBOX_CHECK_INTERVAL_MS=60000
+MAILBOX_MONITOR_ENABLED=true
+```
+
+Use `--env-file .env` with Docker or `env_file: .env` in docker-compose.yml.
+
+### Health Checks
+
+The container includes built-in health checks:
+
+```bash
+# Check health endpoint
+curl http://localhost:3000/health
+
+# Check readiness endpoint
+curl http://localhost:3000/ready
+```
+
+**Health Check Configuration:**
+- Interval: 30 seconds
+- Timeout: 10 seconds
+- Start period: 40 seconds (allows for initialization)
+- Retries: 3
+
+### Production Deployment
+
+For production deployments to Azure Container Apps, AWS ECS, or Kubernetes, see [DEPLOYMENT_PLAN.md](./DEPLOYMENT_PLAN.md) for comprehensive infrastructure setup guides.
+
+---
+
 ## Configuration
 
 ### Required Environment Variables

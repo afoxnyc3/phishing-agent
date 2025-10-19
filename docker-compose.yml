@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  phishing-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_VERSION: 18
+
+    container_name: phishing-agent-dev
+
+    # Load environment variables from .env file
+    env_file:
+      - .env
+
+    # Port mapping
+    ports:
+      - "3000:3000"
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Health check (inherits from Dockerfile)
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Logging configuration
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Resource limits (optional, uncomment if needed)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '1.0'
+    #       memory: 1G
+    #     reservations:
+    #       cpus: '0.25'
+    #       memory: 256M
