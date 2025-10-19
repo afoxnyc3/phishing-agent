@@ -2,24 +2,30 @@
  * Microsoft Graph Email Parser
  * Converts Graph API email objects to EmailAnalysisRequest
  * All functions are atomic (max 25 lines)
+ * Uses Zod for runtime validation of Graph API responses
  */
 
 import { EmailAnalysisRequest } from '../lib/types.js';
 import { securityLogger } from '../lib/logger.js';
+import { GraphEmailSchema, GraphEmailListResponseSchema, safeParse } from '../lib/schemas.js';
 
 /**
  * Parse Graph API email to analysis request
+ * Validates input with Zod before processing
  */
 export function parseGraphEmail(graphEmail: any): EmailAnalysisRequest {
-  const sender = graphEmail.from?.emailAddress?.address || 'unknown@unknown.com';
-  const recipient = graphEmail.toRecipients?.[0]?.emailAddress?.address || 'unknown@unknown.com';
-  const subject = graphEmail.subject || '(No Subject)';
-  const messageId = graphEmail.internetMessageId || graphEmail.id;
-  const timestamp = new Date(graphEmail.receivedDateTime || graphEmail.sentDateTime || Date.now());
+  // Validate Graph email structure
+  const validatedEmail = safeParse(GraphEmailSchema, graphEmail, 'Graph API email');
 
-  const headers = extractHeaders(graphEmail, sender, recipient, subject, messageId, timestamp);
-  const body = graphEmail.body?.content || graphEmail.bodyPreview || '';
-  const attachments = extractAttachments(graphEmail);
+  const sender = validatedEmail.from?.emailAddress?.address || 'unknown@unknown.com';
+  const recipient = validatedEmail.toRecipients?.[0]?.emailAddress?.address || 'unknown@unknown.com';
+  const subject = validatedEmail.subject || '(No Subject)';
+  const messageId = validatedEmail.internetMessageId || validatedEmail.id;
+  const timestamp = new Date(validatedEmail.receivedDateTime || validatedEmail.sentDateTime || Date.now());
+
+  const headers = extractHeaders(validatedEmail, sender, recipient, subject, messageId, timestamp);
+  const body = validatedEmail.body?.content || validatedEmail.bodyPreview || '';
+  const attachments = extractAttachments(validatedEmail);
 
   securityLogger.debug('Parsed Graph email', {
     sender, subject, messageId,
@@ -96,4 +102,13 @@ export function validateAnalysisRequest(request: EmailAnalysisRequest): boolean 
   }
 
   return true;
+}
+
+/**
+ * Validate Graph API email list response
+ * Returns validated emails array
+ */
+export function validateGraphEmailListResponse(response: any): any[] {
+  const validated = safeParse(GraphEmailListResponseSchema, response, 'Graph API email list');
+  return validated.value;
 }

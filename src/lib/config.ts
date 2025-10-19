@@ -1,8 +1,10 @@
 /**
  * Configuration management for phishing agent
+ * Uses Zod for runtime validation of environment variables
  */
 
 import { config as dotenvConfig } from 'dotenv';
+import { EnvConfigSchema } from './schemas.js';
 
 // Load environment variables
 dotenvConfig();
@@ -51,37 +53,54 @@ export function getEnvBoolean(key: string, defaultValue: boolean = false): boole
 }
 
 /**
- * Application configuration
+ * Validate environment variables with Zod
+ */
+function validateEnvironment(): ReturnType<typeof EnvConfigSchema.parse> {
+  try {
+    const validated = EnvConfigSchema.parse(process.env);
+    return validated;
+  } catch (error) {
+    // Use console.error to avoid circular dependency with logger
+    console.error('Environment validation failed:', (error as Error).message);
+    throw new Error(`Invalid environment configuration: ${(error as Error).message}`);
+  }
+}
+
+// Validate environment on module load
+const env = validateEnvironment();
+
+/**
+ * Application configuration (validated with Zod)
  */
 export const config = {
   // Azure configuration
   azure: {
-    tenantId: getEnv('AZURE_TENANT_ID'),
-    clientId: getEnv('AZURE_CLIENT_ID'),
-    clientSecret: process.env.AZURE_CLIENT_SECRET, // Optional - not needed for MSI
+    tenantId: env.AZURE_TENANT_ID,
+    clientId: env.AZURE_CLIENT_ID,
+    clientSecret: env.AZURE_CLIENT_SECRET,
   },
 
   // Mailbox monitoring
   mailbox: {
-    enabled: getEnvBoolean('MAILBOX_MONITOR_ENABLED', true),
-    address: getEnv('PHISHING_MAILBOX_ADDRESS'),
-    checkIntervalMs: getEnvNumber('MAILBOX_CHECK_INTERVAL_MS', 60000),
+    enabled: env.MAILBOX_MONITOR_ENABLED,
+    address: env.PHISHING_MAILBOX_ADDRESS,
+    checkIntervalMs: env.MAILBOX_CHECK_INTERVAL_MS,
   },
 
   // Threat intelligence
   threatIntel: {
-    enabled: getEnvBoolean('THREAT_INTEL_ENABLED', true),
-    timeoutMs: getEnvNumber('THREAT_INTEL_TIMEOUT_MS', 5000),
-    cacheTtlMs: getEnvNumber('THREAT_INTEL_CACHE_TTL_MS', 300000),
-    virusTotalApiKey: process.env.VIRUSTOTAL_API_KEY,
-    abuseIpDbApiKey: process.env.ABUSEIPDB_API_KEY,
-    urlScanApiKey: process.env.URLSCAN_API_KEY,
+    enabled: env.THREAT_INTEL_ENABLED,
+    timeoutMs: env.THREAT_INTEL_TIMEOUT_MS,
+    cacheTtlMs: env.THREAT_INTEL_CACHE_TTL_MS,
+    virusTotalApiKey: env.VIRUSTOTAL_API_KEY,
+    abuseIpDbApiKey: env.ABUSEIPDB_API_KEY,
+    urlScanApiKey: env.URLSCAN_API_KEY,
   },
 
   // Server
   server: {
-    port: getEnvNumber('PORT', 3000),
-    environment: getEnv('NODE_ENV', 'development'),
+    port: env.PORT,
+    environment: env.NODE_ENV,
   },
 };
 
