@@ -2,6 +2,7 @@
  * Threat Intelligence Enrichment
  * Parallel API calls to VirusTotal, AbuseIPDB, URLScan.io
  * All functions are atomic (max 25 lines)
+ * Uses Zod for runtime validation of API responses
  */
 
 import axios, { AxiosInstance } from 'axios';
@@ -9,6 +10,7 @@ import NodeCache from 'node-cache';
 import { ThreatIndicator } from '../lib/types.js';
 import { securityLogger } from '../lib/logger.js';
 import { config } from '../lib/config.js';
+import { validate, VirusTotalUrlResponseSchema, AbuseIPDBResponseSchema } from '../lib/schemas.js';
 
 export interface ThreatIntelResult {
   indicators: ThreatIndicator[];
@@ -234,14 +236,21 @@ export class ThreatIntelService {
     try {
       const urlId = Buffer.from(url).toString('base64').replace(/=/g, '');
       const response = await this.virusTotalClient.get(`/urls/${urlId}`);
-      const stats = response.data.data.attributes.last_analysis_stats;
 
+      // Validate response with Zod
+      const validated = validate(VirusTotalUrlResponseSchema, response.data);
+      if (!validated.success) {
+        securityLogger.warn('Invalid VirusTotal response', { error: validated.error.message, url });
+        return null;
+      }
+
+      const stats = validated.data.data.attributes.last_analysis_stats;
       const result: UrlReputationResult = {
         url,
         malicious: stats.malicious > 0,
         maliciousCount: stats.malicious,
         totalScans: stats.malicious + stats.harmless + stats.undetected,
-        detectedBy: Object.keys(response.data.data.attributes.last_analysis_results || {}),
+        detectedBy: Object.keys(validated.data.data.attributes.last_analysis_results || {}),
         confidenceScore: stats.malicious / (stats.malicious + stats.harmless + stats.undetected),
       };
 
@@ -265,8 +274,15 @@ export class ThreatIntelService {
 
     try {
       const response = await this.abuseIpDbClient.get('/check', { params: { ipAddress: ip } });
-      const data = response.data.data;
 
+      // Validate response with Zod
+      const validated = validate(AbuseIPDBResponseSchema, response.data);
+      if (!validated.success) {
+        securityLogger.warn('Invalid AbuseIPDB response', { error: validated.error.message, ip });
+        return null;
+      }
+
+      const data = validated.data.data;
       const result: IpReputationResult = {
         ip,
         malicious: data.abuseConfidenceScore >= 50,

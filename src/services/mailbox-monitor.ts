@@ -9,7 +9,7 @@ import { ClientSecretCredential } from '@azure/identity';
 import { securityLogger } from '../lib/logger.js';
 import { PhishingAgent } from '../agents/phishing-agent.js';
 import { PhishingAnalysisResult } from '../lib/types.js';
-import { parseGraphEmail } from './graph-email-parser.js';
+import { parseGraphEmail, validateGraphEmailListResponse } from './graph-email-parser.js';
 
 export interface MailboxMonitorConfig {
   tenantId: string;
@@ -159,7 +159,8 @@ export class MailboxMonitor {
       .expand('attachments($select=name,contentType,size)')
       .get();
 
-    return response.value || [];
+    // Validate Graph API response
+    return validateGraphEmailListResponse(response);
   }
 
   /**

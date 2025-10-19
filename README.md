@@ -11,7 +11,7 @@ Email-triggered phishing analysis agent with automated risk assessment replies.
 
 **Flow**: User forwards email to `phishing@company.com` → Agent analyzes headers & content → User receives HTML reply with findings within 10 seconds.
 
-**Tech Stack**: TypeScript + Node.js + Microsoft Graph API + Winston logging
+**Tech Stack**: TypeScript + Node.js + Microsoft Graph API + Zod validation + Winston logging
 
 ---
 
@@ -22,6 +22,7 @@ Email-triggered phishing analysis agent with automated risk assessment replies.
 - **Clear Results**: HTML email replies with color-coded risk assessment
 - **Threat Indicators**: SPF/DKIM/DMARC validation, suspicious URL detection, brand impersonation
 - **Optional Intel**: VirusTotal, AbuseIPDB, URLScan.io integration
+- **Runtime Validation**: Zod schema validation for all external API responses
 - **Atomic Code**: Max 25 lines per function, max 150 lines per file
 
 ---

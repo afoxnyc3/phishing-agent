@@ -56,6 +56,7 @@ jest.mock('./graph-email-parser.js', () => ({
     body: email.body?.content || '',
     attachments: [],
   })),
+  validateGraphEmailListResponse: jest.fn((response: any) => response.value || []),
 }));
 
 describe('MailboxMonitor', () => {
