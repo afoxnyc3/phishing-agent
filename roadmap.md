@@ -162,6 +162,35 @@ Basic attachment risk assessment:
 - [ ] Flags macro-enabled documents
 - [ ] Analyzes filename patterns
 
+#### Issue #9: Zod Runtime Validation
+**Status**: Not Started
+**Priority**: P2 (Medium)
+
+Add Zod for production-grade runtime validation:
+- Configuration validation (environment variables)
+- External API response validation (Graph API, threat intel APIs)
+- Email header/body parsing validation
+- Type-safe error handling with detailed error messages
+
+**Rationale**: While TypeScript provides compile-time type safety, Zod adds critical runtime validation for external data sources. This is especially important for:
+- Validating untrusted email inputs
+- Catching malformed API responses early
+- Providing clear error messages for debugging
+- Ensuring data integrity throughout the pipeline
+
+**Acceptance Criteria**:
+- [ ] All environment variables validated with Zod schemas
+- [ ] Graph API responses validated before processing
+- [ ] Threat intel API responses validated
+- [ ] Email parsing with schema validation
+- [ ] Comprehensive error messages for validation failures
+
+**Implementation Notes**:
+- Add `zod` dependency (~56KB)
+- Create schemas in `src/lib/schemas.ts`
+- Use `safeParse()` for graceful error handling
+- Log validation failures for monitoring
+
 ---
 
 ## Phase 3: Advanced Features (Future)

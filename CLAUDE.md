@@ -130,7 +130,7 @@ Threat Indicators:
 Recommended Actions:
 ✓ Do NOT click any links
 ✓ Do NOT provide credentials
-✓ Report to security team
+✓ Report to IT team
 ```
 
 ## Configuration

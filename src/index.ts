@@ -40,7 +40,12 @@ class Application {
       this.phishingAgent
     );
 
-    await this.mailboxMonitor.initialize();
+    // Only initialize if mailbox monitoring is enabled
+    if (config.mailbox.enabled) {
+      await this.mailboxMonitor.initialize();
+    } else {
+      securityLogger.info('Mailbox monitoring is disabled, skipping initialization');
+    }
 
     // Initialize HTTP server
     this.httpServer = new HttpServer();

@@ -6,7 +6,6 @@
 
 import { Client } from '@microsoft/microsoft-graph-client';
 import { ClientSecretCredential } from '@azure/identity';
-import 'isomorphic-fetch';
 import { securityLogger } from '../lib/logger.js';
 import { PhishingAgent } from '../agents/phishing-agent.js';
 import { PhishingAnalysisResult } from '../lib/types.js';
