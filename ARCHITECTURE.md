@@ -302,6 +302,104 @@ az containerapp create \
 
 ---
 
+## Production Deployment
+
+### Current Production Environment
+
+**Deployment Date**: 2025-10-19
+**Status**: Live and operational
+
+**Azure Resources**:
+- **Resource Group**: rg-phishing-agent (East US)
+- **Container Registry**: phishingagentacr.azurecr.io
+- **Container App**: phishing-agent
+- **Environment**: cae-phishing-agent
+- **Production URL**: https://phishing-agent.blackisland-7c0080bf.eastus.azurecontainerapps.io/
+
+**Compute Configuration**:
+- **Platform**: Azure Container Apps (serverless)
+- **Container Image**: node:18-alpine (multi-stage build)
+- **Image Size**: 264MB
+- **Architecture**: linux/amd64
+- **Auto-scaling**: 1-3 replicas
+- **Resources per replica**: 0.5 vCPU, 1Gi RAM
+- **Ingress**: External HTTPS (automatic certificates)
+
+**Authentication & Permissions**:
+- **Azure AD App ID**: 1244194f-9bb7-4992-8306-6d54b17db0e1
+- **Auth Method**: Client credentials flow (app-only)
+- **Permissions**: Mail.Read, Mail.Send, Mail.ReadWrite (Application scope)
+- **Monitored Mailbox**: phishing@chelseapiers.com
+- **Secrets Management**: Azure Container Apps secrets (client secret stored securely)
+
+**Production Validation Results**:
+- ✅ Health endpoint: 200 OK
+- ✅ Readiness endpoint: All services healthy
+- ✅ Mailbox polling: Working (60-second interval)
+- ✅ Email detection: Validated with real phishing email
+- ✅ Analysis performance: <1 second
+- ✅ Risk assessment: 7.65/10 score calculated
+- ✅ HTML reply: Successfully sent with 9 threat indicators
+- ✅ End-to-end flow: Complete success
+
+**Cost Estimate**:
+- Container Apps: ~$25-30/month (1 replica average, 0.5 vCPU, 1Gi RAM)
+- Container Registry: ~$5/month (Basic SKU)
+- Total: ~$30-35/month
+
+**Deployment Topology**:
+```
+┌─────────────────────────────────────────────────────────┐
+│ Azure Container Apps Environment (cae-phishing-agent)   │
+│                                                          │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │ Container App (phishing-agent)                   │  │
+│  │                                                   │  │
+│  │  ┌─────────────────────────────────────────┐    │  │
+│  │  │ Container (phishing-agent:v0.2.0)       │    │  │
+│  │  │                                          │    │  │
+│  │  │ • Node.js 18 Runtime                    │    │  │
+│  │  │ • Mailbox Monitor (60s polling)         │    │  │
+│  │  │ • Phishing Analyzer                     │    │  │
+│  │  │ • HTTP Server (health checks)           │    │  │
+│  │  │                                          │    │  │
+│  │  │ Environment Variables:                  │    │  │
+│  │  │ • AZURE_TENANT_ID                       │    │  │
+│  │  │ • AZURE_CLIENT_ID                       │    │  │
+│  │  │ • AZURE_CLIENT_SECRET (secretref)       │    │  │
+│  │  │ • PHISHING_MAILBOX_ADDRESS              │    │  │
+│  │  │ • PORT=3000                             │    │  │
+│  │  └─────────────────────────────────────────┘    │  │
+│  │                                                   │  │
+│  │  Ingress: HTTPS (*.azurecontainerapps.io)       │  │
+│  └──────────────────────────────────────────────────┘  │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+                        │
+                        │ Managed Identity
+                        ↓
+┌─────────────────────────────────────────────────────────┐
+│ Azure Container Registry (phishingagentacr)             │
+│ • Image: phishing-agent:v0.2.0 (264MB)                  │
+│ • Image: phishing-agent:latest                          │
+└─────────────────────────────────────────────────────────┘
+                        │
+                        │ OAuth 2.0 (Client Credentials)
+                        ↓
+┌─────────────────────────────────────────────────────────┐
+│ Microsoft Graph API                                      │
+│ • Read emails from phishing@chelseapiers.com            │
+│ • Send HTML reply emails                                │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Deployment Method**: Manual deployment (Lean Startup approach)
+- Rationale: Validate MVP with real users before investing in CI/CD automation
+- Time to production: 35 minutes from code complete to live
+- Documentation: DEPLOYMENT_PLAN.md (comprehensive roadmap), DEPLOY_MANUAL.md (step-by-step guide)
+
+---
+
 ## Monitoring
 
 ### Logs

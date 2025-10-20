@@ -2,6 +2,28 @@
 
 All notable changes to the phishing-agent project will be documented in this file.
 
+## [0.2.1] - 2025-10-19
+
+### Added
+- Docker multi-stage build for production deployment
+- Azure Container Apps production environment
+- Azure Container Registry integration
+- Production documentation (DEPLOYMENT_PLAN.md, DEPLOY_MANUAL.md)
+- Comprehensive security guide (SECURITY.md)
+- Production health check validation
+- End-to-end production testing with real phishing email
+
+### Changed
+- Updated README.md with Docker deployment instructions
+- Updated all project documentation with production status
+- Configured Azure AD permissions for production mailbox access
+
+### Validated
+- Production deployment to Azure Container Apps (East US)
+- Analysis performance <1 second in production
+- Risk assessment accuracy (7.65/10 score with 9 threat indicators)
+- Email reply delivery successfully tested
+
 ## [0.2.0] - 2025-10-16
 
 ### Added

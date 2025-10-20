@@ -145,6 +145,27 @@ Optional threat intel:
 - `ABUSEIPDB_API_KEY`
 - `URLSCAN_API_KEY`
 
+## Production Environment
+
+**Status**: Live and operational (deployed 2025-10-19)
+
+**Production Details**:
+- **URL**: https://phishing-agent.blackisland-7c0080bf.eastus.azurecontainerapps.io/
+- **Platform**: Azure Container Apps (serverless, auto-scaling 1-3 replicas)
+- **Monitored Mailbox**: phishing@chelseapiers.com
+- **Azure AD App**: 1244194f-9bb7-4992-8306-6d54b17db0e1
+- **Region**: East US
+- **Cost**: ~$30-35/month
+
+**Production Validation**:
+- Analysis performance: <1 second (validated with real phishing email)
+- Risk assessment: 7.65/10 score, 9 threat indicators detected
+- Email reply: Successfully delivered HTML-formatted analysis
+- Mailbox polling: Working (60-second intervals)
+- Health checks: All passing
+
+**Deployment Approach**: Manual deployment using Lean Startup methodology (validate MVP before investing in CI/CD automation)
+
 ## Testing Guidelines
 
 Test with real-world phishing examples:
