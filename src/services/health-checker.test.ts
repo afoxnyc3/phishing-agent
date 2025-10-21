@@ -15,6 +15,15 @@ describe('HealthChecker', () => {
   beforeEach(() => {
     checker = new HealthChecker();
 
+    // Mock process.memoryUsage to return predictable, healthy values
+    jest.spyOn(process, 'memoryUsage').mockReturnValue({
+      rss: 100 * 1024 * 1024, // 100 MB
+      heapTotal: 50 * 1024 * 1024, // 50 MB
+      heapUsed: 30 * 1024 * 1024, // 30 MB (60% of heap - healthy)
+      external: 5 * 1024 * 1024,
+      arrayBuffers: 1 * 1024 * 1024,
+    });
+
     mockAgent = {
       healthCheck: jest.fn(),
     } as unknown as jest.Mocked<PhishingAgent>;
@@ -34,8 +43,7 @@ describe('HealthChecker', () => {
   });
 
   describe('checkHealth', () => {
-    // Skip in CI due to environment-specific flakiness
-    it.skipIf(process.env.CI === 'true')('should return healthy when all components are healthy', async () => {
+    it('should return healthy when all components are healthy', async () => {
       mockAgent.healthCheck.mockResolvedValue(true);
       mockMonitor.healthCheck.mockResolvedValue(true);
       (mockMonitor.getStatus as jest.Mock).mockReturnValue({
@@ -130,8 +138,7 @@ describe('HealthChecker', () => {
   });
 
   describe('Memory Health', () => {
-    // Skip in CI due to environment-specific flakiness
-    it.skipIf(process.env.CI === 'true')('should report memory usage', async () => {
+    it('should report memory usage', async () => {
       const health = await checker.checkHealth();
 
       expect(health.components.memory.healthy).toBe(true);
