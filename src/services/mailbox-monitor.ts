@@ -10,6 +10,8 @@ import { securityLogger } from '../lib/logger.js';
 import { PhishingAgent } from '../agents/phishing-agent.js';
 import { PhishingAnalysisResult } from '../lib/types.js';
 import { parseGraphEmail, validateGraphEmailListResponse } from './graph-email-parser.js';
+import { RateLimiter, RateLimiterConfig } from './rate-limiter.js';
+import { EmailDeduplication, DeduplicationConfig } from './email-deduplication.js';
 
 export interface MailboxMonitorConfig {
   tenantId: string;
@@ -18,6 +20,8 @@ export interface MailboxMonitorConfig {
   mailboxAddress: string;
   checkIntervalMs?: number;
   enabled?: boolean;
+  rateLimiter?: RateLimiterConfig;
+  deduplication?: DeduplicationConfig;
 }
 
 export class MailboxMonitor {
@@ -27,12 +31,34 @@ export class MailboxMonitor {
   private checkInterval: NodeJS.Timeout | null = null;
   private lastCheckTime: Date;
   private isRunning: boolean = false;
+  private rateLimiter: RateLimiter;
+  private deduplication: EmailDeduplication;
 
   constructor(config: MailboxMonitorConfig, phishingAgent: PhishingAgent) {
     this.config = { checkIntervalMs: 60000, enabled: true, ...config };
     this.phishingAgent = phishingAgent;
     this.lastCheckTime = new Date(Date.now() - 5 * 60 * 1000);
     this.client = this.createGraphClient(config);
+
+    // Initialize rate limiter with defaults
+    this.rateLimiter = new RateLimiter(
+      config.rateLimiter || {
+        enabled: true,
+        maxEmailsPerHour: 100,
+        maxEmailsPerDay: 1000,
+        circuitBreakerThreshold: 50,
+        circuitBreakerWindowMs: 600000,
+      }
+    );
+
+    // Initialize deduplication with defaults
+    this.deduplication = new EmailDeduplication(
+      config.deduplication || {
+        enabled: true,
+        contentHashTtlMs: 86400000,
+        senderCooldownMs: 86400000,
+      }
+    );
   }
 
   /**
@@ -183,13 +209,28 @@ export class MailboxMonitor {
    */
   private async processEmail(graphEmail: any): Promise<void> {
     const processingId = `process-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const senderEmail = graphEmail.from?.emailAddress?.address || 'unknown';
+    const subject = graphEmail.subject || '(No Subject)';
+    const body = graphEmail.body?.content || graphEmail.bodyPreview || '';
 
     securityLogger.info('Processing email from mailbox', {
       processingId,
       emailId: graphEmail.id,
-      subject: graphEmail.subject,
-      from: graphEmail.from?.emailAddress?.address,
+      subject,
+      from: senderEmail,
     });
+
+    // Check deduplication before processing
+    const dedupeCheck = this.deduplication.shouldProcess(senderEmail, subject, body);
+    if (!dedupeCheck.allowed) {
+      securityLogger.info('Email skipped due to deduplication', {
+        processingId,
+        sender: senderEmail,
+        subject,
+        reason: dedupeCheck.reason,
+      });
+      return;
+    }
 
     try {
       const analysisRequest = parseGraphEmail(graphEmail);
@@ -204,6 +245,10 @@ export class MailboxMonitor {
       });
 
       await this.sendReply(graphEmail, analysisResult, processingId);
+
+      // Record as processed after successful reply
+      this.deduplication.recordProcessed(senderEmail, subject, body);
+
       securityLogger.info('Email processing completed successfully', { processingId });
     } catch (error: any) {
       securityLogger.error('Failed to process email', { processingId, error: error.message });
@@ -227,16 +272,33 @@ export class MailboxMonitor {
       return;
     }
 
+    // Check rate limits before sending
+    const rateLimitCheck = this.rateLimiter.canSendEmail();
+    if (!rateLimitCheck.allowed) {
+      securityLogger.warn('Email reply blocked by rate limiter', {
+        processingId,
+        recipient: senderEmail,
+        reason: rateLimitCheck.reason,
+        stats: this.rateLimiter.getStats(),
+      });
+      return;
+    }
+
     const htmlBody = this.buildReplyHtml(analysis);
     const replyMessage = this.createReplyMessage(originalEmail, htmlBody, analysis.isPhishing);
 
     try {
       await this.client.api(`/users/${this.config.mailboxAddress}/sendMail`).post(replyMessage);
+
+      // Record email sent after successful send
+      this.rateLimiter.recordEmailSent();
+
       securityLogger.info('Analysis reply sent', {
         processingId,
         recipient: senderEmail,
         isPhishing: analysis.isPhishing,
         riskScore: analysis.riskScore,
+        rateLimitStats: this.rateLimiter.getStats(),
       });
     } catch (error: any) {
       securityLogger.error('Failed to send analysis reply', { processingId, error: error.message });
@@ -379,12 +441,21 @@ export class MailboxMonitor {
   /**
    * Get monitoring status
    */
-  getStatus(): { isRunning: boolean; mailbox: string; lastCheckTime: Date; checkInterval: number } {
+  getStatus(): {
+    isRunning: boolean;
+    mailbox: string;
+    lastCheckTime: Date;
+    checkInterval: number;
+    rateLimitStats: ReturnType<RateLimiter['getStats']>;
+    deduplicationStats: ReturnType<EmailDeduplication['getStats']>;
+  } {
     return {
       isRunning: this.isRunning,
       mailbox: this.config.mailboxAddress,
       lastCheckTime: this.lastCheckTime,
       checkInterval: this.config.checkIntervalMs!,
+      rateLimitStats: this.rateLimiter.getStats(),
+      deduplicationStats: this.deduplication.getStats(),
     };
   }
 

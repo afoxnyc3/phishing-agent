@@ -2,27 +2,29 @@
 
 Email-triggered phishing analysis agent with automated risk assessment replies.
 
-**GitHub**: https://github.com/afoxnyc3/phishing-agent
-**Status**: v0.2.0 (MVP Complete - Ready for Testing)
+**Version**: v0.2.2
+**Status**: Production-Ready MVP with Rate Limiting & Deduplication
 
 ## Overview
 
 **Purpose**: Monitor a designated email inbox → Analyze forwarded suspicious emails → Send risk assessment replies.
 
-**Flow**: User forwards email to `phishing@company.com` → Agent analyzes headers & content → User receives HTML reply with findings within 10 seconds.
+**Flow**: User forwards email to monitored mailbox → Agent analyzes headers & content → User receives HTML reply with findings within seconds.
 
-**Tech Stack**: TypeScript + Node.js + Microsoft Graph API + Zod validation + Winston logging
+**Tech Stack**: TypeScript + Node.js + Microsoft Graph API + Zod validation + Winston logging + Rate limiting
 
 ---
 
 ## Features
 
 - **Automated Monitoring**: Poll mailbox every 60 seconds via Microsoft Graph API
-- **Fast Analysis**: 2-5 second phishing detection using rule-based engine
+- **Fast Analysis**: < 1 second typical phishing detection using rule-based engine
 - **Clear Results**: HTML email replies with color-coded risk assessment
 - **Threat Indicators**: SPF/DKIM/DMARC validation, suspicious URL detection, brand impersonation
 - **Optional Intel**: VirusTotal, AbuseIPDB, URLScan.io integration
 - **Runtime Validation**: Zod schema validation for all external API responses
+- **Rate Limiting**: Prevent email sending abuse with configurable hourly/daily limits and circuit breaker
+- **Deduplication**: Prevent duplicate replies for same phishing email with content hashing and sender cooldown
 - **Atomic Code**: Max 25 lines per function, max 150 lines per file
 
 ---
@@ -172,6 +174,30 @@ ABUSEIPDB_API_KEY=your-key
 URLSCAN_API_KEY=your-key
 ```
 
+### Rate Limiting & Deduplication
+
+Prevent email sending abuse and duplicate replies:
+
+```env
+# Rate Limiting (prevents mass email incidents)
+RATE_LIMIT_ENABLED=true
+MAX_EMAILS_PER_HOUR=100          # Maximum outbound emails per hour
+MAX_EMAILS_PER_DAY=1000          # Maximum outbound emails per day
+CIRCUIT_BREAKER_THRESHOLD=50     # Trip breaker if this many emails sent in window
+CIRCUIT_BREAKER_WINDOW_MS=600000 # Circuit breaker window (10 minutes)
+
+# Email Deduplication (prevents duplicate replies)
+DEDUPLICATION_ENABLED=true
+DEDUPLICATION_TTL_MS=86400000    # How long to remember processed emails (24 hours)
+SENDER_COOLDOWN_MS=86400000      # Min time between replies to same sender (24 hours)
+```
+
+**How it works:**
+- **Content Deduplication**: Same phishing email forwarded by 1000 users = only 1 reply sent
+- **Sender Cooldown**: Each user can only receive 1 reply per 24 hours
+- **Rate Limiting**: Hard caps at 100 emails/hour and 1000 emails/day
+- **Circuit Breaker**: Auto-stops sending if 50 emails sent in 10 minutes (resets after 1 hour)
+
 ### Azure AD Permissions
 
 App registration requires:
@@ -187,12 +213,13 @@ App registration requires:
 
 ### How It Works
 
-1. **User forwards suspicious email** to `phishing@company.com`
+1. **User forwards suspicious email** to monitored mailbox (e.g., `phishing@yourcompany.com`)
 2. **Mailbox monitor** detects new email (polls every 60s)
 3. **Analysis engine** evaluates headers + content (SPF, DKIM, DMARC, URLs, keywords)
 4. **Risk scorer** calculates threat level (0-10 scale)
-5. **Email sender** replies with HTML-formatted findings
-6. **User receives analysis** within 10 seconds
+5. **Rate limiter** checks sending limits and deduplication
+6. **Email sender** replies with HTML-formatted findings
+7. **User receives analysis** within seconds
 
 ### Example Analysis Reply
 
@@ -236,8 +263,8 @@ GET /health
 Response:
 {
   "status": "healthy",
-  "timestamp": "2025-10-16T12:00:00Z",
-  "version": "0.1.0"
+  "timestamp": "2025-10-20T12:00:00Z",
+  "version": "0.2.2"
 }
 ```
 
@@ -251,8 +278,8 @@ Response:
   "status": "ready",
   "mailboxMonitor": {
     "isRunning": true,
-    "lastCheckTime": "2025-10-16T12:00:00Z",
-    "mailboxAddress": "phishing@company.com"
+    "lastCheckTime": "2025-10-20T12:00:00Z",
+    "mailboxAddress": "phishing@yourcompany.com"
   }
 }
 ```
@@ -332,23 +359,28 @@ export function validateSpfRecord(spfHeader: string | undefined): Result<string,
 
 ## Roadmap
 
-### v0.2.0 (Current - MVP Complete)
+### v0.2.2 (Current - Production Ready)
 - [x] Project structure and documentation
 - [x] Core analysis engine (header-validator, content-analyzer, risk-scorer)
 - [x] Mailbox monitoring via Microsoft Graph API
 - [x] HTML email reply functionality
 - [x] Threat intel integration (VirusTotal, AbuseIPDB, URLScan)
+- [x] Zod runtime validation for external APIs
+- [x] Rate limiting (hourly/daily caps, circuit breaker)
+- [x] Email deduplication (content hashing, sender cooldown)
 - [x] Health checks and logging
+- [x] Docker containerization
+- [x] Testing framework (Jest, 95%+ coverage, 340 tests)
 
-### v0.3.0 (Enhanced Detection - Next)
-- [ ] Brand impersonation detection (Issue #1)
-- [ ] Attachment analysis (Issue #2)
-- [ ] Testing framework (Jest, 90%+ coverage)
+### v0.3.0 (Enhanced Detection - Planned)
+- [ ] Brand impersonation detection (Issue #7)
+- [ ] Attachment analysis (Issue #8)
+- [ ] Cloud deployment automation (CI/CD pipeline)
 
 ### v0.4.0 (Advanced Features - Future)
-- [ ] Machine learning model (Issue #3)
-- [ ] LLM-enhanced analysis (Issue #4)
-- [ ] Reporting dashboard (Issue #5)
+- [ ] Machine learning model (Issue #14)
+- [ ] LLM-enhanced analysis (Issue #15)
+- [ ] Reporting dashboard (Issue #16)
 
 For complete roadmap and GitHub issues, see [roadmap.md](./roadmap.md).
 
@@ -356,11 +388,21 @@ For complete roadmap and GitHub issues, see [roadmap.md](./roadmap.md).
 
 ## Documentation
 
-- **[CLAUDE.md](./CLAUDE.md)** - Agent behavior and instructions
+### Core Documentation
+- **[AGENT_DESIGN.md](./AGENT_DESIGN.md)** - Design philosophy and methodology
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System design and data flow
+- **[STATUS.md](./STATUS.md)** - Current project status
+- **[roadmap.md](./roadmap.md)** - Feature planning and roadmap
+
+### Technical Documentation
+- **[TECH_STACK.md](./TECH_STACK.md)** - Technology inventory
+- **[SECURITY.md](./SECURITY.md)** - Credential management guide
 - **[changelog.md](./changelog.md)** - Version history
 - **[decision-log.md](./decision-log.md)** - Technical decisions with rationale
-- **[roadmap.md](./roadmap.md)** - Feature planning and GitHub issues
+
+### Deployment Documentation
+- **[DEPLOYMENT_PLAN.md](./DEPLOYMENT_PLAN.md)** - Infrastructure roadmap
+- **[DEPLOY_MANUAL.md](./DEPLOY_MANUAL.md)** - Step-by-step deployment guide
 
 ---
 
@@ -373,5 +415,6 @@ MIT License - see LICENSE file for details.
 ## Support
 
 - **Issues**: Report bugs or request features via GitHub Issues
-- **Documentation**: See docs/ directory for detailed guides
-- **Security**: Report vulnerabilities privately to security@company.com
+- **Documentation**: See project documentation files for detailed guides
+- **Security**: Report vulnerabilities privately via GitHub Security Advisories
+- **Contributing**: See CONTRIBUTING.md for guidelines (if available)

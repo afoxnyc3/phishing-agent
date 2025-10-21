@@ -1,6 +1,11 @@
 # Security Guide
 
-This document outlines security best practices, credential management, and incident response procedures for the phishing-agent project.
+**Purpose**: This document outlines security best practices, credential management, and incident response procedures for the phishing-agent project.
+
+**Last Updated**: 2025-10-20
+**Version**: v0.2.2
+
+**Note**: Adapt these security procedures to your organization's specific requirements and policies.
 
 ---
 
@@ -229,14 +234,22 @@ Before merging any PR:
 
 ---
 
-## Audit Log
+## Audit Log Template
 
-Track all credential rotations:
+Track all credential rotations in your organization:
 
-| Date | Credential Type | Reason | Performed By |
-|------|----------------|--------|--------------|
-| 2025-10-19 | Azure Client Secret | Security cleanup, test file exposure | Claude Code |
-| | | | |
+| Date | Credential Type | Reason | Performed By | Notes |
+|------|----------------|--------|--------------|-------|
+| YYYY-MM-DD | Azure Client Secret | Scheduled 90-day rotation | Admin Name | Successful |
+| YYYY-MM-DD | API Keys | Security incident response | Admin Name | Emergency rotation |
+| | | | | |
+
+**Best Practices**:
+- Log all credential changes
+- Include who performed the rotation
+- Document the reason (scheduled vs. incident)
+- Note any issues encountered
+- Review audit log monthly
 
 ---
 
@@ -251,5 +264,10 @@ Track all credential rotations:
 ## Contact
 
 For security issues or questions:
-- Email: security@company.com
-- Internal: #security-team Slack channel
+- **Email**: security@yourcompany.com
+- **Internal Communication**: Use your organization's secure channel (e.g., Slack #security-team)
+- **Emergency**: Follow your organization's incident response procedures
+
+**For Public Vulnerability Reports**:
+- Use GitHub Security Advisories (https://github.com/YOUR-REPO/security/advisories)
+- Or email security contact listed in repository

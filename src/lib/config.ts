@@ -97,6 +97,22 @@ export const config = {
     urlScanApiKey: env.URLSCAN_API_KEY,
   },
 
+  // Rate limiting
+  rateLimit: {
+    enabled: env.RATE_LIMIT_ENABLED,
+    maxEmailsPerHour: env.MAX_EMAILS_PER_HOUR,
+    maxEmailsPerDay: env.MAX_EMAILS_PER_DAY,
+    circuitBreakerThreshold: env.CIRCUIT_BREAKER_THRESHOLD,
+    circuitBreakerWindowMs: env.CIRCUIT_BREAKER_WINDOW_MS,
+  },
+
+  // Email deduplication
+  deduplication: {
+    enabled: env.DEDUPLICATION_ENABLED,
+    contentHashTtlMs: env.DEDUPLICATION_TTL_MS,
+    senderCooldownMs: env.SENDER_COOLDOWN_MS,
+  },
+
   // Server
   server: {
     port: env.PORT,
