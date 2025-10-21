@@ -28,6 +28,18 @@ export const EnvConfigSchema = z.object({
   ABUSEIPDB_API_KEY: z.string().optional(),
   URLSCAN_API_KEY: z.string().optional(),
 
+  // Rate Limiting configuration
+  RATE_LIMIT_ENABLED: z.coerce.boolean().default(true),
+  MAX_EMAILS_PER_HOUR: z.coerce.number().int().positive().default(100),
+  MAX_EMAILS_PER_DAY: z.coerce.number().int().positive().default(1000),
+  CIRCUIT_BREAKER_THRESHOLD: z.coerce.number().int().positive().default(50),
+  CIRCUIT_BREAKER_WINDOW_MS: z.coerce.number().int().positive().default(600000), // 10 minutes
+
+  // Email Deduplication configuration
+  DEDUPLICATION_ENABLED: z.coerce.boolean().default(true),
+  DEDUPLICATION_TTL_MS: z.coerce.number().int().positive().default(86400000), // 24 hours
+  SENDER_COOLDOWN_MS: z.coerce.number().int().positive().default(86400000), // 24 hours
+
   // Server configuration
   PORT: z.coerce.number().int().positive().default(3000),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),

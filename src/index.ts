@@ -36,6 +36,8 @@ class Application {
         mailboxAddress: config.mailbox.address,
         checkIntervalMs: config.mailbox.checkIntervalMs,
         enabled: config.mailbox.enabled,
+        rateLimiter: config.rateLimit,
+        deduplication: config.deduplication,
       },
       this.phishingAgent
     );

@@ -327,7 +327,13 @@ describe('MailboxMonitor', () => {
     });
 
     it('should process multiple emails', async () => {
-      const email2 = { ...mockEmail, id: 'email-456' };
+      const email2 = {
+        ...mockEmail,
+        id: 'email-456',
+        subject: 'Different Subject',
+        from: { emailAddress: { address: 'different-sender@example.com' } },
+        body: { content: 'Different content to avoid deduplication' },
+      };
       mockGraphGet.mockResolvedValue({ value: [mockEmail, email2] });
       mockGraphPost.mockResolvedValue({});
       mockPhishingAgent.analyzeEmail.mockResolvedValue(mockAnalysisResult);
@@ -340,7 +346,13 @@ describe('MailboxMonitor', () => {
     });
 
     it('should continue processing if one email fails', async () => {
-      const email2 = { ...mockEmail, id: 'email-456' };
+      const email2 = {
+        ...mockEmail,
+        id: 'email-456',
+        subject: 'Another Different Subject',
+        from: { emailAddress: { address: 'another-sender@example.com' } },
+        body: { content: 'Another different content to avoid deduplication' },
+      };
       mockGraphGet.mockResolvedValue({ value: [mockEmail, email2] });
       mockGraphPost.mockResolvedValue({});
 
