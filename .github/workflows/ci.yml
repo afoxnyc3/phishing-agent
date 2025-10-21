@@ -10,6 +10,16 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    env:
+      # Azure Configuration (dummy values for testing)
+      AZURE_TENANT_ID: test-tenant-id
+      AZURE_CLIENT_ID: test-client-id
+      AZURE_CLIENT_SECRET: test-client-secret
+      PHISHING_MAILBOX_ADDRESS: test@example.com
+      # Server Configuration
+      PORT: 3000
+      NODE_ENV: test
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
