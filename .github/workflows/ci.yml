@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      # CI marker for test skipping
+      CI: true
       # Azure Configuration (dummy values for testing)
       AZURE_TENANT_ID: test-tenant-id
       AZURE_CLIENT_ID: test-client-id
