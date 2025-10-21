@@ -1,9 +1,9 @@
 # Technology Stack
 
-Comprehensive technology inventory for the phishing-agent project.
+**Purpose**: This document provides a comprehensive technology inventory for the phishing-agent project, including runtime environment, dependencies, infrastructure, and deployment specifications.
 
-**Last Updated**: 2025-10-19
-**Version**: v0.2.1
+**Last Updated**: 2025-10-20
+**Version**: v0.2.2
 
 ---
 
@@ -86,8 +86,9 @@ Comprehensive technology inventory for the phishing-agent project.
 "ts-jest": "^29.1.1"
 "@types/jest": "^29.5.11"
 ```
-**Coverage**: 95.82% overall (277 passing tests)
+**Coverage**: 95%+ overall (340 passing tests)
 **Strategy**: Unit tests for atomic functions, integration tests for services
+**Includes**: Rate limiting tests (63 tests), deduplication tests, core analysis tests
 
 ### Code Quality
 ```json
@@ -190,33 +191,35 @@ docker-compose up -d  # Recommended for local development
 
 ---
 
-## Production Environment
+## Cloud Deployment Example
 
-### Azure Resources
+### Example Azure Configuration
 ```
-Resource Group: rg-phishing-agent
-Location: East US
-Container Registry: phishingagentacr.azurecr.io
+Resource Group: rg-phishing-agent (choose your region)
+Location: Choose based on requirements (e.g., East US, West Europe)
+Container Registry: <your-registry-name>.azurecr.io
 Container App: phishing-agent
-Environment: cae-phishing-agent
+Environment: <your-environment-name>
 ```
+
+**Note**: This is an example for Azure. Adapt for AWS (ECS, Fargate), GCP (Cloud Run), or other providers.
 
 ### Compute Specifications
 ```
-Platform: Azure Container Apps (serverless)
-Auto-scaling: 1-3 replicas
-Resources per replica: 0.5 vCPU, 1Gi RAM
+Platform: Azure Container Apps (serverless) or equivalent
+Auto-scaling: 1-3 replicas (configurable)
+Resources per replica: 0.5 vCPU, 1Gi RAM (minimum recommended)
 Ingress: External HTTPS (automatic certificates)
 Health checks: /health, /ready endpoints
 ```
 
-### Environment Variables (Production)
+### Environment Variables (Production Example)
 ```env
 # Required
-AZURE_TENANT_ID=<tenant-id>
-AZURE_CLIENT_ID=<client-id>
+AZURE_TENANT_ID=<your-azure-tenant-id>
+AZURE_CLIENT_ID=<your-azure-client-id>
 AZURE_CLIENT_SECRET=secretref:azure-client-secret  # Stored as secret
-PHISHING_MAILBOX_ADDRESS=phishing@chelseapiers.com
+PHISHING_MAILBOX_ADDRESS=phishing@yourcompany.com
 
 # Optional (with defaults)
 PORT=3000
@@ -224,11 +227,22 @@ NODE_ENV=production
 MAILBOX_CHECK_INTERVAL_MS=60000
 MAILBOX_MONITOR_ENABLED=true
 LOG_LEVEL=info
+
+# Rate Limiting (Recommended)
+RATE_LIMIT_ENABLED=true
+MAX_EMAILS_PER_HOUR=100
+MAX_EMAILS_PER_DAY=1000
+CIRCUIT_BREAKER_THRESHOLD=50
+
+# Email Deduplication (Recommended)
+DEDUPLICATION_ENABLED=true
+DEDUPLICATION_TTL_MS=86400000
+SENDER_COOLDOWN_MS=86400000
 ```
 
 ### Secrets Management
-- **Azure Client Secret**: Stored in Azure Container Apps secrets
-- **Reference Pattern**: `secretref:<secret-name>`
+- **Cloud Provider Secrets**: Store in Azure Key Vault, AWS Secrets Manager, or GCP Secret Manager
+- **Container Apps Pattern**: `secretref:<secret-name>`
 - **Rotation**: 90-day recommended interval (see SECURITY.md)
 
 ---
@@ -285,7 +299,8 @@ Dev Dependencies:
 ## Version Control & CI/CD
 
 ### Repository
-- **GitHub**: https://github.com/afoxnyc3/phishing-agent
+- **Version Control**: Git
+- **Hosting**: GitHub (or equivalent)
 - **Branch Strategy**: Main branch (direct commits for MVP)
 - **Commit Style**: Conventional Commits (`feat:`, `fix:`, `docs:`)
 
@@ -339,7 +354,7 @@ npm outdated             # Check for outdated packages
 ### Health Checks
 ```bash
 GET /health
-Response: {"status":"healthy","timestamp":"2025-10-19T...","version":"0.2.1"}
+Response: {"status":"healthy","timestamp":"2025-10-20T...","version":"0.2.2"}
 
 GET /ready
 Response: {"status":"ready","phishingAgent":true,"mailboxMonitor":true}
@@ -374,7 +389,7 @@ Response: {"status":"ready","phishingAgent":true,"mailboxMonitor":true}
 ### Project Documentation
 - **README.md** - Quick start and usage guide
 - **ARCHITECTURE.md** - System design and data flow
-- **CLAUDE.md** - Agent behavior and instructions
+- **AGENT_DESIGN.md** - Design philosophy and methodology
 - **STATUS.md** - Current project status
 - **roadmap.md** - Feature planning and GitHub issues
 - **decision-log.md** - Technical decisions with rationale
@@ -402,12 +417,12 @@ Response: {"status":"ready","phishingAgent":true,"mailboxMonitor":true}
 - [Azure Container Apps](https://learn.microsoft.com/en-us/azure/container-apps/)
 
 ### Community Resources
-- [GitHub Issues](https://github.com/afoxnyc3/phishing-agent/issues)
 - [Conventional Commits](https://www.conventionalcommits.org/)
 - [Keep a Changelog](https://keepachangelog.com/)
+- [Docker Best Practices](https://docs.docker.com/develop/dev-best-practices/)
 
 ---
 
-**Document Version**: 1.0
-**Last Audit**: 2025-10-19
-**Next Review**: 2025-11-19 (monthly review cycle)
+**Document Version**: 1.1
+**Last Audit**: 2025-10-20
+**Next Review**: 2025-11-20 (monthly review cycle)

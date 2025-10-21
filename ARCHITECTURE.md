@@ -1,12 +1,19 @@
 # Phishing Agent Architecture
 
+**Purpose**: This document provides a comprehensive technical overview of the phishing agent system architecture, components, and data flow.
+
+**Last Updated**: 2025-10-20
+**Version**: v0.2.2
+
+---
+
 ## System Overview
 
 **Purpose**: Automated phishing email analysis triggered by email forwarding.
 
 **Flow**: User forwards suspicious email → Mailbox monitor detects → Analyze for phishing → Send HTML reply with findings.
 
-**Performance Target**: 2-5 seconds per email analysis, 10 seconds total response time.
+**Performance Target**: < 1 second typical analysis time, 5 seconds maximum.
 
 ---
 
@@ -302,61 +309,47 @@ az containerapp create \
 
 ---
 
-## Production Deployment
+## Example Cloud Deployment
 
-### Current Production Environment
+This section provides an example of deploying to Azure Container Apps. Adapt to your cloud provider (AWS, GCP, etc.) as needed.
 
-**Deployment Date**: 2025-10-19
-**Status**: Live and operational
+### Azure Container Apps Deployment Example
 
-**Azure Resources**:
-- **Resource Group**: rg-phishing-agent (East US)
-- **Container Registry**: phishingagentacr.azurecr.io
-- **Container App**: phishing-agent
-- **Environment**: cae-phishing-agent
-- **Production URL**: https://phishing-agent.blackisland-7c0080bf.eastus.azurecontainerapps.io/
+**Platform**: Azure Container Apps (serverless container hosting)
 
-**Compute Configuration**:
+**Example Configuration**:
+- **Resource Group**: `rg-phishing-agent` (choose your region)
+- **Container Registry**: `<your-registry-name>.azurecr.io`
+- **Container App**: `phishing-agent`
+- **Environment**: `cae-phishing-agent`
+- **Production URL**: `https://<your-app-name>.<region>.azurecontainerapps.io/`
+
+**Compute Specifications**:
 - **Platform**: Azure Container Apps (serverless)
 - **Container Image**: node:18-alpine (multi-stage build)
-- **Image Size**: 264MB
+- **Image Size**: ~264MB
 - **Architecture**: linux/amd64
-- **Auto-scaling**: 1-3 replicas
-- **Resources per replica**: 0.5 vCPU, 1Gi RAM
+- **Auto-scaling**: 1-3 replicas (configurable)
+- **Resources per replica**: 0.5 vCPU, 1Gi RAM (minimum recommended)
 - **Ingress**: External HTTPS (automatic certificates)
 
 **Authentication & Permissions**:
-- **Azure AD App ID**: 1244194f-9bb7-4992-8306-6d54b17db0e1
+- **Azure AD App ID**: `<your-azure-app-id>`
 - **Auth Method**: Client credentials flow (app-only)
-- **Permissions**: Mail.Read, Mail.Send, Mail.ReadWrite (Application scope)
-- **Monitored Mailbox**: phishing@chelseapiers.com
-- **Secrets Management**: Azure Container Apps secrets (client secret stored securely)
+- **Permissions Required**: Mail.Read, Mail.Send, Mail.ReadWrite (Application scope)
+- **Monitored Mailbox**: `phishing@yourcompany.com`
+- **Secrets Management**: Azure Container Apps secrets (or Azure Key Vault)
 
-**Production Validation Results**:
-- ✅ Health endpoint: 200 OK
-- ✅ Readiness endpoint: All services healthy
-- ✅ Mailbox polling: Working (60-second interval)
-- ✅ Email detection: Validated with real phishing email
-- ✅ Analysis performance: <1 second
-- ✅ Risk assessment: 7.65/10 score calculated
-- ✅ HTML reply: Successfully sent with 9 threat indicators
-- ✅ End-to-end flow: Complete success
-
-**Cost Estimate**:
-- Container Apps: ~$25-30/month (1 replica average, 0.5 vCPU, 1Gi RAM)
-- Container Registry: ~$5/month (Basic SKU)
-- Total: ~$30-35/month
-
-**Deployment Topology**:
+**Example Resource Topology**:
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ Azure Container Apps Environment (cae-phishing-agent)   │
+│ Azure Container Apps Environment                        │
 │                                                          │
 │  ┌──────────────────────────────────────────────────┐  │
 │  │ Container App (phishing-agent)                   │  │
 │  │                                                   │  │
 │  │  ┌─────────────────────────────────────────┐    │  │
-│  │  │ Container (phishing-agent:v0.2.0)       │    │  │
+│  │  │ Container (phishing-agent:v0.2.2)       │    │  │
 │  │  │                                          │    │  │
 │  │  │ • Node.js 18 Runtime                    │    │  │
 │  │  │ • Mailbox Monitor (60s polling)         │    │  │
@@ -364,23 +357,23 @@ az containerapp create \
 │  │  │ • HTTP Server (health checks)           │    │  │
 │  │  │                                          │    │  │
 │  │  │ Environment Variables:                  │    │  │
-│  │  │ • AZURE_TENANT_ID                       │    │  │
-│  │  │ • AZURE_CLIENT_ID                       │    │  │
+│  │  │ • AZURE_TENANT_ID=<your-tenant>         │    │  │
+│  │  │ • AZURE_CLIENT_ID=<your-client>         │    │  │
 │  │  │ • AZURE_CLIENT_SECRET (secretref)       │    │  │
 │  │  │ • PHISHING_MAILBOX_ADDRESS              │    │  │
 │  │  │ • PORT=3000                             │    │  │
 │  │  └─────────────────────────────────────────┘    │  │
 │  │                                                   │  │
-│  │  Ingress: HTTPS (*.azurecontainerapps.io)       │  │
+│  │  Ingress: HTTPS (automatic certificates)         │  │
 │  └──────────────────────────────────────────────────┘  │
 │                                                          │
 └─────────────────────────────────────────────────────────┘
                         │
-                        │ Managed Identity
+                        │ Pull Images
                         ↓
 ┌─────────────────────────────────────────────────────────┐
-│ Azure Container Registry (phishingagentacr)             │
-│ • Image: phishing-agent:v0.2.0 (264MB)                  │
+│ Container Registry                                       │
+│ • Image: phishing-agent:v0.2.2 (~264MB)                 │
 │ • Image: phishing-agent:latest                          │
 └─────────────────────────────────────────────────────────┘
                         │
@@ -388,15 +381,45 @@ az containerapp create \
                         ↓
 ┌─────────────────────────────────────────────────────────┐
 │ Microsoft Graph API                                      │
-│ • Read emails from phishing@chelseapiers.com            │
+│ • Read emails from phishing@yourcompany.com             │
 │ • Send HTML reply emails                                │
 └─────────────────────────────────────────────────────────┘
 ```
 
-**Deployment Method**: Manual deployment (Lean Startup approach)
-- Rationale: Validate MVP with real users before investing in CI/CD automation
-- Time to production: 35 minutes from code complete to live
-- Documentation: DEPLOYMENT_PLAN.md (comprehensive roadmap), DEPLOY_MANUAL.md (step-by-step guide)
+### Estimated Cloud Costs
+
+**Azure Example** (Costs vary by region and usage):
+- Container Apps: ~$25-30/month (1 replica average, 0.5 vCPU, 1Gi RAM)
+- Container Registry Basic: ~$5/month
+- **Estimated Total**: ~$30-35/month
+
+**Note**: Actual costs depend on:
+- Number of replicas (auto-scaling)
+- Region selected
+- Network egress
+- API call volume
+
+### Deployment Approach
+
+**Manual Deployment** (MVP validation):
+- Fastest path to production
+- Validate with real users first
+- Invest in automation after validation
+
+**CI/CD Automation** (Post-validation):
+- GitHub Actions or Azure DevOps
+- Automated testing and deployment
+- See DEPLOYMENT_PLAN.md for comprehensive guides
+
+### Validation Checklist
+
+After deployment, verify:
+- ✅ Health endpoint responds: `curl https://your-url.com/health`
+- ✅ Readiness check passes: `curl https://your-url.com/ready`
+- ✅ Mailbox polling working (check logs)
+- ✅ End-to-end test with sample email
+- ✅ Analysis performance meets targets
+- ✅ Email replies delivered successfully
 
 ---
 

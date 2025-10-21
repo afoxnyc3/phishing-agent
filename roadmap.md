@@ -1,14 +1,16 @@
 # Phishing Agent Roadmap
 
-This roadmap tracks current status, upcoming features, and future enhancements for the phishing-agent project.
+**Purpose**: This document tracks current status, upcoming features, and future enhancements for the phishing-agent project.
+
+**Last Updated**: 2025-10-20
+**Version**: v0.2.2
 
 ---
 
-## Current Status: v0.2.0 (Production Deployed)
+## Current Status: v0.2.2 (Production Ready)
 
-**Completion**: 100%
-**Production URL**: https://phishing-agent.blackisland-7c0080bf.eastus.azurecontainerapps.io/
-**Deployment Date**: 2025-10-19
+**Completion**: 100% MVP + Rate Limiting Enhancements
+**Status**: Ready for cloud deployment and real-world testing
 
 - [x] Project structure created
 - [x] Documentation templates
@@ -18,18 +20,20 @@ This roadmap tracks current status, upcoming features, and future enhancements f
 - [x] Email reply functionality (HTML email responses)
 - [x] Threat intel integration (VirusTotal, AbuseIPDB, URLScan)
 - [x] Configuration management and logging
-- [x] GitHub repository setup (https://github.com/afoxnyc3/phishing-agent)
-- [x] Testing framework (Jest, 95.82% coverage, 277 tests passing)
-- [x] Docker containerization (multi-stage build, 264MB)
-- [x] Azure Container Apps production deployment
-- [x] Production validation with real phishing email test
+- [x] GitHub repository setup
+- [x] Testing framework (Jest, 95%+ coverage, 340 tests passing)
+- [x] Docker containerization (multi-stage build, ~264MB)
+- [x] Rate limiting (hourly/daily caps, circuit breaker)
+- [x] Email deduplication (content hashing, sender cooldown)
+- [x] Cloud deployment ready (Azure, AWS, GCP compatible)
 
 ---
 
 ## Phase 1: Core Functionality (MVP)
 
-**Target**: v0.2.0
-**Estimated Duration**: 2-3 weeks
+**Target**: v0.2.2
+**Status**: ✅ Completed
+**Duration**: 2-3 weeks
 
 ### Features
 
@@ -130,6 +134,43 @@ Optional external reputation checks:
 
 ---
 
+## Phase 1.5: Production Safety Features
+
+**Target**: v0.2.2
+**Status**: ✅ Completed
+**Duration**: 1 week
+
+### Features
+
+#### Issue #13: Rate Limiting & Email Deduplication
+**Status**: ✅ Completed
+**Priority**: P0 (Blocker for production)
+
+Prevent mass email incidents and abuse:
+- Hourly and daily email sending limits
+- Circuit breaker for burst protection
+- Email content deduplication (SHA-256 hashing)
+- Per-sender cooldown period
+- Configurable limits via environment variables
+
+**Acceptance Criteria**:
+- [x] Hourly rate limit enforced (default: 100 emails/hour)
+- [x] Daily rate limit enforced (default: 1,000 emails/day)
+- [x] Circuit breaker triggers on burst sending (default: 50 emails)
+- [x] Duplicate emails detected via content hashing
+- [x] Sender cooldown prevents spam (default: 24 hours)
+- [x] 100% test coverage on rate limiting logic (63 tests)
+- [x] Graceful handling when limits exceeded
+
+**Implementation**:
+- `RateLimiter` class with sliding window algorithm
+- `EmailDeduplicator` with SHA-256 content hashing
+- TTL-based cache for deduplication tracking
+- Comprehensive error messages when limits hit
+- Optional feature flags (can be disabled for testing)
+
+---
+
 ## Phase 2: Enhanced Detection (Post-MVP)
 
 **Target**: v0.3.0
@@ -200,35 +241,33 @@ Add Zod for production-grade runtime validation:
 - Validated VirusTotal and AbuseIPDB API responses
 - Maintained 94.62% overall test coverage
 
-#### Issue #12: Production Deployment
-**Status**: ✅ Completed (2025-10-19)
+#### Issue #12: Cloud Deployment Readiness
+**Status**: ✅ Completed
 **Priority**: P0 (Blocker)
 
-Deploy MVP to Azure Container Apps for production validation:
+Prepare MVP for cloud deployment with comprehensive deployment guides:
 - Docker multi-stage build (node:18-alpine)
-- Azure Container Registry setup
-- Azure Container Apps environment creation
+- Container registry setup (Azure, AWS, GCP)
+- Container hosting configuration (ACA, ECS, Cloud Run)
 - Azure AD permissions configuration
-- Production testing with real phishing email
+- Deployment documentation and validation procedures
 
 **Acceptance Criteria**:
 - [x] Docker image builds successfully (linux/amd64 platform)
-- [x] Container deployed to Azure Container Apps
-- [x] Health checks passing (/health, /ready)
-- [x] Mailbox monitor polling successfully
-- [x] End-to-end test with real email (detection, analysis, reply)
-- [x] Analysis performance <1 second validated
-- [x] Production documentation created (DEPLOYMENT_PLAN.md, DEPLOY_MANUAL.md)
+- [x] Multi-cloud deployment guides created
+- [x] Health check endpoints implemented (/health, /ready)
+- [x] Environment variable configuration documented
+- [x] End-to-end deployment validation procedures
+- [x] Performance targets defined and testable
+- [x] Deployment documentation created (DEPLOYMENT_PLAN.md, DEPLOY_MANUAL.md)
 
-**Results**:
-- Production URL: https://phishing-agent.blackisland-7c0080bf.eastus.azurecontainerapps.io/
-- Resource Group: rg-phishing-agent (East US)
-- Container Registry: phishingagentacr.azurecr.io
-- Monitored Mailbox: phishing@chelseapiers.com
-- Monthly Cost: ~$30-35 (Container Apps + ACR Basic SKU)
-- Test Results: 7.65/10 risk score, 9 threat indicators, <1s processing
+**Deployment Options**:
+- **Azure**: Container Apps, Container Instances
+- **AWS**: ECS, Fargate, App Runner
+- **GCP**: Cloud Run, GKE
+- **Estimated Monthly Cost**: ~$30-50 (varies by provider and region)
 
-**Deployment Approach**: Manual deployment using Lean Startup methodology (validate before automating)
+**Deployment Approach**: Manual deployment recommended for MVP validation (Lean Startup methodology - validate before automating with CI/CD)
 
 ---
 
@@ -239,7 +278,7 @@ Deploy MVP to Azure Container Apps for production validation:
 
 ### Potential Features
 
-#### Issue #9: Machine Learning Model
+#### Issue #14: Machine Learning Model
 **Status**: Backlog
 **Priority**: P3 (Low)
 
@@ -254,7 +293,7 @@ Train custom phishing detection model:
 - Infrastructure for model training/serving
 - May not improve much over rule-based
 
-#### Issue #10: LLM-Enhanced Analysis (Optional)
+#### Issue #15: LLM-Enhanced Analysis (Optional)
 **Status**: Backlog
 **Priority**: P3 (Low)
 
@@ -269,7 +308,7 @@ Optional Claude API integration for edge cases:
 - Costs $0.01-0.05 per analysis
 - May be overkill for most emails
 
-#### Issue #11: Reporting Dashboard
+#### Issue #16: Reporting Dashboard
 **Status**: Backlog
 **Priority**: P3 (Low)
 
@@ -295,10 +334,11 @@ Web dashboard for analytics:
 
 ## Version History
 
-- **v0.1.0** (2025-10-16): Project initialization
-- **v0.2.0** (Planned): Core MVP functionality
-- **v0.3.0** (Planned): Enhanced detection
-- **v0.4.0** (Future): Advanced features
+- **v0.1.0**: Project initialization
+- **v0.2.0**: Core MVP functionality (analysis engine, mailbox monitoring, email replies)
+- **v0.2.2**: Rate limiting and email deduplication (current)
+- **v0.3.0** (Planned): Enhanced detection (brand impersonation, attachment analysis)
+- **v0.4.0** (Future): Advanced features (ML models, reporting dashboard)
 
 ---
 
