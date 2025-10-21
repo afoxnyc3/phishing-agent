@@ -128,6 +128,8 @@ export class HttpServer {
   setMailboxMonitor(monitor: MailboxMonitor): void {
     this.mailboxMonitor = monitor;
     healthChecker.setMailboxMonitor(monitor);
+    healthChecker.setRateLimiter(monitor.getRateLimiter());
+    healthChecker.setDeduplication(monitor.getDeduplication());
   }
 
   /**

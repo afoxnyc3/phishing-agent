@@ -233,6 +233,20 @@ export class MailboxMonitor {
   }
 
   /**
+   * Get rate limiter instance
+   */
+  getRateLimiter(): RateLimiter {
+    return this.rateLimiter;
+  }
+
+  /**
+   * Get deduplication instance
+   */
+  getDeduplication(): EmailDeduplication {
+    return this.deduplication;
+  }
+
+  /**
    * Health check
    */
   async healthCheck(): Promise<boolean> {

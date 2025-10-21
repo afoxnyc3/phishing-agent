@@ -38,6 +38,8 @@ describe('HttpServer', () => {
 
     mockMailboxMonitor = {
       healthCheck: jest.fn(),
+      getRateLimiter: jest.fn().mockReturnValue({ getStats: jest.fn() }),
+      getDeduplication: jest.fn().mockReturnValue({ getStats: jest.fn() }),
     };
   });
 
@@ -230,6 +232,19 @@ describe('HttpServer', () => {
     it('should set mailbox monitor', () => {
       server.setMailboxMonitor(mockMailboxMonitor as MailboxMonitor);
       expect((server as any).mailboxMonitor).toBe(mockMailboxMonitor);
+    });
+
+    it('should wire rate limiter and deduplication when setting mailbox monitor', () => {
+      const mockRateLimiter = { getStats: jest.fn() };
+      const mockDeduplication = { getStats: jest.fn() };
+
+      mockMailboxMonitor.getRateLimiter = jest.fn().mockReturnValue(mockRateLimiter);
+      mockMailboxMonitor.getDeduplication = jest.fn().mockReturnValue(mockDeduplication);
+
+      server.setMailboxMonitor(mockMailboxMonitor as any);
+
+      expect(mockMailboxMonitor.getRateLimiter).toHaveBeenCalled();
+      expect(mockMailboxMonitor.getDeduplication).toHaveBeenCalled();
     });
   });
 
