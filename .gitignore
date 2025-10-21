@@ -39,3 +39,6 @@ Thumbs.db
 test-graph-auth.js
 test-*.js
 *-credentials.*
+
+# Troubleshooting / Misc
+misc/

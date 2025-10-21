@@ -2,6 +2,32 @@
 
 All notable changes to the phishing-agent project will be documented in this file.
 
+## [0.2.2] - 2025-10-20
+
+### Added
+- **Rate Limiter Service**: Prevents email sending abuse with configurable limits
+  - Hourly and daily email sending limits (default: 100/hour, 1000/day)
+  - Circuit breaker that trips on burst sending (default: 50 emails in 10 minutes)
+  - Automatic circuit breaker reset after 1 hour
+  - Real-time statistics tracking and logging
+- **Email Deduplication Service**: Prevents duplicate analysis replies
+  - Content-based hashing to detect duplicate phishing emails
+  - Sender cooldown period (default: 24 hours between replies to same sender)
+  - Automatic cache expiration and cleanup
+- Comprehensive test suite for both services (28 tests total)
+- Configuration options via environment variables
+- Updated documentation (README.md, .env.example)
+
+### Changed
+- Mailbox monitor now integrates rate limiting and deduplication checks
+- Email processing skips duplicate content and rate-limited sends
+- Health check endpoints now include rate limit and deduplication statistics
+
+### Fixed
+- **Critical**: Mass email sending incident prevention (10,000+ emails/day)
+- Email reply loops from duplicate processing
+- Microsoft 365 sending limit violations
+
 ## [0.2.1] - 2025-10-19
 
 ### Added
