@@ -38,6 +38,8 @@ describe('HttpServer', () => {
 
     mockMailboxMonitor = {
       healthCheck: jest.fn(),
+      getRateLimiter: jest.fn().mockReturnValue({ getStats: jest.fn() }),
+      getDeduplication: jest.fn().mockReturnValue({ getStats: jest.fn() }),
     };
   });
 
@@ -159,6 +161,51 @@ describe('HttpServer', () => {
     });
   });
 
+  describe('Metrics Endpoint', () => {
+    it('should return JSON metrics when Accept header is application/json', () => {
+      const mockReq: any = {
+        headers: {
+          accept: 'application/json',
+        },
+      };
+      const mockRes: any = {
+        json: jest.fn(),
+        type: jest.fn().mockReturnThis(),
+        send: jest.fn(),
+      };
+
+      (server as any).handleMetrics(mockReq, mockRes);
+
+      expect(mockRes.json).toHaveBeenCalled();
+      const response = mockRes.json.mock.calls[0][0];
+      expect(response).toHaveProperty('uptime');
+      expect(response).toHaveProperty('business');
+      expect(response).toHaveProperty('latency');
+    });
+
+    it('should return Prometheus format when Accept header is not application/json', () => {
+      const mockReq: any = {
+        headers: {
+          accept: 'text/plain',
+        },
+      };
+      const mockRes: any = {
+        json: jest.fn(),
+        type: jest.fn().mockReturnThis(),
+        send: jest.fn(),
+      };
+
+      (server as any).handleMetrics(mockReq, mockRes);
+
+      expect(mockRes.type).toHaveBeenCalledWith('text/plain');
+      expect(mockRes.send).toHaveBeenCalled();
+      const response = mockRes.send.mock.calls[0][0];
+      expect(response).toContain('phishing_agent_uptime_ms');
+      expect(response).toContain('# TYPE');
+      expect(response).toContain('# HELP');
+    });
+  });
+
   describe('Root Endpoint', () => {
     it('should return service information', () => {
       const mockReq: any = {};
@@ -185,6 +232,19 @@ describe('HttpServer', () => {
     it('should set mailbox monitor', () => {
       server.setMailboxMonitor(mockMailboxMonitor as MailboxMonitor);
       expect((server as any).mailboxMonitor).toBe(mockMailboxMonitor);
+    });
+
+    it('should wire rate limiter and deduplication when setting mailbox monitor', () => {
+      const mockRateLimiter = { getStats: jest.fn() };
+      const mockDeduplication = { getStats: jest.fn() };
+
+      mockMailboxMonitor.getRateLimiter = jest.fn().mockReturnValue(mockRateLimiter);
+      mockMailboxMonitor.getDeduplication = jest.fn().mockReturnValue(mockDeduplication);
+
+      server.setMailboxMonitor(mockMailboxMonitor as any);
+
+      expect(mockMailboxMonitor.getRateLimiter).toHaveBeenCalled();
+      expect(mockMailboxMonitor.getDeduplication).toHaveBeenCalled();
     });
   });
 
