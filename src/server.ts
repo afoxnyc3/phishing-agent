@@ -10,6 +10,7 @@ import { config } from './lib/config.js';
 import { PhishingAgent } from './agents/phishing-agent.js';
 import { MailboxMonitor } from './services/mailbox-monitor.js';
 import { metrics } from './services/metrics.js';
+import { healthChecker } from './services/health-checker.js';
 
 export class HttpServer {
   private app: express.Application;
@@ -42,6 +43,7 @@ export class HttpServer {
    */
   private setupRoutes(): void {
     this.app.get('/health', this.handleHealth.bind(this));
+    this.app.get('/health/deep', this.handleDeepHealth.bind(this));
     this.app.get('/ready', this.handleReady.bind(this));
     this.app.get('/metrics', this.handleMetrics.bind(this));
     this.app.get('/', this.handleRoot.bind(this));
@@ -58,6 +60,15 @@ export class HttpServer {
     };
 
     res.json(health);
+  }
+
+  /**
+   * Handle deep health check
+   */
+  private async handleDeepHealth(req: Request, res: Response): Promise<void> {
+    const health = await healthChecker.checkHealth();
+
+    res.status(health.healthy ? 200 : 503).json(health);
   }
 
   /**
@@ -108,6 +119,7 @@ export class HttpServer {
    */
   setPhishingAgent(agent: PhishingAgent): void {
     this.phishingAgent = agent;
+    healthChecker.setPhishingAgent(agent);
   }
 
   /**
@@ -115,6 +127,7 @@ export class HttpServer {
    */
   setMailboxMonitor(monitor: MailboxMonitor): void {
     this.mailboxMonitor = monitor;
+    healthChecker.setMailboxMonitor(monitor);
   }
 
   /**
