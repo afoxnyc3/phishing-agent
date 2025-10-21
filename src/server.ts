@@ -9,6 +9,7 @@ import { securityLogger } from './lib/logger.js';
 import { config } from './lib/config.js';
 import { PhishingAgent } from './agents/phishing-agent.js';
 import { MailboxMonitor } from './services/mailbox-monitor.js';
+import { metrics } from './services/metrics.js';
 
 export class HttpServer {
   private app: express.Application;
@@ -42,6 +43,7 @@ export class HttpServer {
   private setupRoutes(): void {
     this.app.get('/health', this.handleHealth.bind(this));
     this.app.get('/ready', this.handleReady.bind(this));
+    this.app.get('/metrics', this.handleMetrics.bind(this));
     this.app.get('/', this.handleRoot.bind(this));
   }
 
@@ -73,6 +75,21 @@ export class HttpServer {
     };
 
     res.status(agentHealthy && mailboxHealthy ? 200 : 503).json(ready);
+  }
+
+  /**
+   * Handle metrics endpoint
+   */
+  private handleMetrics(req: Request, res: Response): void {
+    const accept = req.headers.accept || '';
+
+    if (accept.includes('application/json')) {
+      // Return JSON metrics
+      res.json(metrics.getMetrics());
+    } else {
+      // Return Prometheus-formatted metrics
+      res.type('text/plain').send(metrics.getPrometheusMetrics());
+    }
   }
 
   /**

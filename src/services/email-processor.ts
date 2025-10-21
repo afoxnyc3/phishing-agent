@@ -12,6 +12,7 @@ import { parseGraphEmail } from './graph-email-parser.js';
 import { RateLimiter } from './rate-limiter.js';
 import { EmailDeduplication } from './email-deduplication.js';
 import { buildReplyHtml, buildErrorReplyHtml, createReplyMessage } from './email-reply-builder.js';
+import { metrics } from './metrics.js';
 
 export interface EmailProcessorConfig {
   mailboxAddress: string;
@@ -43,6 +44,7 @@ export async function processEmail(
   // Check deduplication before processing
   const dedupeCheck = config.deduplication.shouldProcess(senderEmail, subject, body);
   if (!dedupeCheck.allowed) {
+    metrics.recordDeduplicationHit();
     securityLogger.info('Email skipped due to deduplication', {
       processingId,
       sender: senderEmail,
@@ -53,8 +55,14 @@ export async function processEmail(
   }
 
   try {
+    const analysisStart = Date.now();
     const analysisRequest = parseGraphEmail(graphEmail);
     const analysisResult = await config.phishingAgent.analyzeEmail(analysisRequest);
+    const analysisLatency = Date.now() - analysisStart;
+
+    // Record metrics
+    metrics.recordAnalysisLatency(analysisLatency);
+    metrics.recordEmailProcessed(analysisResult.isPhishing);
 
     securityLogger.security('Email analyzed via mailbox monitor', {
       processingId,
@@ -71,6 +79,7 @@ export async function processEmail(
 
     securityLogger.info('Email processing completed successfully', { processingId });
   } catch (error: any) {
+    metrics.recordAnalysisError();
     securityLogger.error('Failed to process email', { processingId, error: error.message });
     await sendErrorReply(graphEmail, processingId, config).catch((replyError) => {
       securityLogger.error('Failed to send error reply', {
@@ -99,6 +108,7 @@ async function sendAnalysisReply(
   // Check rate limits before sending
   const rateLimitCheck = config.rateLimiter.canSendEmail();
   if (!rateLimitCheck.allowed) {
+    metrics.recordRateLimitHit();
     securityLogger.warn('Email reply blocked by rate limiter', {
       processingId,
       recipient: senderEmail,
@@ -112,9 +122,15 @@ async function sendAnalysisReply(
   const replyMessage = createReplyMessage(originalEmail, htmlBody, analysis.isPhishing);
 
   try {
+    const replyStart = Date.now();
     await config.graphClient
       .api(`/users/${config.mailboxAddress}/sendMail`)
       .post(replyMessage);
+    const replyLatency = Date.now() - replyStart;
+
+    // Record metrics
+    metrics.recordReplyLatency(replyLatency);
+    metrics.recordReplySent();
 
     // Record email sent after successful send
     config.rateLimiter.recordEmailSent();
@@ -127,6 +143,7 @@ async function sendAnalysisReply(
       rateLimitStats: config.rateLimiter.getStats(),
     });
   } catch (error: any) {
+    metrics.recordReplyFailed();
     securityLogger.error('Failed to send analysis reply', { processingId, error: error.message });
     throw error;
   }
