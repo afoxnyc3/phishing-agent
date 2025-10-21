@@ -35,7 +35,8 @@ export class EmailDeduplication {
     });
 
     // Auto-cleanup every 5 minutes
-    setInterval(() => this.cleanExpired(), 5 * 60 * 1000);
+    // Use .unref() to allow process to exit cleanly during tests
+    setInterval(() => this.cleanExpired(), 5 * 60 * 1000).unref();
   }
 
   /**

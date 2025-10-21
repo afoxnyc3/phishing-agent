@@ -118,11 +118,12 @@ export class MailboxMonitor {
       securityLogger.error('Initial mailbox check failed', { error });
     });
 
+    // Use .unref() to allow process to exit cleanly during tests
     this.checkInterval = setInterval(() => {
       this.checkForNewEmails().catch((error) => {
         securityLogger.error('Periodic mailbox check failed', { error });
       });
-    }, this.config.checkIntervalMs);
+    }, this.config.checkIntervalMs).unref();
 
     securityLogger.info('Mailbox monitor started successfully');
   }
