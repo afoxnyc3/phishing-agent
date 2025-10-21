@@ -2,6 +2,7 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { MailboxMonitor } from './mailbox-monitor.js';
 import { PhishingAgent } from '../agents/phishing-agent.js';
 import type { PhishingAnalysisResult } from '../lib/types.js';
+import { buildReplyHtml } from './email-reply-builder.js';
 
 // Mock the entire Graph client module
 const mockGraphGet: any = jest.fn();
@@ -418,7 +419,7 @@ describe('MailboxMonitor', () => {
     };
 
     it('should build HTML reply with phishing verdict', () => {
-      const html = (monitor as any).buildReplyHtml(mockAnalysisResult);
+      const html = buildReplyHtml(mockAnalysisResult);
 
       expect(html).toContain('PHISHING DETECTED');
       expect(html).toContain('8.5/10');
@@ -427,14 +428,14 @@ describe('MailboxMonitor', () => {
     });
 
     it('should include threat indicators in reply', () => {
-      const html = (monitor as any).buildReplyHtml(mockAnalysisResult);
+      const html = buildReplyHtml(mockAnalysisResult);
 
       expect(html).toContain('SPF validation failed');
       expect(html).toContain('Threat Indicators');
     });
 
     it('should include recommended actions in reply', () => {
-      const html = (monitor as any).buildReplyHtml(mockAnalysisResult);
+      const html = buildReplyHtml(mockAnalysisResult);
 
       expect(html).toContain('Recommended Actions');
       expect(html).toContain('Quarantine this email');
@@ -451,14 +452,14 @@ describe('MailboxMonitor', () => {
         recommendedActions: [],
       };
 
-      const html = (monitor as any).buildReplyHtml(safeResult);
+      const html = buildReplyHtml(safeResult);
 
       expect(html).toContain('EMAIL APPEARS SAFE');
       expect(html).toContain('2.0/10');
       expect(html).toContain('LOW');
     });
 
-    it('should limit indicators to top 5', () => {
+    it('should limit indicators to top 5 in HTML output', () => {
       const manyIndicators: PhishingAnalysisResult = {
         ...mockAnalysisResult,
         indicators: Array(10).fill(null).map((_, i) => ({
@@ -470,13 +471,16 @@ describe('MailboxMonitor', () => {
         })),
       };
 
-      const indicatorsList = (monitor as any).buildIndicatorsList(manyIndicators);
-      const lines = indicatorsList.split('\n').filter((l: string) => l.trim());
+      const html = buildReplyHtml(manyIndicators);
 
-      expect(lines.length).toBe(5);
+      // Should contain first 5 indicators
+      expect(html).toContain('Indicator 1');
+      expect(html).toContain('Indicator 5');
+      // Should not contain 6th+ indicators
+      expect(html).not.toContain('Indicator 6');
     });
 
-    it('should limit actions to top 3', () => {
+    it('should limit actions to top 3 in HTML output', () => {
       const manyActions: PhishingAnalysisResult = {
         ...mockAnalysisResult,
         recommendedActions: Array(6).fill(null).map((_, i) => ({
@@ -488,10 +492,13 @@ describe('MailboxMonitor', () => {
         })),
       };
 
-      const actionsList = (monitor as any).buildActionsList(manyActions);
-      const lines = actionsList.split('\n').filter((l: string) => l.trim());
+      const html = buildReplyHtml(manyActions);
 
-      expect(lines.length).toBe(3);
+      // Should contain first 3 actions
+      expect(html).toContain('Action 1');
+      expect(html).toContain('Action 3');
+      // Should not contain 4th+ actions
+      expect(html).not.toContain('Action 4');
     });
   });
 
