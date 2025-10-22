@@ -106,7 +106,7 @@ export class PhishingAgent {
     const body = request.body || '';
     const contentResult = ContentAnalyzer.analyze(body);
 
-    // Check for brand impersonation
+    // Check for brand impersonation (requires both body and domain)
     const senderDomain = EmailParser.extractDomain(request.sender);
     if (body && senderDomain) {
       const brandIndicator = ContentAnalyzer.detectBrandImpersonation(body, senderDomain);
@@ -114,8 +114,10 @@ export class PhishingAgent {
         contentResult.indicators.push(brandIndicator);
         contentResult.hasPhishingPatterns = true;
       }
+    }
 
-      // Check for typosquatting in sender domain
+    // Check for typosquatting in sender domain (domain-only check)
+    if (senderDomain) {
       const typosquatIndicator = ContentAnalyzer.detectTyposquatting(senderDomain);
       if (typosquatIndicator) {
         contentResult.indicators.push(typosquatIndicator);
