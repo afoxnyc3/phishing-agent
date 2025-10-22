@@ -15,6 +15,15 @@ describe('HealthChecker', () => {
   beforeEach(() => {
     checker = new HealthChecker();
 
+    // Mock process.memoryUsage to return predictable, healthy values
+    jest.spyOn(process, 'memoryUsage').mockReturnValue({
+      rss: 100 * 1024 * 1024, // 100 MB
+      heapTotal: 50 * 1024 * 1024, // 50 MB
+      heapUsed: 30 * 1024 * 1024, // 30 MB (60% of heap - healthy)
+      external: 5 * 1024 * 1024,
+      arrayBuffers: 1 * 1024 * 1024,
+    });
+
     mockAgent = {
       healthCheck: jest.fn(),
     } as unknown as jest.Mocked<PhishingAgent>;
