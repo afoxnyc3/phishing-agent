@@ -229,6 +229,156 @@ describe('ContentAnalyzer', () => {
       expect(indicator).not.toBeNull();
       expect(indicator?.description).toContain('Apple');
     });
+
+    it('should detect Netflix impersonation', () => {
+      const body = 'Your Netflix subscription will expire soon';
+      const fromDomain = 'netf1ix-billing.com';
+
+      const indicator = ContentAnalyzer.detectBrandImpersonation(body, fromDomain);
+
+      expect(indicator).not.toBeNull();
+      expect(indicator?.description).toContain('Netflix');
+    });
+
+    it('should detect Chase bank impersonation', () => {
+      const body = 'Chase Bank Security Alert: Verify your account';
+      const fromDomain = 'chase-secure.ru';
+
+      const indicator = ContentAnalyzer.detectBrandImpersonation(body, fromDomain);
+
+      expect(indicator).not.toBeNull();
+      expect(indicator?.description).toContain('Chase');
+    });
+
+    it('should detect LinkedIn impersonation', () => {
+      const body = 'You have a new LinkedIn message';
+      const fromDomain = 'linkedin-notifications.tk';
+
+      const indicator = ContentAnalyzer.detectBrandImpersonation(body, fromDomain);
+
+      expect(indicator).not.toBeNull();
+      expect(indicator?.description).toContain('LinkedIn');
+    });
+
+    it('should detect DHL shipping impersonation', () => {
+      const body = 'DHL package delivery notification';
+      const fromDomain = 'dhl-tracking.info';
+
+      const indicator = ContentAnalyzer.detectBrandImpersonation(body, fromDomain);
+
+      expect(indicator).not.toBeNull();
+      expect(indicator?.description).toContain('DHL');
+    });
+
+    it('should detect Facebook/Meta impersonation', () => {
+      const body = 'Your Facebook account has been flagged';
+      const fromDomain = 'facebook-security.net';
+
+      const indicator = ContentAnalyzer.detectBrandImpersonation(body, fromDomain);
+
+      expect(indicator).not.toBeNull();
+      expect(indicator?.description).toContain('Facebook');
+    });
+
+    it('should detect Adobe impersonation', () => {
+      const body = 'Adobe Creative Cloud subscription renewal';
+      const fromDomain = 'adobe-billing.com';
+
+      const indicator = ContentAnalyzer.detectBrandImpersonation(body, fromDomain);
+
+      expect(indicator).not.toBeNull();
+      expect(indicator?.description).toContain('Adobe');
+    });
+  });
+
+  describe('Typosquatting Detection', () => {
+    it('should detect PayPal typosquatting (paypal → paypa1)', () => {
+      const fromDomain = 'secure-paypa1.com';
+
+      const indicator = ContentAnalyzer.detectTyposquatting(fromDomain);
+
+      expect(indicator).not.toBeNull();
+      expect(indicator?.severity).toBe('critical');
+      expect(indicator?.description).toContain('PayPal');
+      expect(indicator?.description).toContain('Typosquatting');
+      expect(indicator?.confidence).toBeGreaterThan(0.95);
+    });
+
+    it('should detect Microsoft typosquatting (microsoft → micros0ft)', () => {
+      const fromDomain = 'micros0ft.com';
+
+      const indicator = ContentAnalyzer.detectTyposquatting(fromDomain);
+
+      expect(indicator).not.toBeNull();
+      expect(indicator?.description).toContain('Microsoft');
+    });
+
+    it('should detect Google typosquatting (google → g00gle)', () => {
+      const fromDomain = 'g00gle.ru';
+
+      const indicator = ContentAnalyzer.detectTyposquatting(fromDomain);
+
+      expect(indicator).not.toBeNull();
+      expect(indicator?.description).toContain('Google');
+    });
+
+    it('should detect Amazon typosquatting (amazon → amaz0n)', () => {
+      const fromDomain = 'amaz0n-orders.com';
+
+      const indicator = ContentAnalyzer.detectTyposquatting(fromDomain);
+
+      expect(indicator).not.toBeNull();
+      expect(indicator?.description).toContain('Amazon');
+    });
+
+    it('should detect Netflix typosquatting (netflix → netf1ix)', () => {
+      const fromDomain = 'netf1ix-billing.net';
+
+      const indicator = ContentAnalyzer.detectTyposquatting(fromDomain);
+
+      expect(indicator).not.toBeNull();
+      expect(indicator?.description).toContain('Netflix');
+    });
+
+    it('should not flag legitimate domains', () => {
+      const fromDomain = 'mail.google.com';
+
+      const indicator = ContentAnalyzer.detectTyposquatting(fromDomain);
+
+      expect(indicator).toBeNull();
+    });
+
+    it('should be case-insensitive', () => {
+      const fromDomain = 'PAYPA1.COM';
+
+      const indicator = ContentAnalyzer.detectTyposquatting(fromDomain);
+
+      expect(indicator).not.toBeNull();
+      expect(indicator?.description).toContain('PayPal');
+    });
+  });
+
+  describe('Performance', () => {
+    it('should complete brand detection in under 100ms', () => {
+      const body = 'Your PayPal account needs verification from Amazon and Microsoft';
+      const fromDomain = 'phishing-site.ru';
+
+      const startTime = Date.now();
+      ContentAnalyzer.detectBrandImpersonation(body, fromDomain);
+      const duration = Date.now() - startTime;
+
+      expect(duration).toBeLessThan(100);
+    });
+
+    it('should complete typosquatting detection in under 100ms', () => {
+      const fromDomain = 'paypa1.com';
+
+      const startTime = Date.now();
+      ContentAnalyzer.detectTyposquatting(fromDomain);
+      const duration = Date.now() - startTime;
+
+      expect(duration).toBeLessThan(100);
+    });
   });
 
   describe('Complete Content Analysis', () => {

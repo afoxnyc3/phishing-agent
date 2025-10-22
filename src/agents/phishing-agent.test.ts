@@ -177,6 +177,33 @@ describe('PhishingAgent', () => {
       expect(brandIndicator).toBeDefined();
       expect(brandIndicator?.severity).toBe('critical');
     });
+
+    it('should detect typosquatting even when email body is empty', async () => {
+      const request: EmailAnalysisRequest = {
+        messageId: 'test-5',
+        subject: 'Account Update',
+        sender: 'noreply@paypa1.com',
+        recipient: 'user@test.com',
+        timestamp: new Date(),
+        headers: {
+          'message-id': 'test-5',
+          from: 'noreply@paypa1.com',
+          to: 'user@test.com',
+          subject: 'Account Update',
+          date: new Date().toISOString(),
+        },
+        body: '', // Empty body - typosquatting should still be detected
+      };
+
+      const result = await agent.analyzeEmail(request);
+
+      const typosquatIndicator = result.indicators.find(i =>
+        i.description.includes('Typosquatting') && i.description.includes('PayPal')
+      );
+      expect(typosquatIndicator).toBeDefined();
+      expect(typosquatIndicator?.severity).toBe('critical');
+      expect(result.isPhishing).toBe(true);
+    });
   });
 
   describe('Threat Intel Integration', () => {

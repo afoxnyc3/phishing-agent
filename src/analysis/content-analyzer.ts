@@ -6,6 +6,7 @@
 
 import { ThreatIndicator } from '../lib/types.js';
 import { securityLogger } from '../lib/logger.js';
+import { BRAND_TARGETS, TYPOSQUAT_PATTERNS } from './brand-detection-config.js';
 
 export interface ContentAnalysisResult {
   hasPhishingPatterns: boolean;
@@ -325,18 +326,10 @@ export class ContentAnalyzer {
   }
 
   /**
-   * Detect brand impersonation
+   * Detect brand impersonation (20 most targeted brands)
    */
   static detectBrandImpersonation(body: string, fromDomain: string): ThreatIndicator | null {
-    const brands = [
-      { name: 'PayPal', domain: 'paypal.com' },
-      { name: 'Amazon', domain: 'amazon.com' },
-      { name: 'Microsoft', domain: 'microsoft.com' },
-      { name: 'Apple', domain: 'apple.com' },
-      { name: 'Google', domain: 'google.com' },
-    ];
-
-    for (const brand of brands) {
+    for (const brand of BRAND_TARGETS) {
       const regex = new RegExp(`\\b${brand.name.toLowerCase()}\\b`, 'i');
       if (regex.test(body) && !fromDomain.toLowerCase().includes(brand.domain)) {
         return {
@@ -345,6 +338,27 @@ export class ContentAnalyzer {
           severity: 'critical',
           evidence: `Email mentions "${brand.name}" but sender is "${fromDomain}"`,
           confidence: 0.95,
+        };
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Detect typosquatting in domain (character substitution: 0→o, 1→l, 3→e)
+   */
+  static detectTyposquatting(fromDomain: string): ThreatIndicator | null {
+    const lowercaseDomain = fromDomain.toLowerCase();
+
+    for (const { pattern, brand } of TYPOSQUAT_PATTERNS) {
+      if (pattern.test(lowercaseDomain)) {
+        return {
+          type: 'sender',
+          description: `Typosquatting detected: ${brand} domain lookalike`,
+          severity: 'critical',
+          evidence: `Domain "${fromDomain}" uses character substitution to mimic ${brand}`,
+          confidence: 0.98,
         };
       }
     }

@@ -29,13 +29,15 @@
 - ✅ Circuit breaker (burst sending protection)
 - ✅ Email deduplication (content hashing)
 - ✅ Sender cooldown (prevent reply spam)
-- ✅ Comprehensive test coverage (372 tests passing)
+- ✅ Comprehensive test coverage (387 tests passing)
+- ✅ Brand impersonation detection (20 brands)
+- ✅ Typosquatting detection (6 patterns)
 
 **Infrastructure**:
 - ✅ GitHub repository established
 - ✅ Code quality validated (atomic functions ≤ 25 lines)
 - ✅ TypeScript builds successfully
-- ✅ Test suite: 372 tests passing, 95%+ coverage
+- ✅ Test suite: 387 tests passing, 95%+ coverage
 - ✅ Docker multi-stage build optimized
 - ✅ Ready for cloud deployment
 - ✅ Pre-commit hooks (husky + lint-staged)
@@ -214,8 +216,8 @@ npm test -- --watch
 ```
 
 **Current Coverage**:
-- Test Suites: 14 passed
-- Tests: 372 passed
+- Test Suites: 16 passed
+- Tests: 387 passed
 - Coverage: 95%+ across all modules
 
 ### Test Categories
