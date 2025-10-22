@@ -114,6 +114,13 @@ export class PhishingAgent {
         contentResult.indicators.push(brandIndicator);
         contentResult.hasPhishingPatterns = true;
       }
+
+      // Check for typosquatting in sender domain
+      const typosquatIndicator = ContentAnalyzer.detectTyposquatting(senderDomain);
+      if (typosquatIndicator) {
+        contentResult.indicators.push(typosquatIndicator);
+        contentResult.hasPhishingPatterns = true;
+      }
     }
 
     securityLogger.debug('Content analysis completed', {

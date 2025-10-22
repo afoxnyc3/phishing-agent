@@ -53,6 +53,7 @@ export default [
     rules: {
       ...tseslint.configs.recommended.rules,
       'max-lines-per-function': 'off', // Test functions can be longer
+      'max-lines': 'off', // Test files can be longer
       '@typescript-eslint/no-explicit-any': 'off', // Allow any in tests for mocking
       '@typescript-eslint/explicit-function-return-type': 'off', // No return types required in tests
     },
