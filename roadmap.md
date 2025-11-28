@@ -283,52 +283,45 @@ Prepare MVP for cloud deployment with comprehensive deployment guides:
 
 ---
 
-## Phase 3: Advanced Features (Future)
+## Phase 3: Advanced Features (Current)
 
-**Target**: v0.4.0+
-**Estimated Duration**: TBD
+**Target**: v0.3.0
+**Status**: In Progress
 
-### Potential Features
+### Issue #4: LLM-Enhanced Analysis Hardening
+**Status**: Core implemented, needs production hardening
+**Priority**: P1 (High)
 
-#### Issue #14: Machine Learning Model
-**Status**: Backlog
-**Priority**: P3 (Low)
-
-Train custom phishing detection model:
-- Supervised learning on labeled dataset
-- Feature extraction from headers/content
-- Model serving via REST API
-- Periodic retraining pipeline
-
-**Considerations**:
-- Requires large labeled dataset
-- Infrastructure for model training/serving
-- May not improve much over rule-based
-
-#### Issue #15: LLM-Enhanced Analysis (Optional)
-**Status**: Backlog
-**Priority**: P3 (Low)
-
-Optional Claude API integration for edge cases:
+Claude API integration for borderline cases (implemented in llm-analyzer.ts):
 - Complex social engineering detection
 - Contextual risk assessment
 - Natural language explanations
-- Only trigger for borderline cases (score 4-6)
+- Only triggers for borderline cases (score 4-6)
 
-**Considerations**:
-- Adds latency (5-10s)
-- Costs $0.01-0.05 per analysis
-- May be overkill for most emails
+**Remaining Work**:
+- Test coverage (~50 tests)
+- Production hardening (retry, circuit breaker, timeout)
+- Config schema validation
+- Health check integration
 
-#### Issue #16: Reporting Dashboard
-**Status**: Backlog
-**Priority**: P3 (Low)
+### Issue #2: Attachment Analysis
+**Status**: Parsing implemented, analysis needed
+**Priority**: P1 (High)
 
-Web dashboard for analytics:
-- Daily/weekly phishing metrics
-- Top senders/domains flagged
-- False positive rate tracking
-- User feedback trends
+Attachment risk assessment:
+- Dangerous file extension detection (.exe, .vbs, .scr, .bat)
+- Macro-enabled document flagging (.docm, .xlsm)
+- Double extension detection (invoice.pdf.exe)
+- Risk scoring integration
+
+### Issue #5: Reporting Dashboard
+**Status**: Metrics infrastructure exists
+**Priority**: P2 (Medium)
+
+Analytics and monitoring:
+- Application Insights integration
+- Historical data persistence
+- Enhanced metrics API
 
 ---
 
@@ -348,9 +341,9 @@ Web dashboard for analytics:
 
 - **v0.1.0**: Project initialization
 - **v0.2.0**: Core MVP functionality (analysis engine, mailbox monitoring, email replies)
-- **v0.2.2**: Rate limiting and email deduplication (current)
-- **v0.3.0** (Planned): Enhanced detection (brand impersonation, attachment analysis)
-- **v0.4.0** (Future): Advanced features (ML models, reporting dashboard)
+- **v0.2.2**: Rate limiting and email deduplication
+- **v0.2.3**: Security and reliability improvements (current)
+- **v0.3.0** (Planned): LLM hardening, attachment analysis, reporting
 
 ---
 

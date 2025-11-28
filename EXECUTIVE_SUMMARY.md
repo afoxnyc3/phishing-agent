@@ -300,11 +300,10 @@ User receives verdict and recommended actions
 - Attachment analysis (dangerous file types, macros)
 - Improved URL analysis (typosquatting patterns)
 
-### Phase 3: Advanced Features (Future)
-- Machine learning model for edge cases
-- LLM-enhanced analysis (optional, for borderline cases)
-- Web dashboard for analytics and metrics
-- Reporting and trend analysis
+### Phase 3: Advanced Features (In Progress)
+- LLM-enhanced analysis (implemented, needs hardening)
+- Attachment analysis (dangerous file types, macros)
+- Reporting dashboard and metrics persistence
 
 ### Phase 4: Enterprise Features (Future)
 - Multi-tenant support (separate mailboxes per department)
