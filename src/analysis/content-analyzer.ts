@@ -46,22 +46,31 @@ export class ContentAnalyzer {
   ];
 
   /**
-   * Analyze email body content
+   * Analyze email body content with optional sender domain
    */
-  static analyze(body: string): ContentAnalysisResult {
-    if (!body || body.trim().length === 0) {
-      return this.emptyResult();
-    }
-
+  static analyze(body: string, senderDomain?: string): ContentAnalysisResult {
     const indicators: ThreatIndicator[] = [];
     const suspiciousUrls: SuspiciousUrl[] = [];
     const tactics: string[] = [];
 
-    this.analyzeUrgency(body, indicators, tactics);
-    this.analyzeCredentialRequests(body, indicators, tactics);
-    this.analyzeFinancialLures(body, indicators, tactics);
-    this.analyzeUrls(body, indicators, suspiciousUrls);
-    this.analyzeMismatchedLinks(body, indicators, tactics);
+    const trimmedBody = (body || '').trim();
+    if (trimmedBody.length > 0) {
+      this.analyzeUrgency(trimmedBody, indicators, tactics);
+      this.analyzeCredentialRequests(trimmedBody, indicators, tactics);
+      this.analyzeFinancialLures(trimmedBody, indicators, tactics);
+      this.analyzeUrls(trimmedBody, indicators, suspiciousUrls);
+      this.analyzeMismatchedLinks(trimmedBody, indicators, tactics);
+
+      // Brand impersonation (requires both body and domain)
+      if (senderDomain) {
+        this.analyzeBrandImpersonation(trimmedBody, senderDomain, indicators);
+      }
+    }
+
+    // Typosquatting can be detected without body content
+    if (senderDomain) {
+      this.analyzeTyposquatting(senderDomain, indicators);
+    }
 
     const confidence = this.calculateConfidence(indicators);
     const hasPhishingPatterns = indicators.length > 0;
@@ -322,6 +331,26 @@ export class ContentAnalyzer {
       return textDomain !== hrefDomain;
     } catch {
       return true; // Invalid URLs are suspicious
+    }
+  }
+
+  /**
+   * Analyze brand impersonation
+   */
+  private static analyzeBrandImpersonation(body: string, fromDomain: string, indicators: ThreatIndicator[]): void {
+    const indicator = this.detectBrandImpersonation(body, fromDomain);
+    if (indicator) {
+      indicators.push(indicator);
+    }
+  }
+
+  /**
+   * Analyze typosquatting
+   */
+  private static analyzeTyposquatting(fromDomain: string, indicators: ThreatIndicator[]): void {
+    const indicator = this.detectTyposquatting(fromDomain);
+    if (indicator) {
+      indicators.push(indicator);
     }
   }
 

@@ -3,24 +3,55 @@
  * Automated phishing email detection service
  */
 
-import { securityLogger } from './lib/logger.js';
-import { config } from './lib/config.js';
-import { PhishingAgent } from './agents/phishing-agent.js';
-import { MailboxMonitor } from './services/mailbox-monitor.js';
-import { HttpServer } from './server.js';
+import { config as dotenvConfig } from 'dotenv';
+import { loadSecretsFromKeyVault } from './lib/keyvault.js';
+
+// Load .env first (for local dev and AZURE_KEY_VAULT_NAME)
+dotenvConfig();
+
+// Bootstrap function to load secrets before other modules
+async function bootstrap(): Promise<{
+  securityLogger: typeof import('./lib/logger.js').securityLogger;
+  config: typeof import('./lib/config.js').config;
+  PhishingAgent: typeof import('./agents/phishing-agent.js').PhishingAgent;
+  MailboxMonitor: typeof import('./services/mailbox-monitor.js').MailboxMonitor;
+  HttpServer: typeof import('./server.js').HttpServer;
+}> {
+  // Load secrets from Key Vault if configured
+  await loadSecretsFromKeyVault();
+
+  // Now dynamically import modules that depend on config
+  const { securityLogger } = await import('./lib/logger.js');
+  const { config } = await import('./lib/config.js');
+  const { PhishingAgent } = await import('./agents/phishing-agent.js');
+  const { MailboxMonitor } = await import('./services/mailbox-monitor.js');
+  const { HttpServer } = await import('./server.js');
+
+  return { securityLogger, config, PhishingAgent, MailboxMonitor, HttpServer };
+}
+
+// Type definitions for bootstrapped modules
+type BootstrappedModules = Awaited<ReturnType<typeof bootstrap>>;
 
 /**
  * Main application
  */
 class Application {
-  private phishingAgent!: PhishingAgent;
-  private mailboxMonitor!: MailboxMonitor;
-  private httpServer!: HttpServer;
+  private modules!: BootstrappedModules;
+  private phishingAgent!: InstanceType<BootstrappedModules['PhishingAgent']>;
+  private mailboxMonitor!: InstanceType<BootstrappedModules['MailboxMonitor']>;
+  private httpServer!: InstanceType<BootstrappedModules['HttpServer']>;
+
+  constructor(modules: BootstrappedModules) {
+    this.modules = modules;
+  }
 
   /**
    * Initialize application
    */
   async initialize(): Promise<void> {
+    const { securityLogger, config, PhishingAgent, MailboxMonitor, HttpServer } = this.modules;
+
     securityLogger.info('Initializing Phishing Agent...');
 
     // Initialize phishing agent
@@ -61,6 +92,8 @@ class Application {
    * Start application
    */
   async start(): Promise<void> {
+    const { securityLogger, config } = this.modules;
+
     securityLogger.info('Starting Phishing Agent...');
 
     // Start HTTP server
@@ -80,6 +113,8 @@ class Application {
    * Stop application
    */
   async stop(): Promise<void> {
+    const { securityLogger } = this.modules;
+
     securityLogger.info('Stopping Phishing Agent...');
 
     this.mailboxMonitor.stop();
@@ -92,7 +127,9 @@ class Application {
    * Setup signal handlers
    */
   setupSignalHandlers(): void {
-    const shutdown = async (signal: string) => {
+    const { securityLogger } = this.modules;
+
+    const shutdown = async (signal: string): Promise<void> => {
       securityLogger.info(`Received ${signal}, shutting down gracefully...`);
       await this.stop();
       process.exit(0);
@@ -106,6 +143,8 @@ class Application {
    * Handle errors
    */
   setupErrorHandlers(): void {
+    const { securityLogger } = this.modules;
+
     process.on('uncaughtException', (error) => {
       securityLogger.error('Uncaught exception', { error: error.message, stack: error.stack });
       process.exit(1);
@@ -121,10 +160,14 @@ class Application {
 /**
  * Main function
  */
-async function main() {
-  const app = new Application();
-
+async function main(): Promise<void> {
   try {
+    // Bootstrap: load Key Vault secrets and import modules
+    const modules = await bootstrap();
+    const { securityLogger } = modules;
+
+    const app = new Application(modules);
+
     app.setupSignalHandlers();
     app.setupErrorHandlers();
 
@@ -132,11 +175,10 @@ async function main() {
     await app.start();
 
     securityLogger.info('Phishing Agent is running');
-  } catch (error: any) {
-    securityLogger.error('Failed to start Phishing Agent', {
-      error: error.message,
-      stack: error.stack,
-    });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('Failed to start Phishing Agent:', errorMessage, errorStack);
     process.exit(1);
   }
 }

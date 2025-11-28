@@ -11,6 +11,7 @@ import { PhishingAgent } from './agents/phishing-agent.js';
 import { MailboxMonitor } from './services/mailbox-monitor.js';
 import { metrics } from './services/metrics.js';
 import { healthChecker } from './services/health-checker.js';
+import { NextFunction } from 'express';
 
 export class HttpServer {
   private app: express.Application;
@@ -42,10 +43,16 @@ export class HttpServer {
    * Setup routes
    */
   private setupRoutes(): void {
-    this.app.get('/health', this.handleHealth.bind(this));
-    this.app.get('/health/deep', this.handleDeepHealth.bind(this));
-    this.app.get('/ready', this.handleReady.bind(this));
-    this.app.get('/metrics', this.handleMetrics.bind(this));
+    const securedRouter = express.Router();
+    securedRouter.use(this.authenticateRequest.bind(this));
+    securedRouter.use(this.rateLimit.bind(this));
+
+    securedRouter.get('/health', this.handleHealth.bind(this));
+    securedRouter.get('/health/deep', this.handleDeepHealth.bind(this));
+    securedRouter.get('/ready', this.handleReady.bind(this));
+    securedRouter.get('/metrics', this.handleMetrics.bind(this));
+
+    this.app.use(securedRouter);
     this.app.get('/', this.handleRoot.bind(this));
   }
 
@@ -145,4 +152,57 @@ export class HttpServer {
       });
     });
   }
+
+  /**
+   * Authentication middleware for operational endpoints
+   */
+  private authenticateRequest(req: Request, res: Response, next: NextFunction): void {
+    const apiKey = process.env.API_KEY || process.env.HEALTH_API_KEY || process.env.METRICS_API_KEY;
+    const authHeader = req.headers.authorization || '';
+    const headerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+    const providedKey = headerToken || (req.headers['x-api-key'] as string | undefined);
+
+    // Fail secure in production if no key configured
+    if (!apiKey && config.server.environment === 'production') {
+      securityLogger.error('Operational endpoint blocked - missing API key configuration');
+      res.status(503).json({ status: 'unavailable', message: 'API key not configured' });
+      return;
+    }
+
+    if (apiKey && providedKey !== apiKey) {
+      res.status(401).json({ status: 'unauthorized' });
+      return;
+    }
+
+    next();
+  }
+
+  /**
+   * Lightweight rate limiting for operational endpoints
+   */
+  private rateLimit(req: Request, res: Response, next: NextFunction): void {
+    const windowMs = 60 * 1000;
+    const maxRequests = 60;
+    const now = Date.now();
+    const key = req.ip || 'unknown';
+
+    const bucket = rateLimitBuckets.get(key) || { count: 0, resetAt: now + windowMs };
+
+    if (now > bucket.resetAt) {
+      bucket.count = 0;
+      bucket.resetAt = now + windowMs;
+    }
+
+    bucket.count += 1;
+    rateLimitBuckets.set(key, bucket);
+
+    if (bucket.count > maxRequests) {
+      res.status(429).json({ status: 'rate_limited', retryAfterMs: bucket.resetAt - now });
+      return;
+    }
+
+    next();
+  }
 }
+
+const rateLimitBuckets: Map<string, { count: number; resetAt: number }> = new Map();

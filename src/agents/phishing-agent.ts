@@ -63,14 +63,23 @@ export class PhishingAgent {
   private async performAnalysis(request: EmailAnalysisRequest, analysisId: string): Promise<PhishingAnalysisResult> {
     // Step 1: Validate headers
     const headerResult = HeaderValidator.validate(request.headers);
-    this.logHeaderResult(analysisId, headerResult);
+    securityLogger.debug('Header validation completed', {
+      analysisId,
+      isValid: headerResult.isValid,
+      indicatorCount: headerResult.indicators.length,
+    });
 
-    // Step 2: Analyze content
-    const contentResult = this.analyzeContent(request, analysisId);
+    // Step 2: Analyze content with sender domain
+    const senderDomain = EmailParser.extractDomain(request.sender);
+    const contentResult = ContentAnalyzer.analyze(request.body || '', senderDomain);
 
     // Step 3: Enrich with threat intelligence
     const threatIntelResult = await this.enrichWithThreatIntel(request, contentResult.suspiciousUrls);
-    this.logThreatIntelResult(analysisId, threatIntelResult);
+    securityLogger.debug('Threat intelligence enrichment completed', {
+      analysisId,
+      indicatorsAdded: threatIntelResult.indicators.length,
+      riskContribution: threatIntelResult.riskContribution,
+    });
 
     // Step 4: Calculate risk score
     const riskResult = RiskScorer.calculateRisk(headerResult, contentResult);
@@ -84,7 +93,15 @@ export class PhishingAgent {
       threatIntelResult.riskContribution
     );
 
-    this.logFinalResult(analysisId, request, riskResult, enhancedRiskScore, finalSeverity, allIndicators);
+    securityLogger.info('Email analysis completed', {
+      analysisId,
+      messageId: request.messageId,
+      isPhishing: enhancedRiskScore >= 5.0,
+      baseRiskScore: riskResult.riskScore,
+      finalRiskScore: enhancedRiskScore,
+      severity: finalSeverity,
+      totalIndicators: allIndicators.length,
+    });
 
     return {
       messageId: request.messageId,
@@ -97,42 +114,6 @@ export class PhishingAgent {
       analysisTimestamp: new Date(),
       analysisId,
     };
-  }
-
-  /**
-   * Analyze email content
-   */
-  private analyzeContent(request: EmailAnalysisRequest, analysisId: string): any {
-    const body = request.body || '';
-    const contentResult = ContentAnalyzer.analyze(body);
-
-    // Check for brand impersonation (requires both body and domain)
-    const senderDomain = EmailParser.extractDomain(request.sender);
-    if (body && senderDomain) {
-      const brandIndicator = ContentAnalyzer.detectBrandImpersonation(body, senderDomain);
-      if (brandIndicator) {
-        contentResult.indicators.push(brandIndicator);
-        contentResult.hasPhishingPatterns = true;
-      }
-    }
-
-    // Check for typosquatting in sender domain (domain-only check)
-    if (senderDomain) {
-      const typosquatIndicator = ContentAnalyzer.detectTyposquatting(senderDomain);
-      if (typosquatIndicator) {
-        contentResult.indicators.push(typosquatIndicator);
-        contentResult.hasPhishingPatterns = true;
-      }
-    }
-
-    securityLogger.debug('Content analysis completed', {
-      analysisId,
-      hasPhishingPatterns: contentResult.hasPhishingPatterns,
-      indicatorCount: contentResult.indicators.length,
-      suspiciousUrlCount: contentResult.suspiciousUrls.length,
-    });
-
-    return contentResult;
   }
 
   /**
@@ -184,50 +165,6 @@ export class PhishingAgent {
     }
 
     return null;
-  }
-
-  /**
-   * Log header validation result
-   */
-  private logHeaderResult(analysisId: string, result: any): void {
-    securityLogger.debug('Header validation completed', {
-      analysisId,
-      isValid: result.isValid,
-      indicatorCount: result.indicators.length,
-    });
-  }
-
-  /**
-   * Log threat intel result
-   */
-  private logThreatIntelResult(analysisId: string, result: any): void {
-    securityLogger.debug('Threat intelligence enrichment completed', {
-      analysisId,
-      indicatorsAdded: result.indicators.length,
-      riskContribution: result.riskContribution,
-    });
-  }
-
-  /**
-   * Log final analysis result
-   */
-  private logFinalResult(
-    analysisId: string,
-    request: EmailAnalysisRequest,
-    riskResult: any,
-    enhancedScore: number,
-    severity: string,
-    indicators: ThreatIndicator[]
-  ): void {
-    securityLogger.info('Email analysis completed', {
-      analysisId,
-      messageId: request.messageId,
-      isPhishing: riskResult.isPhishing,
-      baseRiskScore: riskResult.riskScore,
-      finalRiskScore: enhancedScore,
-      severity,
-      totalIndicators: indicators.length,
-    });
   }
 
   /**

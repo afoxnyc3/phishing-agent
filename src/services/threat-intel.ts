@@ -3,14 +3,33 @@
  * Parallel API calls to VirusTotal, AbuseIPDB, URLScan.io
  * All functions are atomic (max 25 lines)
  * Uses Zod for runtime validation of API responses
+ * Implements retry logic (p-retry) and circuit breaker (opossum)
  */
 
 import axios, { AxiosInstance } from 'axios';
 import NodeCache from 'node-cache';
+import pRetry from 'p-retry';
+import CircuitBreaker from 'opossum';
 import { ThreatIndicator } from '../lib/types.js';
 import { securityLogger } from '../lib/logger.js';
 import { config } from '../lib/config.js';
 import { validate, VirusTotalUrlResponseSchema, AbuseIPDBResponseSchema } from '../lib/schemas.js';
+
+/** Circuit breaker configuration */
+const CIRCUIT_BREAKER_OPTIONS = {
+  timeout: 10000,               // 10s total timeout (includes retries)
+  errorThresholdPercentage: 50, // Open circuit if 50% of requests fail
+  resetTimeout: 60000,          // Try again after 1 minute
+  volumeThreshold: 5,           // Need 5 requests before calculating %
+};
+
+/** Retry configuration */
+const RETRY_OPTIONS = {
+  retries: 3,
+  minTimeout: 100,
+  maxTimeout: 1000,
+  factor: 2,
+};
 
 export interface ThreatIntelResult {
   indicators: ThreatIndicator[];
@@ -48,10 +67,15 @@ export class ThreatIntelService {
   private urlScanClient?: AxiosInstance;
   private enabled: boolean;
 
+  // Circuit breakers for each API
+  private virusTotalBreaker?: CircuitBreaker;
+  private abuseIpDbBreaker?: CircuitBreaker;
+
   constructor() {
     this.cache = new NodeCache({ stdTTL: config.threatIntel.cacheTtlMs / 1000 });
     this.enabled = config.threatIntel.enabled;
     this.initializeClients();
+    this.initializeCircuitBreakers();
   }
 
   /**
@@ -81,6 +105,42 @@ export class ThreatIntelService {
         timeout: config.threatIntel.timeoutMs,
       });
     }
+  }
+
+  /**
+   * Initialize circuit breakers for external APIs
+   */
+  private initializeCircuitBreakers(): void {
+    if (this.virusTotalClient) {
+      this.virusTotalBreaker = new CircuitBreaker(
+        (urlId: string) => this.virusTotalClient!.get(`/urls/${urlId}`),
+        CIRCUIT_BREAKER_OPTIONS
+      );
+      this.setupBreakerEvents(this.virusTotalBreaker, 'VirusTotal');
+    }
+
+    if (this.abuseIpDbClient) {
+      this.abuseIpDbBreaker = new CircuitBreaker(
+        (ip: string) => this.abuseIpDbClient!.get('/check', { params: { ipAddress: ip } }),
+        CIRCUIT_BREAKER_OPTIONS
+      );
+      this.setupBreakerEvents(this.abuseIpDbBreaker, 'AbuseIPDB');
+    }
+  }
+
+  /**
+   * Setup circuit breaker event handlers
+   */
+  private setupBreakerEvents(breaker: CircuitBreaker, apiName: string): void {
+    breaker.on('open', () => {
+      securityLogger.warn(`${apiName} circuit OPEN - API unhealthy, failing fast`);
+    });
+    breaker.on('halfOpen', () => {
+      securityLogger.info(`${apiName} circuit HALF-OPEN - testing recovery`);
+    });
+    breaker.on('close', () => {
+      securityLogger.info(`${apiName} circuit CLOSED - API healthy`);
+    });
   }
 
   /**
@@ -224,10 +284,10 @@ export class ThreatIntelService {
   }
 
   /**
-   * Check URL reputation via VirusTotal
+   * Check URL reputation via VirusTotal (with retry + circuit breaker)
    */
   async checkUrlReputation(url: string): Promise<UrlReputationResult | null> {
-    if (!this.virusTotalClient) return null;
+    if (!this.virusTotalBreaker) return null;
 
     const cacheKey = `vt-url-${url}`;
     const cached = this.cache.get<UrlReputationResult>(cacheKey);
@@ -235,67 +295,122 @@ export class ThreatIntelService {
 
     try {
       const urlId = Buffer.from(url).toString('base64').replace(/=/g, '');
-      const response = await this.virusTotalClient.get(`/urls/${urlId}`);
 
-      // Validate response with Zod
-      const validated = validate(VirusTotalUrlResponseSchema, response.data);
-      if (!validated.success) {
-        securityLogger.warn('Invalid VirusTotal response', { error: validated.error.message, url });
-        return null;
-      }
+      // Use circuit breaker + retry
+      const response = await pRetry(
+        async () => {
+          const res = await this.virusTotalBreaker!.fire(urlId);
+          return res;
+        },
+        {
+          ...RETRY_OPTIONS,
+          onFailedAttempt: (error) => {
+            securityLogger.warn('VirusTotal retry attempt', {
+              attempt: error.attemptNumber,
+              retriesLeft: error.retriesLeft,
+              url,
+            });
+          },
+        }
+      );
 
-      const stats = validated.data.data.attributes.last_analysis_stats;
-      const result: UrlReputationResult = {
-        url,
-        malicious: stats.malicious > 0,
-        maliciousCount: stats.malicious,
-        totalScans: stats.malicious + stats.harmless + stats.undetected,
-        detectedBy: Object.keys(validated.data.data.attributes.last_analysis_results || {}),
-        confidenceScore: stats.malicious / (stats.malicious + stats.harmless + stats.undetected),
-      };
-
-      this.cache.set(cacheKey, result);
-      return result;
-    } catch (error: any) {
-      securityLogger.warn('VirusTotal API error', { error: error.message, url });
+      return this.parseVirusTotalResponse(url, response as { data: unknown }, cacheKey);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      securityLogger.warn('VirusTotal API failed after retries', { error: errorMessage, url });
       return null;
     }
   }
 
   /**
-   * Check IP reputation via AbuseIPDB
+   * Parse VirusTotal response
+   */
+  private parseVirusTotalResponse(
+    url: string,
+    response: { data: unknown },
+    cacheKey: string
+  ): UrlReputationResult | null {
+    const validated = validate(VirusTotalUrlResponseSchema, response.data);
+    if (!validated.success) {
+      securityLogger.warn('Invalid VirusTotal response', { error: validated.error.message, url });
+      return null;
+    }
+
+    const stats = validated.data.data.attributes.last_analysis_stats;
+    const result: UrlReputationResult = {
+      url,
+      malicious: stats.malicious > 0,
+      maliciousCount: stats.malicious,
+      totalScans: stats.malicious + stats.harmless + stats.undetected,
+      detectedBy: Object.keys(validated.data.data.attributes.last_analysis_results || {}),
+      confidenceScore: stats.malicious / (stats.malicious + stats.harmless + stats.undetected),
+    };
+
+    this.cache.set(cacheKey, result);
+    return result;
+  }
+
+  /**
+   * Check IP reputation via AbuseIPDB (with retry + circuit breaker)
    */
   async checkIpReputation(ip: string): Promise<IpReputationResult | null> {
-    if (!this.abuseIpDbClient) return null;
+    if (!this.abuseIpDbBreaker) return null;
 
     const cacheKey = `abuseipdb-${ip}`;
     const cached = this.cache.get<IpReputationResult>(cacheKey);
     if (cached) return cached;
 
     try {
-      const response = await this.abuseIpDbClient.get('/check', { params: { ipAddress: ip } });
+      // Use circuit breaker + retry
+      const response = await pRetry(
+        async () => {
+          const res = await this.abuseIpDbBreaker!.fire(ip);
+          return res;
+        },
+        {
+          ...RETRY_OPTIONS,
+          onFailedAttempt: (error) => {
+            securityLogger.warn('AbuseIPDB retry attempt', {
+              attempt: error.attemptNumber,
+              retriesLeft: error.retriesLeft,
+              ip,
+            });
+          },
+        }
+      );
 
-      // Validate response with Zod
-      const validated = validate(AbuseIPDBResponseSchema, response.data);
-      if (!validated.success) {
-        securityLogger.warn('Invalid AbuseIPDB response', { error: validated.error.message, ip });
-        return null;
-      }
-
-      const data = validated.data.data;
-      const result: IpReputationResult = {
-        ip,
-        malicious: data.abuseConfidenceScore >= 50,
-        abuseConfidenceScore: data.abuseConfidenceScore,
-        totalReports: data.totalReports,
-      };
-
-      this.cache.set(cacheKey, result);
-      return result;
-    } catch (error: any) {
-      securityLogger.warn('AbuseIPDB API error', { error: error.message, ip });
+      return this.parseAbuseIPDBResponse(ip, response as { data: unknown }, cacheKey);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      securityLogger.warn('AbuseIPDB API failed after retries', { error: errorMessage, ip });
       return null;
     }
+  }
+
+  /**
+   * Parse AbuseIPDB response
+   */
+  private parseAbuseIPDBResponse(
+    ip: string,
+    response: { data: unknown },
+    cacheKey: string
+  ): IpReputationResult | null {
+    const validated = validate(AbuseIPDBResponseSchema, response.data);
+    if (!validated.success) {
+      securityLogger.warn('Invalid AbuseIPDB response', { error: validated.error.message, ip });
+      return null;
+    }
+
+    const data = validated.data.data;
+    const result: IpReputationResult = {
+      ip,
+      malicious: data.abuseConfidenceScore >= 50,
+      abuseConfidenceScore: data.abuseConfidenceScore,
+      totalReports: data.totalReports,
+    };
+
+    this.cache.set(cacheKey, result);
+    return result;
   }
 
   /**
