@@ -2,6 +2,41 @@
 
 All notable changes to the phishing-agent project will be documented in this file.
 
+## [0.3.0] - 2025-11-28
+
+### Added
+- **Attachment Analysis** (Issue #2): Detect dangerous file attachments
+  - Dangerous executable detection (.exe, .bat, .vbs, .scr, .ps1, .cmd)
+  - Macro-enabled document flagging (.docm, .xlsm, .pptm)
+  - Double extension attack detection (invoice.pdf.exe)
+  - Archive file detection (.zip, .rar, .7z, .iso)
+  - File size anomaly detection
+  - 39 tests for attachment analysis
+- **LLM-Enhanced Analysis Hardening** (Issue #4): Production-grade AI analysis
+  - Claude 3.5 Haiku integration for borderline cases (score 4-6)
+  - Retry logic with exponential backoff (p-retry)
+  - Circuit breaker pattern (opossum library)
+  - Graceful degradation when LLM unavailable
+  - Health check integration
+  - 30 tests for LLM analyzer
+- **Reporting Dashboard** (Issue #5): Analytics and metrics
+  - Daily/weekly phishing metrics aggregation
+  - Top phishing senders and domains tracking
+  - Severity distribution analysis
+  - Indicator breakdown statistics
+  - In-memory analytics service
+  - 25 tests for reporting dashboard
+- Updated documentation (README, ARCHITECTURE, AGENT.md, CLAUDE.md)
+
+### Changed
+- Risk scoring now includes attachment analysis (40/30/30 weighting when attachments present)
+- Test count increased from 387 to 502 tests
+- Documentation updated to v0.3.0
+
+### Fixed
+- ESM-compatible mocking for all test files
+- Jest configuration for p-retry and other ESM packages
+
 ## [0.2.2] - 2025-10-20
 
 ### Added
