@@ -72,19 +72,20 @@
 
 ## Architecture Summary
 
-**Design Philosophy**: Rule-based, no LLM, no ML frameworks
+**Design Philosophy**: Rule-based with optional LLM enhancement for borderline cases
 
 **Technology Stack**:
 - Runtime: Node.js 18+ with TypeScript 5+
 - Email API: Microsoft Graph API
 - Threat Intel: VirusTotal, AbuseIPDB, URLScan (optional)
+- LLM: Anthropic Claude 3.5 Haiku (optional, for borderline cases)
 - HTTP Server: Express (health checks only)
 - Logging: Winston (structured JSON)
 - Validation: Zod (runtime type safety)
 
 **Analysis Pipeline**:
 ```
-Email Input → Headers → Content → [Threat Intel] → Risk Score → Reply
+Email Input → Headers → Content → [Threat Intel] → Risk Score → [LLM] → Reply
 ```
 
 **Performance Targets**:
@@ -239,13 +240,12 @@ If deployed to production:
 3. Gather user feedback on analysis quality
 4. Track performance metrics (latency, throughput)
 
-### Potential Enhancements (Based on Usage)
+### Planned Enhancements (v0.3.0)
 
-**Phase 2 Features** (Optional):
-- Advanced brand impersonation detection
-- Attachment deep scanning
-- Machine learning model integration
-- Reporting dashboard
+**Current Priority**:
+- LLM-enhanced analysis hardening (Issue #4)
+- Attachment analysis (Issue #2)
+- Reporting dashboard (Issue #5)
 
 See [roadmap.md](./roadmap.md) for detailed feature planning.
 

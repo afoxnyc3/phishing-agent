@@ -9,7 +9,7 @@
 
 ## Overview
 
-The phishing agent is a rule-based email analysis system designed to detect phishing attempts through systematic evaluation of email headers, content patterns, and threat intelligence. Unlike machine learning approaches, it uses transparent, explainable rules that security teams can audit and tune.
+The phishing agent is a rule-based email analysis system designed to detect phishing attempts through systematic evaluation of email headers, content patterns, and threat intelligence. It uses transparent, explainable rules that security teams can audit and tune, with optional LLM-enhanced analysis for borderline cases requiring natural language explanations.
 
 ### Design Goals
 
@@ -378,20 +378,20 @@ MAX_EMAILS_PER_HOUR=100
 
 ### Potential Improvements
 
-**Machine Learning Integration**:
-- Train on labeled dataset for improved accuracy
-- Complement rule-based approach, don't replace
-- Focus on edge cases rules miss
-
 **Advanced Content Analysis**:
 - Logo/image analysis for visual spoofing
-- Natural language processing for tone analysis
-- Attachment deep scanning
+- Attachment deep scanning with hash reputation
+- Archive file inspection (nested files)
 
 **User Feedback Loop**:
 - Learn from user corrections
 - Adjust scoring weights dynamically
 - Track false positive/negative rates
+
+**Enterprise Features**:
+- Multi-tenant support
+- SIEM integration
+- Custom risk policies
 
 ### Maintaining Philosophy
 

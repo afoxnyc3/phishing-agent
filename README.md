@@ -373,14 +373,9 @@ export function validateSpfRecord(spfHeader: string | undefined): Result<string,
 - [x] Testing framework (Jest, 95%+ coverage, 340 tests)
 
 ### v0.3.0 (Enhanced Detection - Planned)
-- [ ] Brand impersonation detection (Issue #7)
-- [ ] Attachment analysis (Issue #8)
-- [ ] Cloud deployment automation (CI/CD pipeline)
-
-### v0.4.0 (Advanced Features - Future)
-- [ ] Machine learning model (Issue #14)
-- [ ] LLM-enhanced analysis (Issue #15)
-- [ ] Reporting dashboard (Issue #16)
+- [ ] LLM-enhanced analysis hardening (Issue #4)
+- [ ] Attachment analysis (Issue #2)
+- [ ] Reporting dashboard (Issue #5)
 
 For complete roadmap and GitHub issues, see [roadmap.md](./roadmap.md).
 
