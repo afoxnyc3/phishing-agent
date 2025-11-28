@@ -67,6 +67,14 @@ export const EnvConfigSchema = z
     API_KEY: z.string().optional(),
     HEALTH_API_KEY: z.string().optional(),
     METRICS_API_KEY: z.string().optional(),
+
+    // LLM configuration (optional - enables Claude-enhanced analysis)
+    ANTHROPIC_API_KEY: z.string().optional(),
+    LLM_DEMO_MODE: z.coerce.boolean().default(false),
+    LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(10000), // 10 seconds
+    LLM_RETRY_ATTEMPTS: z.coerce.number().int().min(0).max(5).default(3),
+    LLM_CIRCUIT_BREAKER_THRESHOLD: z.coerce.number().int().positive().default(5),
+    LLM_CIRCUIT_BREAKER_RESET_MS: z.coerce.number().int().positive().default(60000), // 1 minute
   })
   .superRefine((data, ctx) => {
     // Production-only validations (fail-fast at startup)
