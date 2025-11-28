@@ -5,23 +5,30 @@
  */
 
 import { Client } from '@microsoft/microsoft-graph-client';
-import { ClientSecretCredential } from '@azure/identity';
+import pLimit from 'p-limit';
 import { securityLogger } from '../lib/logger.js';
 import { PhishingAgent } from '../agents/phishing-agent.js';
+import { GraphEmail, GraphEmailListResponse } from '../lib/schemas.js';
 import { validateGraphEmailListResponse } from './graph-email-parser.js';
 import { RateLimiter, RateLimiterConfig } from './rate-limiter.js';
 import { EmailDeduplication, DeduplicationConfig } from './email-deduplication.js';
 import { processEmail } from './email-processor.js';
+import { createGraphClient, AzureAuthMethod } from './azure-auth.js';
+
+export type { AzureAuthMethod };
 
 export interface MailboxMonitorConfig {
   tenantId: string;
   clientId: string;
-  clientSecret: string;
+  clientSecret?: string; // Optional when using managed identity
+  authMethod?: AzureAuthMethod; // Defaults based on environment
   mailboxAddress: string;
   checkIntervalMs?: number;
   enabled?: boolean;
   rateLimiter?: RateLimiterConfig;
   deduplication?: DeduplicationConfig;
+  maxPages?: number; // Max pagination pages (default: 5)
+  parallelLimit?: number; // Parallel processing limit (default: 5)
 }
 
 export class MailboxMonitor {
@@ -38,9 +45,13 @@ export class MailboxMonitor {
     this.config = { checkIntervalMs: 60000, enabled: true, ...config };
     this.phishingAgent = phishingAgent;
     this.lastCheckTime = new Date(Date.now() - 5 * 60 * 1000);
-    this.client = this.createGraphClient(config);
+    this.client = createGraphClient({
+      tenantId: config.tenantId,
+      clientId: config.clientId,
+      clientSecret: config.clientSecret,
+      authMethod: config.authMethod,
+    });
 
-    // Initialize rate limiter with defaults
     this.rateLimiter = new RateLimiter(
       config.rateLimiter || {
         enabled: true,
@@ -51,7 +62,6 @@ export class MailboxMonitor {
       }
     );
 
-    // Initialize deduplication with defaults
     this.deduplication = new EmailDeduplication(
       config.deduplication || {
         enabled: true,
@@ -59,26 +69,6 @@ export class MailboxMonitor {
         senderCooldownMs: 86400000,
       }
     );
-  }
-
-  /**
-   * Create Graph API client
-   */
-  private createGraphClient(config: MailboxMonitorConfig): Client {
-    const credential = new ClientSecretCredential(
-      config.tenantId,
-      config.clientId,
-      config.clientSecret
-    );
-
-    return Client.initWithMiddleware({
-      authProvider: {
-        getAccessToken: async () => {
-          const token = await credential.getToken('https://graph.microsoft.com/.default');
-          return token?.token || '';
-        },
-      },
-    });
   }
 
   /**
@@ -93,9 +83,10 @@ export class MailboxMonitor {
     try {
       await this.client.api(`/users/${this.config.mailboxAddress}/messages`).top(1).get();
       securityLogger.info('Mailbox monitor initialized successfully');
-    } catch (error: any) {
-      securityLogger.error('Mailbox monitor initialization failed', { error: error.message });
-      throw new Error(`Mailbox monitor initialization failed: ${error.message}`);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      securityLogger.error('Mailbox monitor initialization failed', { error: msg });
+      throw new Error(`Mailbox monitor initialization failed: ${msg}`);
     }
   }
 
@@ -164,17 +155,56 @@ export class MailboxMonitor {
       securityLogger.info('Found new emails to analyze', { count: emails.length });
       await this.processEmails(emails);
       this.lastCheckTime = checkTime;
-    } catch (error: any) {
-      securityLogger.error('Failed to check for new emails', { error: error.message });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      securityLogger.error('Failed to check for new emails', { error: msg });
       throw error;
     }
   }
 
   /**
-   * Fetch new emails from mailbox
+   * Fetch new emails from mailbox with pagination support
+   * Handles @odata.nextLink for large result sets
    */
-  private async fetchNewEmails(sinceDate: string): Promise<any[]> {
-    const response = await this.client
+  private async fetchNewEmails(sinceDate: string): Promise<GraphEmail[]> {
+    const allEmails: GraphEmail[] = [];
+    const maxPages = this.config.maxPages || 5;
+    let pageCount = 0;
+    let nextLink: string | undefined = undefined;
+
+    do {
+      const response = await this.fetchEmailPage(sinceDate, nextLink);
+      const validatedEmails = validateGraphEmailListResponse(response);
+      allEmails.push(...validatedEmails);
+      nextLink = (response as GraphEmailListResponse)['@odata.nextLink'];
+      pageCount++;
+      if (nextLink) {
+        securityLogger.debug('Fetching next page of emails', {
+          pageCount,
+          maxPages,
+          emailsSoFar: allEmails.length,
+        });
+      }
+    } while (nextLink && pageCount < maxPages);
+
+    if (nextLink && pageCount >= maxPages) {
+      securityLogger.warn('Pagination limit reached - some emails may not be fetched', {
+        pageCount,
+        maxPages,
+        totalFetched: allEmails.length,
+      });
+    }
+    return allEmails;
+  }
+
+  private async fetchEmailPage(
+    sinceDate: string,
+    nextLink?: string
+  ): Promise<GraphEmailListResponse> {
+    if (nextLink) {
+      return this.client.api(nextLink).get();
+    }
+    return this.client
       .api(`/users/${this.config.mailboxAddress}/messages`)
       .filter(`receivedDateTime ge ${sinceDate}`)
       .orderby('receivedDateTime asc')
@@ -185,30 +215,39 @@ export class MailboxMonitor {
       )
       .expand('attachments($select=name,contentType,size)')
       .get();
-
-    // Validate Graph API response
-    return validateGraphEmailListResponse(response);
   }
 
   /**
-   * Process multiple emails
+   * Process multiple emails with bounded parallelism
+   * Uses p-limit to prevent overwhelming downstream services
    */
-  private async processEmails(emails: any[]): Promise<void> {
-    for (const email of emails) {
-      await processEmail(email, {
-        mailboxAddress: this.config.mailboxAddress,
-        graphClient: this.client,
-        phishingAgent: this.phishingAgent,
-        rateLimiter: this.rateLimiter,
-        deduplication: this.deduplication,
-      }).catch((error) => {
-        securityLogger.error('Failed to process email', {
-          emailId: email.id,
-          subject: email.subject,
-          error: error.message,
-        });
-      });
-    }
+  private async processEmails(emails: GraphEmail[]): Promise<void> {
+    const parallelLimit = this.config.parallelLimit || 5;
+    const limit = pLimit(parallelLimit);
+    securityLogger.debug('Processing emails with parallel limit', {
+      emailCount: emails.length,
+      parallelLimit,
+    });
+
+    const tasks = emails.map((email) =>
+      limit(() =>
+        processEmail(email, {
+          mailboxAddress: this.config.mailboxAddress,
+          graphClient: this.client,
+          phishingAgent: this.phishingAgent,
+          rateLimiter: this.rateLimiter,
+          deduplication: this.deduplication,
+        }).catch((error: unknown) => {
+          const msg = error instanceof Error ? error.message : 'Unknown error';
+          securityLogger.error('Failed to process email', {
+            emailId: email.id,
+            subject: email.subject,
+            error: msg,
+          });
+        })
+      )
+    );
+    await Promise.all(tasks);
   }
 
   /**

@@ -6,6 +6,7 @@
 
 import { DefaultAzureCredential } from '@azure/identity';
 import { SecretClient } from '@azure/keyvault-secrets';
+import { securityLogger } from './logger.js';
 
 /** Secret names in Key Vault (kebab-case) mapped to env var names */
 const SECRET_MAPPINGS: Record<string, string> = {
@@ -34,17 +35,27 @@ async function getSecret(client: SecretClient, name: string): Promise<string | u
 /**
  * Load all secrets from Key Vault and set them as environment variables
  * This allows the rest of the app to use process.env as usual
+ *
+ * SECURITY: In production, Key Vault is REQUIRED to prevent secrets in env vars
  */
 export async function loadSecretsFromKeyVault(): Promise<void> {
   const vaultName = process.env.AZURE_KEY_VAULT_NAME;
+  const isProduction = process.env.NODE_ENV === 'production';
 
   if (!vaultName) {
-    // No Key Vault configured, use environment variables
-    console.log('[KeyVault] No AZURE_KEY_VAULT_NAME set, using environment variables');
+    if (isProduction) {
+      // SECURITY: Fail-fast in production - Key Vault is required
+      throw new Error(
+        'SECURITY: AZURE_KEY_VAULT_NAME is required in production. ' +
+          'Secrets must be loaded from Key Vault, not environment variables.'
+      );
+    }
+    // Development/test: allow env vars with warning
+    securityLogger.info('No AZURE_KEY_VAULT_NAME set, using environment variables (development mode)');
     return;
   }
 
-  console.log(`[KeyVault] Loading secrets from ${vaultName}`);
+  securityLogger.info('Loading secrets from Key Vault', { vaultName });
 
   try {
     const vaultUrl = `https://${vaultName}.vault.azure.net`;
@@ -56,14 +67,14 @@ export async function loadSecretsFromKeyVault(): Promise<void> {
       const value = await getSecret(client, kvName);
       if (value) {
         process.env[envName] = value;
-        console.log(`[KeyVault] Loaded ${kvName} -> ${envName}`);
+        securityLogger.debug('Loaded secret from Key Vault', { kvName, envName });
       }
     });
 
     await Promise.all(secretPromises);
-    console.log('[KeyVault] All secrets loaded successfully');
+    securityLogger.info('All secrets loaded successfully from Key Vault');
   } catch (error) {
-    console.error('[KeyVault] Failed to load secrets:', (error as Error).message);
+    securityLogger.error('Failed to load secrets from Key Vault', { error: (error as Error).message });
     throw new Error(`Key Vault initialization failed: ${(error as Error).message}`);
   }
 }

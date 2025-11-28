@@ -60,7 +60,7 @@ function validateEnvironment(): ReturnType<typeof EnvConfigSchema.parse> {
     const validated = EnvConfigSchema.parse(process.env);
     return validated;
   } catch (error) {
-    // Use console.error to avoid circular dependency with logger
+    // eslint-disable-next-line no-console -- avoid circular dependency with logger
     console.error('Environment validation failed:', (error as Error).message);
     throw new Error(`Invalid environment configuration: ${(error as Error).message}`);
   }
@@ -78,6 +78,17 @@ export const config = {
     tenantId: env.AZURE_TENANT_ID,
     clientId: env.AZURE_CLIENT_ID,
     clientSecret: env.AZURE_CLIENT_SECRET,
+    keyVaultName: env.AZURE_KEY_VAULT_NAME,
+    authMethod: env.AZURE_AUTH_METHOD,
+  },
+
+  // Security settings
+  security: {
+    allowedSenderEmails: env.ALLOWED_SENDER_EMAILS,
+    allowedSenderDomains: env.ALLOWED_SENDER_DOMAINS,
+    apiKey: env.API_KEY,
+    healthApiKey: env.HEALTH_API_KEY,
+    metricsApiKey: env.METRICS_API_KEY,
   },
 
   // Mailbox monitoring
@@ -85,6 +96,8 @@ export const config = {
     enabled: env.MAILBOX_MONITOR_ENABLED,
     address: env.PHISHING_MAILBOX_ADDRESS,
     checkIntervalMs: env.MAILBOX_CHECK_INTERVAL_MS,
+    maxPages: env.MAILBOX_MAX_PAGES,
+    parallelLimit: env.MAILBOX_PARALLEL_LIMIT,
   },
 
   // Threat intelligence
@@ -111,6 +124,19 @@ export const config = {
     enabled: env.DEDUPLICATION_ENABLED,
     contentHashTtlMs: env.DEDUPLICATION_TTL_MS,
     senderCooldownMs: env.SENDER_COOLDOWN_MS,
+  },
+
+  // Redis (optional - enables distributed state)
+  redis: {
+    url: env.REDIS_URL,
+    keyPrefix: env.REDIS_KEY_PREFIX,
+  },
+
+  // HTTP server
+  http: {
+    bodyLimit: env.HTTP_BODY_LIMIT,
+    helmetEnabled: env.HELMET_ENABLED,
+    healthCacheTtlMs: env.HEALTH_CACHE_TTL_MS,
   },
 
   // Server

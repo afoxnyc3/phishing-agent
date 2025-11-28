@@ -29,6 +29,9 @@ jest.unstable_mockModule('@azure/identity', () => ({
   ClientSecretCredential: jest.fn().mockImplementation(() => ({
     getToken: mockGetToken,
   })),
+  DefaultAzureCredential: jest.fn().mockImplementation(() => ({
+    getToken: mockGetToken,
+  })),
 }));
 
 jest.unstable_mockModule('../lib/logger.js', () => ({
