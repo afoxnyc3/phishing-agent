@@ -1,20 +1,23 @@
-// @ts-nocheck - Test file with complex Jest mocks
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { ThreatIntelService } from './threat-intel.js';
 
-// Mock axios
-jest.mock('axios');
+// Mock modules using unstable_mockModule for ESM compatibility
+jest.unstable_mockModule('axios', () => ({
+  default: {
+    create: jest.fn(() => ({
+      get: jest.fn(),
+      post: jest.fn(),
+    })),
+  },
+}));
 
-// Mock NodeCache
-jest.mock('node-cache', () => {
-  return jest.fn().mockImplementation(() => ({
+jest.unstable_mockModule('node-cache', () => ({
+  default: jest.fn().mockImplementation(() => ({
     get: jest.fn().mockReturnValue(null),
     set: jest.fn(),
-  }));
-});
+  })),
+}));
 
-// Mock config
-jest.mock('../lib/config.js', () => ({
+jest.unstable_mockModule('../lib/config.js', () => ({
   config: {
     threatIntel: {
       enabled: true,
@@ -27,8 +30,7 @@ jest.mock('../lib/config.js', () => ({
   },
 }));
 
-// Mock logger
-jest.mock('../lib/logger.js', () => ({
+jest.unstable_mockModule('../lib/logger.js', () => ({
   securityLogger: {
     info: jest.fn(),
     warn: jest.fn(),
@@ -37,8 +39,11 @@ jest.mock('../lib/logger.js', () => ({
   },
 }));
 
+// Import after mocks are set up
+const { ThreatIntelService } = await import('./threat-intel.js');
+
 describe('ThreatIntelService', () => {
-  let service: ThreatIntelService;
+  let service: InstanceType<typeof ThreatIntelService>;
 
   beforeEach(() => {
     jest.clearAllMocks();
