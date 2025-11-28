@@ -15,6 +15,7 @@ const SECRET_MAPPINGS: Record<string, string> = {
   'virustotal-api-key': 'VIRUSTOTAL_API_KEY',
   'abuseipdb-api-key': 'ABUSEIPDB_API_KEY',
   'urlscan-api-key': 'URLSCAN_API_KEY',
+  'anthropic-api-key': 'ANTHROPIC_API_KEY',
 };
 
 /**

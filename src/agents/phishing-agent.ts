@@ -11,6 +11,7 @@ import { HeaderValidator } from '../analysis/header-validator.js';
 import { ContentAnalyzer } from '../analysis/content-analyzer.js';
 import { RiskScorer } from '../analysis/risk-scorer.js';
 import { ThreatIntelService } from '../services/threat-intel.js';
+import { shouldRunLlmAnalysis, generateThreatExplanation } from '../services/llm-analyzer.js';
 
 export class PhishingAgent {
   private initialized: boolean = false;
@@ -93,6 +94,9 @@ export class PhishingAgent {
       threatIntelResult.riskContribution
     );
 
+    // Step 6: Generate LLM explanation (if enabled)
+    const explanation = await this.generateExplanation(request, enhancedRiskScore, allIndicators);
+
     securityLogger.info('Email analysis completed', {
       analysisId,
       messageId: request.messageId,
@@ -101,6 +105,7 @@ export class PhishingAgent {
       finalRiskScore: enhancedRiskScore,
       severity: finalSeverity,
       totalIndicators: allIndicators.length,
+      hasExplanation: !!explanation,
     });
 
     return {
@@ -113,7 +118,29 @@ export class PhishingAgent {
       recommendedActions: riskResult.recommendedActions,
       analysisTimestamp: new Date(),
       analysisId,
+      explanation,
     };
+  }
+
+  /**
+   * Generate LLM explanation for borderline cases
+   */
+  private async generateExplanation(
+    request: EmailAnalysisRequest,
+    riskScore: number,
+    indicators: ThreatIndicator[]
+  ): Promise<string | undefined> {
+    if (!shouldRunLlmAnalysis(riskScore)) return undefined;
+
+    const result = await generateThreatExplanation({
+      subject: request.subject,
+      sender: request.sender,
+      body: request.body || '',
+      riskScore,
+      indicators,
+    });
+
+    return result?.explanation;
   }
 
   /**
