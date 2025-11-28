@@ -144,6 +144,16 @@ export const config = {
     port: env.PORT,
     environment: env.NODE_ENV,
   },
+
+  // LLM (optional - Claude-enhanced analysis)
+  llm: {
+    apiKey: env.ANTHROPIC_API_KEY,
+    demoMode: env.LLM_DEMO_MODE,
+    timeoutMs: env.LLM_TIMEOUT_MS,
+    retryAttempts: env.LLM_RETRY_ATTEMPTS,
+    circuitBreakerThreshold: env.LLM_CIRCUIT_BREAKER_THRESHOLD,
+    circuitBreakerResetMs: env.LLM_CIRCUIT_BREAKER_RESET_MS,
+  },
 };
 
 /**
