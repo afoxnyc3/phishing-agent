@@ -1,5 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { getEnv, getEnvNumber, getEnvBoolean, isProduction } from './config.js';
+
+// Helper to dynamically import config with fresh env values
+async function importConfig() {
+  jest.resetModules();
+  const module = await import('./config.js');
+  return module.config;
+}
 
 describe('Config Module', () => {
   const originalEnv = process.env;
@@ -150,34 +157,34 @@ describe('Config Module', () => {
   });
 
   describe('Config Object Structure', () => {
-    it('should have azure configuration section', () => {
+    it('should have azure configuration section', async () => {
       process.env.AZURE_TENANT_ID = 'test-tenant';
       process.env.AZURE_CLIENT_ID = 'test-client';
 
-      const { config } = require('./config.js');
+      const config = await importConfig();
       expect(config.azure).toBeDefined();
       expect(config.azure.tenantId).toBeDefined();
       expect(config.azure.clientId).toBeDefined();
     });
 
-    it('should have mailbox configuration section', () => {
+    it('should have mailbox configuration section', async () => {
       process.env.PHISHING_MAILBOX_ADDRESS = 'test@example.com';
 
-      const { config } = require('./config.js');
+      const config = await importConfig();
       expect(config.mailbox).toBeDefined();
       expect(config.mailbox.address).toBeDefined();
       expect(config.mailbox.checkIntervalMs).toBeDefined();
     });
 
-    it('should have threatIntel configuration section', () => {
-      const { config } = require('./config.js');
+    it('should have threatIntel configuration section', async () => {
+      const config = await importConfig();
       expect(config.threatIntel).toBeDefined();
       expect(config.threatIntel.enabled).toBeDefined();
       expect(config.threatIntel.timeoutMs).toBeDefined();
     });
 
-    it('should have server configuration section', () => {
-      const { config } = require('./config.js');
+    it('should have server configuration section', async () => {
+      const config = await importConfig();
       expect(config.server).toBeDefined();
       expect(config.server.port).toBeDefined();
       expect(config.server.environment).toBeDefined();
@@ -185,34 +192,33 @@ describe('Config Module', () => {
   });
 
   describe('Default Values', () => {
-    it('should use default port 3000', () => {
+    it('should use default port 3000', async () => {
       delete process.env.PORT;
-      const { config } = require('./config.js');
-      // Note: Due to module caching, this might use already-loaded values
+      const config = await importConfig();
       expect(typeof config.server.port).toBe('number');
     });
 
-    it('should use default check interval 60000ms', () => {
+    it('should use default check interval 60000ms', async () => {
       delete process.env.MAILBOX_CHECK_INTERVAL_MS;
-      const { config } = require('./config.js');
+      const config = await importConfig();
       expect(typeof config.mailbox.checkIntervalMs).toBe('number');
     });
 
-    it('should use default threat intel timeout 5000ms', () => {
+    it('should use default threat intel timeout 5000ms', async () => {
       delete process.env.THREAT_INTEL_TIMEOUT_MS;
-      const { config } = require('./config.js');
+      const config = await importConfig();
       expect(typeof config.threatIntel.timeoutMs).toBe('number');
     });
 
-    it('should enable mailbox monitor by default', () => {
+    it('should enable mailbox monitor by default', async () => {
       delete process.env.MAILBOX_MONITOR_ENABLED;
-      const { config } = require('./config.js');
+      const config = await importConfig();
       expect(typeof config.mailbox.enabled).toBe('boolean');
     });
 
-    it('should enable threat intel by default', () => {
+    it('should enable threat intel by default', async () => {
       delete process.env.THREAT_INTEL_ENABLED;
-      const { config } = require('./config.js');
+      const config = await importConfig();
       expect(typeof config.threatIntel.enabled).toBe('boolean');
     });
   });

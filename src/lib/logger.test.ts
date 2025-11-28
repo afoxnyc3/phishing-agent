@@ -1,46 +1,41 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { SecurityLogger, PerformanceTimer, securityLogger } from './logger.js';
 
-// Mock winston
-jest.mock('winston', () => {
-  const mockLogger = {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
-  };
+// Create mock logger before importing modules
+const mockLogger = {
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  debug: jest.fn(),
+};
 
-  return {
-    __esModule: true,
-    default: {
-      createLogger: jest.fn(() => mockLogger),
-      format: {
-        combine: jest.fn((...args) => args),
-        timestamp: jest.fn(),
-        errors: jest.fn(),
-        json: jest.fn(),
-        colorize: jest.fn(),
-        simple: jest.fn(),
-      },
-      transports: {
-        Console: jest.fn(),
-      },
+// Mock winston using unstable_mockModule for ESM
+jest.unstable_mockModule('winston', () => ({
+  default: {
+    createLogger: jest.fn(() => mockLogger),
+    format: {
+      combine: jest.fn((...args: unknown[]) => args),
+      timestamp: jest.fn(),
+      errors: jest.fn(),
+      json: jest.fn(),
+      colorize: jest.fn(),
+      simple: jest.fn(),
     },
-  };
-});
+    transports: {
+      Console: jest.fn(),
+    },
+  },
+}));
+
+// Import after mocking
+const { SecurityLogger, PerformanceTimer, securityLogger } = await import('./logger.js');
 
 describe('Logger Module', () => {
-  let testLogger: SecurityLogger;
-  let mockWinstonLogger: any;
+  let testLogger: InstanceType<typeof SecurityLogger>;
+  let mockWinstonLogger: typeof mockLogger;
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    // Get the mock winston logger
-    const winston = require('winston').default;
-    mockWinstonLogger = winston.createLogger();
-
-    // Create a fresh SecurityLogger instance for testing
+    mockWinstonLogger = mockLogger;
     testLogger = new SecurityLogger();
   });
 
@@ -258,7 +253,7 @@ describe('Logger Module', () => {
 
         const metricsAfterCleanup = testLogger.getPerformanceMetrics(24);
         expect(metricsAfterCleanup).toHaveLength(2);
-        expect(metricsAfterCleanup.every(m => m.operation.startsWith('recent'))).toBe(true);
+        expect(metricsAfterCleanup.every((m: { operation: string }) => m.operation.startsWith('recent'))).toBe(true);
       });
 
       it('should handle failed operations in metrics', () => {
@@ -317,6 +312,7 @@ describe('Logger Module', () => {
     });
 
     it('should log debug message on timer start', () => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const timer = new PerformanceTimer('debug-operation');
 
       expect(mockWinstonLogger.debug).toHaveBeenCalledWith('Starting: debug-operation', undefined);

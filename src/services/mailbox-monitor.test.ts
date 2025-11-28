@@ -1,14 +1,10 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { MailboxMonitor } from './mailbox-monitor.js';
-import { PhishingAgent } from '../agents/phishing-agent.js';
 import type { PhishingAnalysisResult } from '../lib/types.js';
-import { buildReplyHtml } from './email-reply-builder.js';
-import { __testResetMessageIdCache } from './email-processor.js';
 
-// Mock the entire Graph client module
-const mockGraphGet: any = jest.fn();
-const mockGraphPost: any = jest.fn();
-const mockGraphApi: any = jest.fn(() => ({
+// Mock setup - must be before imports
+const mockGraphGet = jest.fn<() => Promise<unknown>>();
+const mockGraphPost = jest.fn<() => Promise<unknown>>();
+const mockGraphApi = jest.fn(() => ({
   get: mockGraphGet,
   post: mockGraphPost,
   filter: jest.fn().mockReturnThis(),
@@ -18,7 +14,10 @@ const mockGraphApi: any = jest.fn(() => ({
   expand: jest.fn().mockReturnThis(),
 }));
 
-jest.mock('@microsoft/microsoft-graph-client', () => ({
+const mockGetToken = jest.fn(() => Promise.resolve({ token: 'mock-token', expiresOnTimestamp: Date.now() + 3600000 }));
+
+// Mock modules using unstable_mockModule for ESM
+jest.unstable_mockModule('@microsoft/microsoft-graph-client', () => ({
   Client: {
     initWithMiddleware: jest.fn(() => ({
       api: mockGraphApi,
@@ -26,17 +25,13 @@ jest.mock('@microsoft/microsoft-graph-client', () => ({
   },
 }));
 
-// Mock Azure Identity
-const mockGetToken: any = jest.fn(() => Promise.resolve({ token: 'mock-token', expiresOnTimestamp: Date.now() + 3600000 }));
-
-jest.mock('@azure/identity', () => ({
+jest.unstable_mockModule('@azure/identity', () => ({
   ClientSecretCredential: jest.fn().mockImplementation(() => ({
     getToken: mockGetToken,
   })),
 }));
 
-// Mock logger
-jest.mock('../lib/logger.js', () => ({
+jest.unstable_mockModule('../lib/logger.js', () => ({
   securityLogger: {
     info: jest.fn(),
     warn: jest.fn(),
@@ -46,23 +41,33 @@ jest.mock('../lib/logger.js', () => ({
   },
 }));
 
-// Mock graph email parser
-jest.mock('./graph-email-parser.js', () => ({
-  parseGraphEmail: jest.fn((email: any) => ({
-    messageId: email.internetMessageId || email.id,
-    sender: email.from?.emailAddress?.address || 'test@example.com',
-    recipient: email.toRecipients?.[0]?.emailAddress?.address || 'recipient@example.com',
-    subject: email.subject || 'Test',
-    timestamp: new Date(),
-    headers: { 'message-id': email.id },
-    body: email.body?.content || '',
-    attachments: [],
-  })),
-  validateGraphEmailListResponse: jest.fn((response: any) => response.value || []),
+jest.unstable_mockModule('./graph-email-parser.js', () => ({
+  parseGraphEmail: jest.fn((email: unknown) => {
+    const e = email as { internetMessageId?: string; id?: string; from?: { emailAddress?: { address?: string } }; toRecipients?: Array<{ emailAddress?: { address?: string } }>; subject?: string; body?: { content?: string } };
+    return {
+      messageId: e.internetMessageId || e.id,
+      sender: e.from?.emailAddress?.address || 'test@example.com',
+      recipient: e.toRecipients?.[0]?.emailAddress?.address || 'recipient@example.com',
+      subject: e.subject || 'Test',
+      timestamp: new Date(),
+      headers: { 'message-id': e.id },
+      body: e.body?.content || '',
+      attachments: [],
+    };
+  }),
+  validateGraphEmailListResponse: jest.fn((response: unknown) => (response as { value?: unknown[] }).value || []),
 }));
 
+// Import after mocks are set up
+const { MailboxMonitor } = await import('./mailbox-monitor.js');
+const { buildReplyHtml } = await import('./email-reply-builder.js');
+const { __testResetMessageIdCache } = await import('./email-processor.js');
+
+// Import PhishingAgent for type reference
+import type { PhishingAgent } from '../agents/phishing-agent.js';
+
 describe('MailboxMonitor', () => {
-  let monitor: MailboxMonitor;
+  let monitor: InstanceType<typeof MailboxMonitor>;
   let mockPhishingAgent: jest.Mocked<PhishingAgent>;
 
   beforeEach(() => {
@@ -513,7 +518,7 @@ describe('MailboxMonitor', () => {
       monitor.start();
 
       await expect(
-        new Promise((resolve, reject) => {
+        new Promise((resolve) => {
           setTimeout(() => {
             monitor.stop();
             resolve(true);
