@@ -1,16 +1,11 @@
-/**
- * Phishing Agent
- * Orchestrates email phishing detection pipeline
- * All functions are atomic (max 25 lines)
- */
-
 import { EmailAnalysisRequest, PhishingAnalysisResult, ThreatIndicator } from '../lib/types.js';
 import { securityLogger } from '../lib/logger.js';
 import { EmailParser } from '../lib/email-parser.js';
 import { HeaderValidator } from '../analysis/header-validator.js';
-import { ContentAnalyzer } from '../analysis/content-analyzer.js';
-import { RiskScorer } from '../analysis/risk-scorer.js';
-import { ThreatIntelService } from '../services/threat-intel.js';
+import { ContentAnalyzer, SuspiciousUrl } from '../analysis/content-analyzer.js';
+import { AttachmentAnalyzer } from '../analysis/attachment-analyzer.js';
+import { RiskScorer, RiskScoringResult } from '../analysis/risk-scorer.js';
+import { ThreatIntelService, ThreatIntelResult } from '../services/threat-intel.js';
 import { shouldRunLlmAnalysis, generateThreatExplanation } from '../services/llm-analyzer.js';
 
 export class PhishingAgent {
@@ -21,9 +16,6 @@ export class PhishingAgent {
     this.threatIntel = new ThreatIntelService();
   }
 
-  /**
-   * Initialize the agent
-   */
   async initialize(): Promise<void> {
     securityLogger.info('Phishing Agent initializing...');
 
@@ -35,9 +27,6 @@ export class PhishingAgent {
     this.initialized = true;
   }
 
-  /**
-   * Analyze email for phishing indicators
-   */
   async analyzeEmail(request: EmailAnalysisRequest): Promise<PhishingAnalysisResult> {
     if (!this.initialized) {
       throw new Error('PhishingAgent not initialized. Call initialize() first.');
@@ -58,63 +47,45 @@ export class PhishingAgent {
     }
   }
 
-  /**
-   * Perform email analysis
-   */
   private async performAnalysis(request: EmailAnalysisRequest, analysisId: string): Promise<PhishingAnalysisResult> {
-    // Step 1: Validate headers
     const headerResult = HeaderValidator.validate(request.headers);
-    securityLogger.debug('Header validation completed', {
-      analysisId,
-      isValid: headerResult.isValid,
-      indicatorCount: headerResult.indicators.length,
-    });
-
-    // Step 2: Analyze content with sender domain
     const senderDomain = EmailParser.extractDomain(request.sender);
     const contentResult = ContentAnalyzer.analyze(request.body || '', senderDomain);
+    const attachmentResult = AttachmentAnalyzer.analyze(request.attachments);
 
-    // Step 3: Enrich with threat intelligence
     const threatIntelResult = await this.enrichWithThreatIntel(request, contentResult.suspiciousUrls);
-    securityLogger.debug('Threat intelligence enrichment completed', {
-      analysisId,
-      indicatorsAdded: threatIntelResult.indicators.length,
-      riskContribution: threatIntelResult.riskContribution,
-    });
+    const riskResult = RiskScorer.calculateRisk(headerResult, contentResult, attachmentResult);
+    const enhancedScore = Math.min(10, riskResult.riskScore + threatIntelResult.riskContribution);
 
-    // Step 4: Calculate risk score
-    const riskResult = RiskScorer.calculateRisk(headerResult, contentResult);
-    const enhancedRiskScore = Math.min(10, riskResult.riskScore + threatIntelResult.riskContribution);
-
-    // Step 5: Combine indicators and determine final severity
     const allIndicators = [...riskResult.indicators, ...threatIntelResult.indicators];
-    const finalSeverity = this.determineFinalSeverity(
-      riskResult.severity,
-      enhancedRiskScore,
-      threatIntelResult.riskContribution
-    );
+    const severity = this.determineFinalSeverity(riskResult.severity, enhancedScore, threatIntelResult.riskContribution);
+    const explanation = await this.generateExplanation(request, enhancedScore, allIndicators);
 
-    // Step 6: Generate LLM explanation (if enabled)
-    const explanation = await this.generateExplanation(request, enhancedRiskScore, allIndicators);
+    this.logAnalysisComplete(analysisId, request.messageId, enhancedScore, severity, allIndicators.length, attachmentResult.riskLevel, explanation);
 
-    securityLogger.info('Email analysis completed', {
-      analysisId,
-      messageId: request.messageId,
-      isPhishing: enhancedRiskScore >= 5.0,
-      baseRiskScore: riskResult.riskScore,
-      finalRiskScore: enhancedRiskScore,
-      severity: finalSeverity,
-      totalIndicators: allIndicators.length,
-      hasExplanation: !!explanation,
-    });
+    return this.buildResult(request.messageId, analysisId, enhancedScore, riskResult, severity, allIndicators, explanation);
+  }
 
+  private logAnalysisComplete(analysisId: string, messageId: string, score: number, severity: string, indicatorCount: number, attachmentRisk: string, explanation: string | undefined): void {
+    securityLogger.info('Email analysis completed', { analysisId, messageId, isPhishing: score >= 5.0, finalRiskScore: score, severity, totalIndicators: indicatorCount, attachmentRisk, hasExplanation: !!explanation });
+  }
+
+  private buildResult(
+    messageId: string,
+    analysisId: string,
+    score: number,
+    riskResult: RiskScoringResult,
+    severity: 'low' | 'medium' | 'high' | 'critical',
+    indicators: ThreatIndicator[],
+    explanation: string | undefined
+  ): PhishingAnalysisResult {
     return {
-      messageId: request.messageId,
-      isPhishing: enhancedRiskScore >= 5.0,
+      messageId,
+      isPhishing: score >= 5.0,
       confidence: riskResult.confidence,
-      riskScore: enhancedRiskScore,
-      severity: finalSeverity,
-      indicators: allIndicators,
+      riskScore: score,
+      severity,
+      indicators,
       recommendedActions: riskResult.recommendedActions,
       analysisTimestamp: new Date(),
       analysisId,
@@ -122,9 +93,6 @@ export class PhishingAgent {
     };
   }
 
-  /**
-   * Generate LLM explanation for borderline cases
-   */
   private async generateExplanation(
     request: EmailAnalysisRequest,
     riskScore: number,
@@ -143,41 +111,34 @@ export class PhishingAgent {
     return result?.explanation;
   }
 
-  /**
-   * Enrich with threat intelligence
-   */
-  private async enrichWithThreatIntel(request: EmailAnalysisRequest, suspiciousUrls: any[]): Promise<any> {
+  private async enrichWithThreatIntel(
+    request: EmailAnalysisRequest,
+    suspiciousUrls: SuspiciousUrl[]
+  ): Promise<ThreatIntelResult> {
     const senderIp = this.extractSenderIP(request.headers);
-    const urls = suspiciousUrls.map(u => u.url);
+    const urls = suspiciousUrls.map((u) => u.url);
 
     try {
       return await this.threatIntel.enrichEmail(request.sender, senderIp, urls);
-    } catch (error: any) {
-      securityLogger.warn('Threat intel enrichment failed', { error: error.message });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      securityLogger.warn('Threat intel enrichment failed', { error: msg });
       return { indicators: [], riskContribution: 0 };
     }
   }
 
-  /**
-   * Determine final severity with threat intel boost
-   */
   private determineFinalSeverity(
-    baseSeverity: string,
+    baseSeverity: 'low' | 'medium' | 'high' | 'critical',
     enhancedScore: number,
     threatIntelContribution: number
   ): 'low' | 'medium' | 'high' | 'critical' {
-    if (threatIntelContribution >= 2.0 && enhancedScore >= 8.0) {
-      return 'critical';
-    }
+    if (threatIntelContribution >= 2.0 && enhancedScore >= 8.0) return 'critical';
     if (threatIntelContribution >= 1.0 && enhancedScore >= 6.0) {
       return enhancedScore >= 8.0 ? 'critical' : 'high';
     }
-    return baseSeverity as any;
+    return baseSeverity;
   }
 
-  /**
-   * Extract sender IP from headers
-   */
   private extractSenderIP(headers: Record<string, string | undefined>): string | null {
     const received = headers['received'] || headers['Received'];
     if (received) {
@@ -194,44 +155,17 @@ export class PhishingAgent {
     return null;
   }
 
-  /**
-   * Handle analysis error
-   */
-  private handleAnalysisError(request: EmailAnalysisRequest, analysisId: string, error: any): PhishingAnalysisResult {
-    securityLogger.error('Email analysis failed', {
-      analysisId,
-      messageId: request.messageId,
-      error: error instanceof Error ? error.message : String(error),
-    });
-
+  private handleAnalysisError(request: EmailAnalysisRequest, analysisId: string, error: unknown): PhishingAnalysisResult {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    securityLogger.error('Email analysis failed', { analysisId, messageId: request.messageId, error: errorMsg });
     return {
-      messageId: request.messageId,
-      isPhishing: false,
-      confidence: 0,
-      riskScore: 0,
-      severity: 'medium',
-      indicators: [{
-        type: 'behavioral',
-        description: 'Analysis error - unable to complete security scan',
-        severity: 'medium',
-        evidence: error instanceof Error ? error.message : 'Unknown error',
-        confidence: 1.0,
-      }],
-      recommendedActions: [{
-        priority: 'medium',
-        action: 'flag_for_review',
-        description: 'Manual review required due to analysis error',
-        automated: false,
-        requiresApproval: false,
-      }],
-      analysisTimestamp: new Date(),
-      analysisId,
+      messageId: request.messageId, isPhishing: false, confidence: 0, riskScore: 0, severity: 'medium',
+      indicators: [{ type: 'behavioral', description: 'Analysis error - unable to complete security scan', severity: 'medium', evidence: errorMsg, confidence: 1.0 }],
+      recommendedActions: [{ priority: 'medium', action: 'flag_for_review', description: 'Manual review required due to analysis error', automated: false, requiresApproval: false }],
+      analysisTimestamp: new Date(), analysisId,
     };
   }
 
-  /**
-   * Health check
-   */
   async healthCheck(): Promise<boolean> {
     try {
       const testHeaders = {
@@ -244,6 +178,7 @@ export class PhishingAgent {
 
       HeaderValidator.validate(testHeaders);
       ContentAnalyzer.analyze('test');
+      AttachmentAnalyzer.analyze([]);
       await this.threatIntel.healthCheck();
 
       return true;
@@ -255,9 +190,6 @@ export class PhishingAgent {
     }
   }
 
-  /**
-   * Shutdown
-   */
   async shutdown(): Promise<void> {
     securityLogger.info('Phishing Agent shutting down...');
     this.initialized = false;

@@ -1,11 +1,7 @@
-/**
- * Risk Scorer
- * Aggregates analysis results and calculates risk scores
- * All functions are atomic (max 25 lines)
- */
-
+/** Risk Scorer - Aggregates analysis results and calculates risk scores */
 import { HeaderValidationResult } from './header-validator.js';
 import { ContentAnalysisResult } from './content-analyzer.js';
+import { AttachmentAnalysisResult } from './attachment-analyzer.js';
 import { ThreatIndicator, RecommendedAction } from '../lib/types.js';
 import { securityLogger } from '../lib/logger.js';
 
@@ -19,6 +15,7 @@ export interface RiskScoringResult {
   analysis: {
     headerScore: number;
     contentScore: number;
+    attachmentScore: number;
     aggregatedScore: number;
   };
 }
@@ -29,37 +26,59 @@ export class RiskScorer {
   private static readonly HIGH_THRESHOLD = 6.0;
   private static readonly MEDIUM_THRESHOLD = 3.0;
 
-  /**
-   * Calculate aggregated risk score
-   */
   static calculateRisk(
     headerResult: HeaderValidationResult,
-    contentResult: ContentAnalysisResult
+    contentResult: ContentAnalysisResult,
+    attachmentResult?: AttachmentAnalysisResult
   ): RiskScoringResult {
     const headerScore = this.calculateHeaderScore(headerResult);
     const contentScore = this.calculateContentScore(contentResult);
-    const aggregatedScore = (headerScore * 0.6) + (contentScore * 0.4);
+    const attachmentScore = attachmentResult ? this.calculateAttachmentScore(attachmentResult) : 0;
+
+    const aggregatedScore = this.aggregateScores(headerScore, contentScore, attachmentScore);
     const riskScore = Math.min(aggregatedScore, 10);
     const isPhishing = riskScore >= this.PHISHING_THRESHOLD;
     const severity = this.determineSeverity(riskScore);
 
-    const indicators = [...headerResult.indicators, ...contentResult.indicators];
+    const indicators = this.collectIndicators(headerResult, contentResult, attachmentResult);
     const confidence = this.calculateConfidence(indicators);
     const recommendedActions = this.generateActions(isPhishing, severity, indicators);
 
     securityLogger.debug('Risk scoring completed', {
-      riskScore, isPhishing, severity, headerScore, contentScore, indicatorCount: indicators.length,
+      riskScore, isPhishing, severity, headerScore, contentScore, attachmentScore,
+      indicatorCount: indicators.length,
     });
 
     return {
       riskScore, isPhishing, confidence, severity, indicators, recommendedActions,
-      analysis: { headerScore, contentScore, aggregatedScore },
+      analysis: { headerScore, contentScore, attachmentScore, aggregatedScore },
     };
   }
 
-  /**
-   * Calculate header-based risk score
-   */
+  private static aggregateScores(header: number, content: number, attachment: number): number {
+    if (attachment > 0) {
+      return (header * 0.4) + (content * 0.3) + (attachment * 0.3);
+    }
+    return (header * 0.6) + (content * 0.4);
+  }
+
+  private static collectIndicators(
+    headerResult: HeaderValidationResult,
+    contentResult: ContentAnalysisResult,
+    attachmentResult?: AttachmentAnalysisResult
+  ): ThreatIndicator[] {
+    const indicators = [...headerResult.indicators, ...contentResult.indicators];
+    if (attachmentResult) {
+      indicators.push(...attachmentResult.indicators);
+    }
+    return indicators;
+  }
+
+  private static calculateAttachmentScore(result: AttachmentAnalysisResult): number {
+    if (!result.hasRiskyAttachments) return 0;
+    return this.scoreIndicators(result.indicators);
+  }
+
   private static calculateHeaderScore(result: HeaderValidationResult): number {
     let score = 0;
 
@@ -134,7 +153,7 @@ export class RiskScorer {
   }
 
   /**
-   * Generate recommended actions
+   * Generate recommended actions based on severity and indicators
    */
   private static generateActions(
     isPhishing: boolean,
@@ -142,135 +161,39 @@ export class RiskScorer {
     indicators: ThreatIndicator[]
   ): RecommendedAction[] {
     if (!isPhishing) {
-      return [{
-        priority: 'low',
-        action: 'monitor',
-        description: 'Email appears legitimate, but continue monitoring',
-        automated: true,
-        requiresApproval: false,
-      }];
+      return [{ priority: 'low', action: 'monitor', description: 'Email appears legitimate', automated: true, requiresApproval: false }];
     }
-
     const actions: RecommendedAction[] = [];
-
-    this.addCredentialActions(indicators, actions);
-    this.addCriticalActions(severity, actions);
-    this.addHighActions(severity, actions);
-    this.addMediumActions(severity, actions);
-    this.addStandardActions(actions);
-
+    // Credential actions
+    if (indicators.some(i => i.description.includes('Credential'))) {
+      actions.push({ priority: 'urgent', action: 'reset_user_credentials', description: 'Force password reset', automated: false, requiresApproval: true });
+    }
+    // Attachment actions
+    if (indicators.some(i => i.type === 'attachment' && i.severity === 'critical')) {
+      actions.push({ priority: 'urgent', action: 'block_attachment', description: 'Block dangerous attachment', automated: true, requiresApproval: false });
+    }
+    if (indicators.some(i => i.type === 'attachment' && i.description.includes('Macro'))) {
+      actions.push({ priority: 'high', action: 'strip_macros', description: 'Remove macros from document', automated: false, requiresApproval: true });
+    }
+    // Severity-based actions
+    if (severity === 'critical') {
+      actions.push({ priority: 'urgent', action: 'quarantine_email', description: 'Quarantine and prevent delivery', automated: false, requiresApproval: true });
+      actions.push({ priority: 'urgent', action: 'alert_security_team', description: 'Alert security team', automated: true, requiresApproval: false });
+    } else if (severity === 'high') {
+      actions.push({ priority: 'high', action: 'quarantine_email', description: 'Quarantine and warn recipient', automated: false, requiresApproval: true });
+      actions.push({ priority: 'high', action: 'notify_recipient', description: 'Notify recipient', automated: true, requiresApproval: false });
+    } else if (severity === 'medium') {
+      actions.push({ priority: 'medium', action: 'flag_for_review', description: 'Flag for manual review', automated: true, requiresApproval: false });
+      actions.push({ priority: 'medium', action: 'user_education', description: 'Send security training', automated: true, requiresApproval: false });
+    }
+    actions.push({ priority: 'low', action: 'create_incident', description: 'Create incident ticket', automated: true, requiresApproval: false });
     return actions;
   }
 
-  /**
-   * Add credential harvesting actions
-   */
-  private static addCredentialActions(indicators: ThreatIndicator[], actions: RecommendedAction[]): void {
-    if (indicators.some(ind => ind.description.includes('Credential'))) {
-      actions.push({
-        priority: 'urgent',
-        action: 'reset_user_credentials',
-        description: 'Force password reset if user clicked links',
-        automated: false,
-        requiresApproval: true,
-      });
-    }
-  }
-
-  /**
-   * Add critical severity actions
-   */
-  private static addCriticalActions(severity: string, actions: RecommendedAction[]): void {
-    if (severity !== 'critical') return;
-
-    actions.push({
-      priority: 'urgent',
-      action: 'quarantine_email',
-      description: 'Immediately quarantine and prevent delivery',
-      automated: false,
-      requiresApproval: true,
-    });
-
-    actions.push({
-      priority: 'urgent',
-      action: 'alert_security_team',
-      description: 'Alert security team for immediate investigation',
-      automated: true,
-      requiresApproval: false,
-    });
-  }
-
-  /**
-   * Add high severity actions
-   */
-  private static addHighActions(severity: string, actions: RecommendedAction[]): void {
-    if (severity !== 'high') return;
-
-    actions.push({
-      priority: 'high',
-      action: 'quarantine_email',
-      description: 'Quarantine email and warn recipient',
-      automated: false,
-      requiresApproval: true,
-    });
-
-    actions.push({
-      priority: 'high',
-      action: 'notify_recipient',
-      description: 'Notify recipient about potential phishing',
-      automated: true,
-      requiresApproval: false,
-    });
-  }
-
-  /**
-   * Add medium severity actions
-   */
-  private static addMediumActions(severity: string, actions: RecommendedAction[]): void {
-    if (severity !== 'medium') return;
-
-    actions.push({
-      priority: 'medium',
-      action: 'flag_for_review',
-      description: 'Flag email for manual security review',
-      automated: true,
-      requiresApproval: false,
-    });
-
-    actions.push({
-      priority: 'medium',
-      action: 'user_education',
-      description: 'Send security awareness training',
-      automated: true,
-      requiresApproval: false,
-    });
-  }
-
-  /**
-   * Add standard phishing actions
-   */
-  private static addStandardActions(actions: RecommendedAction[]): void {
-    actions.push({
-      priority: 'low',
-      action: 'create_incident',
-      description: 'Create incident ticket for documentation',
-      automated: true,
-      requiresApproval: false,
-    });
-  }
-
-  /**
-   * Get human-readable summary
-   */
   static getSummary(result: RiskScoringResult): string {
     const emoji = result.isPhishing ? '🚨' : '✅';
     const status = result.isPhishing ? 'PHISHING DETECTED' : 'EMAIL LEGITIMATE';
-    const severityEmoji = { critical: '🔴', high: '🟠', medium: '🟡', low: '🟢' }[result.severity];
-
-    return `${emoji} ${status} ${severityEmoji}\n` +
-           `Risk Score: ${result.riskScore.toFixed(1)}/10\n` +
-           `Confidence: ${(result.confidence * 100).toFixed(0)}%\n` +
-           `Severity: ${result.severity.toUpperCase()}\n` +
-           `Indicators: ${result.indicators.length}`;
+    const sev = { critical: '🔴', high: '🟠', medium: '🟡', low: '🟢' }[result.severity];
+    return `${emoji} ${status} ${sev}\nRisk Score: ${result.riskScore.toFixed(1)}/10\nConfidence: ${(result.confidence * 100).toFixed(0)}%\nSeverity: ${result.severity.toUpperCase()}\nIndicators: ${result.indicators.length}`;
   }
 }
