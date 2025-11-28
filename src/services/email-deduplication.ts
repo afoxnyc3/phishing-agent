@@ -2,15 +2,20 @@
  * Email Deduplication Service
  * Prevents duplicate analysis replies for same phishing email
  * All functions are atomic (max 25 lines)
+ *
+ * NOTE: Currently uses in-memory storage. For multi-replica deployments,
+ * configure REDIS_URL to enable distributed deduplication (future enhancement).
  */
 
 import crypto from 'crypto';
 import { securityLogger } from '../lib/logger.js';
+import { CacheProvider } from '../lib/cache-provider.js';
 
 export interface DeduplicationConfig {
   enabled: boolean;
   contentHashTtlMs: number; // How long to remember processed emails
   senderCooldownMs: number; // Min time between replies to same sender
+  cacheProvider?: CacheProvider; // Optional: for distributed deduplication (future)
 }
 
 interface CacheEntry {
@@ -25,13 +30,17 @@ export class EmailDeduplication {
   private config: DeduplicationConfig;
   private processedHashes: Map<string, CacheEntry> = new Map();
   private senderLastReply: Map<string, number> = new Map();
+  private useDistributed: boolean = false;
 
   constructor(config: DeduplicationConfig) {
     this.config = config;
+    this.useDistributed = !!(config.cacheProvider && config.cacheProvider.isReady());
+
     securityLogger.info('Email deduplication initialized', {
       enabled: config.enabled,
       contentHashTtl: config.contentHashTtlMs / (60 * 60 * 1000) + ' hours',
       senderCooldown: config.senderCooldownMs / (60 * 60 * 1000) + ' hours',
+      mode: this.useDistributed ? 'distributed (Redis)' : 'in-memory (single instance)',
     });
 
     // Auto-cleanup every 5 minutes

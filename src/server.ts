@@ -5,13 +5,17 @@
  */
 
 import express, { Request, Response } from 'express';
+import helmet from 'helmet';
 import { securityLogger } from './lib/logger.js';
-import { config } from './lib/config.js';
+import { config, isProduction } from './lib/config.js';
 import { PhishingAgent } from './agents/phishing-agent.js';
 import { MailboxMonitor } from './services/mailbox-monitor.js';
 import { metrics } from './services/metrics.js';
-import { healthChecker } from './services/health-checker.js';
+import { healthChecker, SystemHealth } from './services/health-checker.js';
 import { NextFunction } from 'express';
+
+// Health check cache for /health/deep to avoid Graph API rate limiting
+let deepHealthCache: { result: SystemHealth; timestamp: number } | null = null;
 
 export class HttpServer {
   private app: express.Application;
@@ -25,10 +29,46 @@ export class HttpServer {
   }
 
   /**
-   * Setup middleware
+   * Setup middleware with security hardening
    */
   private setupMiddleware(): void {
-    this.app.use(express.json());
+    // Add Helmet security headers
+    if (config.http.helmetEnabled) {
+      if (isProduction()) {
+        // Production: strict security headers
+        this.app.use(
+          helmet({
+            contentSecurityPolicy: {
+              directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'"],
+                styleSrc: ["'self'"],
+                imgSrc: ["'self'"],
+                connectSrc: ["'self'"],
+                fontSrc: ["'self'"],
+                objectSrc: ["'none'"],
+                frameSrc: ["'none'"],
+              },
+            },
+            hsts: {
+              maxAge: 31536000,
+              includeSubDomains: true,
+              preload: true,
+            },
+          })
+        );
+        // Trust proxy for proper IP logging behind Azure load balancer
+        this.app.set('trust proxy', 1);
+      } else {
+        // Development: basic helmet config
+        this.app.use(helmet());
+      }
+    }
+
+    // Body parsing with size limits
+    this.app.use(express.json({ limit: config.http.bodyLimit }));
+
+    // Request logging
     this.app.use((req, res, next) => {
       securityLogger.debug('HTTP request', {
         method: req.method,
@@ -70,10 +110,24 @@ export class HttpServer {
   }
 
   /**
-   * Handle deep health check
+   * Handle deep health check with caching to avoid Graph API rate limiting
    */
   private async handleDeepHealth(req: Request, res: Response): Promise<void> {
+    const now = Date.now();
+    const cacheTtlMs = config.http.healthCacheTtlMs;
+
+    // Return cached result if still fresh
+    if (deepHealthCache && now - deepHealthCache.timestamp < cacheTtlMs) {
+      const cached = deepHealthCache.result;
+      res.status(cached.healthy ? 200 : 503).json({ ...cached, cached: true });
+      return;
+    }
+
+    // Perform fresh health check
     const health = await healthChecker.checkHealth();
+
+    // Cache the result
+    deepHealthCache = { result: health, timestamp: now };
 
     res.status(health.healthy ? 200 : 503).json(health);
   }

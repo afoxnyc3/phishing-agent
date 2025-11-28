@@ -17,6 +17,7 @@ describe('email guardrails', () => {
   it('blocks self-sent messages', () => {
     const result = evaluateEmailGuards(
       {
+        id: 'test-1',
         from: { emailAddress: { address: mailboxAddress } },
         internetMessageId: 'id-1',
       },
@@ -30,6 +31,7 @@ describe('email guardrails', () => {
   it('blocks auto responders via headers', () => {
     const result = evaluateEmailGuards(
       {
+        id: 'test-2',
         from: { emailAddress: { address: 'noreply@service.com' } },
         internetMessageId: 'id-2',
         internetMessageHeaders: [{ name: 'Auto-Submitted', value: 'auto-replied' }],
@@ -43,6 +45,7 @@ describe('email guardrails', () => {
 
   it('blocks duplicate message IDs', () => {
     const email = {
+      id: 'test-3',
       from: { emailAddress: { address: 'user@example.com' } },
       internetMessageId: 'id-3',
     };
@@ -60,6 +63,7 @@ describe('email guardrails', () => {
 
     const allowed = evaluateEmailGuards(
       {
+        id: 'test-4',
         from: { emailAddress: { address: 'user@trusted.com' } },
         internetMessageId: 'id-4',
       },
@@ -68,6 +72,7 @@ describe('email guardrails', () => {
 
     const blocked = evaluateEmailGuards(
       {
+        id: 'test-5',
         from: { emailAddress: { address: 'user@other.com' } },
         internetMessageId: 'id-5',
       },

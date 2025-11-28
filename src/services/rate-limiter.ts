@@ -2,9 +2,13 @@
  * Rate Limiter Service
  * Prevents email sending abuse with multiple protection layers
  * All functions are atomic (max 25 lines)
+ *
+ * NOTE: Currently uses in-memory storage. For multi-replica deployments,
+ * configure REDIS_URL to enable distributed rate limiting (future enhancement).
  */
 
 import { securityLogger } from '../lib/logger.js';
+import { CacheProvider } from '../lib/cache-provider.js';
 
 export interface RateLimiterConfig {
   maxEmailsPerHour: number;
@@ -12,6 +16,7 @@ export interface RateLimiterConfig {
   circuitBreakerThreshold: number; // emails per 10 minutes
   circuitBreakerWindowMs: number;
   enabled: boolean;
+  cacheProvider?: CacheProvider; // Optional: for distributed rate limiting (future)
 }
 
 interface EmailTimestamp {
@@ -23,13 +28,17 @@ export class RateLimiter {
   private emailTimestamps: EmailTimestamp[] = [];
   private circuitBreakerTripped: boolean = false;
   private circuitBreakerResetTime: number = 0;
+  private useDistributed: boolean = false;
 
   constructor(config: RateLimiterConfig) {
     this.config = config;
+    this.useDistributed = !!(config.cacheProvider && config.cacheProvider.isReady());
+
     securityLogger.info('Rate limiter initialized', {
       maxPerHour: config.maxEmailsPerHour,
       maxPerDay: config.maxEmailsPerDay,
       circuitBreakerThreshold: config.circuitBreakerThreshold,
+      mode: this.useDistributed ? 'distributed (Redis)' : 'in-memory (single instance)',
     });
   }
 

@@ -9,41 +9,109 @@ import { z } from 'zod';
 // Environment Configuration Schemas
 // ============================================================================
 
-export const EnvConfigSchema = z.object({
-  // Azure configuration
-  AZURE_TENANT_ID: z.string().min(1, 'Azure Tenant ID is required'),
-  AZURE_CLIENT_ID: z.string().min(1, 'Azure Client ID is required'),
-  AZURE_CLIENT_SECRET: z.string().optional(),
+export const EnvConfigSchema = z
+  .object({
+    // Azure configuration
+    AZURE_TENANT_ID: z.string().min(1, 'Azure Tenant ID is required'),
+    AZURE_CLIENT_ID: z.string().min(1, 'Azure Client ID is required'),
+    AZURE_CLIENT_SECRET: z.string().optional(),
+    AZURE_KEY_VAULT_NAME: z.string().optional(),
+    AZURE_AUTH_METHOD: z
+      .enum(['secret', 'managed-identity'])
+      .optional()
+      .default('secret'),
 
-  // Mailbox configuration
-  PHISHING_MAILBOX_ADDRESS: z.string().email('Invalid mailbox email address'),
-  MAILBOX_CHECK_INTERVAL_MS: z.coerce.number().int().positive().default(60000),
-  MAILBOX_MONITOR_ENABLED: z.coerce.boolean().default(true),
+    // Sender allowlist configuration (fail-closed in production)
+    ALLOWED_SENDER_EMAILS: z.string().optional(),
+    ALLOWED_SENDER_DOMAINS: z.string().optional(),
 
-  // Threat Intel configuration
-  THREAT_INTEL_ENABLED: z.coerce.boolean().default(true),
-  THREAT_INTEL_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
-  THREAT_INTEL_CACHE_TTL_MS: z.coerce.number().int().positive().default(300000),
-  VIRUSTOTAL_API_KEY: z.string().optional(),
-  ABUSEIPDB_API_KEY: z.string().optional(),
-  URLSCAN_API_KEY: z.string().optional(),
+    // Mailbox configuration
+    PHISHING_MAILBOX_ADDRESS: z.string().email('Invalid mailbox email address'),
+    MAILBOX_CHECK_INTERVAL_MS: z.coerce.number().int().positive().default(60000),
+    MAILBOX_MONITOR_ENABLED: z.coerce.boolean().default(true),
+    MAILBOX_MAX_PAGES: z.coerce.number().int().positive().default(5),
+    MAILBOX_PARALLEL_LIMIT: z.coerce.number().int().positive().default(5),
 
-  // Rate Limiting configuration
-  RATE_LIMIT_ENABLED: z.coerce.boolean().default(true),
-  MAX_EMAILS_PER_HOUR: z.coerce.number().int().positive().default(100),
-  MAX_EMAILS_PER_DAY: z.coerce.number().int().positive().default(1000),
-  CIRCUIT_BREAKER_THRESHOLD: z.coerce.number().int().positive().default(50),
-  CIRCUIT_BREAKER_WINDOW_MS: z.coerce.number().int().positive().default(600000), // 10 minutes
+    // Threat Intel configuration
+    THREAT_INTEL_ENABLED: z.coerce.boolean().default(true),
+    THREAT_INTEL_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
+    THREAT_INTEL_CACHE_TTL_MS: z.coerce.number().int().positive().default(300000),
+    VIRUSTOTAL_API_KEY: z.string().optional(),
+    ABUSEIPDB_API_KEY: z.string().optional(),
+    URLSCAN_API_KEY: z.string().optional(),
 
-  // Email Deduplication configuration
-  DEDUPLICATION_ENABLED: z.coerce.boolean().default(true),
-  DEDUPLICATION_TTL_MS: z.coerce.number().int().positive().default(86400000), // 24 hours
-  SENDER_COOLDOWN_MS: z.coerce.number().int().positive().default(86400000), // 24 hours
+    // Rate Limiting configuration
+    RATE_LIMIT_ENABLED: z.coerce.boolean().default(true),
+    MAX_EMAILS_PER_HOUR: z.coerce.number().int().positive().default(100),
+    MAX_EMAILS_PER_DAY: z.coerce.number().int().positive().default(1000),
+    CIRCUIT_BREAKER_THRESHOLD: z.coerce.number().int().positive().default(50),
+    CIRCUIT_BREAKER_WINDOW_MS: z.coerce.number().int().positive().default(600000), // 10 minutes
 
-  // Server configuration
-  PORT: z.coerce.number().int().positive().default(3000),
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-});
+    // Email Deduplication configuration
+    DEDUPLICATION_ENABLED: z.coerce.boolean().default(true),
+    DEDUPLICATION_TTL_MS: z.coerce.number().int().positive().default(86400000), // 24 hours
+    SENDER_COOLDOWN_MS: z.coerce.number().int().positive().default(86400000), // 24 hours
+
+    // Redis configuration (optional - enables distributed state)
+    REDIS_URL: z.string().url().optional(),
+    REDIS_KEY_PREFIX: z.string().default('phishing-agent:'),
+
+    // HTTP server configuration
+    PORT: z.coerce.number().int().positive().default(3000),
+    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+    HTTP_BODY_LIMIT: z.string().default('100kb'),
+    HELMET_ENABLED: z.coerce.boolean().default(true),
+    HEALTH_CACHE_TTL_MS: z.coerce.number().int().positive().default(30000), // 30 seconds
+
+    // API authentication
+    API_KEY: z.string().optional(),
+    HEALTH_API_KEY: z.string().optional(),
+    METRICS_API_KEY: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    // Production-only validations (fail-fast at startup)
+    if (data.NODE_ENV === 'production') {
+      // Require Key Vault in production
+      if (!data.AZURE_KEY_VAULT_NAME) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'AZURE_KEY_VAULT_NAME is required in production. Secrets must be loaded from Key Vault.',
+          path: ['AZURE_KEY_VAULT_NAME'],
+        });
+      }
+
+      // Require at least one sender allowlist in production
+      if (!data.ALLOWED_SENDER_EMAILS && !data.ALLOWED_SENDER_DOMAINS) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'At least one of ALLOWED_SENDER_EMAILS or ALLOWED_SENDER_DOMAINS is required in production (fail-closed).',
+          path: ['ALLOWED_SENDER_EMAILS'],
+        });
+      }
+
+      // Require API key for ops endpoints in production
+      if (!data.API_KEY && !data.HEALTH_API_KEY && !data.METRICS_API_KEY) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'API_KEY is required in production to protect operational endpoints.',
+          path: ['API_KEY'],
+        });
+      }
+
+      // Require either Managed Identity or client secret for Graph auth
+      if (data.AZURE_AUTH_METHOD === 'secret' && !data.AZURE_CLIENT_SECRET) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'AZURE_CLIENT_SECRET is required when AZURE_AUTH_METHOD is "secret". Use AZURE_AUTH_METHOD=managed-identity for passwordless auth.',
+          path: ['AZURE_CLIENT_SECRET'],
+        });
+      }
+    }
+  });
 
 export type EnvConfig = z.infer<typeof EnvConfigSchema>;
 
