@@ -3,6 +3,7 @@ import { MailboxMonitor } from './mailbox-monitor.js';
 import { PhishingAgent } from '../agents/phishing-agent.js';
 import type { PhishingAnalysisResult } from '../lib/types.js';
 import { buildReplyHtml } from './email-reply-builder.js';
+import { __testResetMessageIdCache } from './email-processor.js';
 
 // Mock the entire Graph client module
 const mockGraphGet: any = jest.fn();
@@ -66,6 +67,7 @@ describe('MailboxMonitor', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    __testResetMessageIdCache();
 
     // Create mock phishing agent
     mockPhishingAgent = {
@@ -323,14 +325,15 @@ describe('MailboxMonitor', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
       monitor.stop();
 
-      // Should process email but not send reply
-      expect(mockPhishingAgent.analyzeEmail).toHaveBeenCalled();
+      // Should skip processing when sender is missing
+      expect(mockPhishingAgent.analyzeEmail).not.toHaveBeenCalled();
     });
 
     it('should process multiple emails', async () => {
       const email2 = {
         ...mockEmail,
         id: 'email-456',
+        internetMessageId: '<second@example.com>',
         subject: 'Different Subject',
         from: { emailAddress: { address: 'different-sender@example.com' } },
         body: { content: 'Different content to avoid deduplication' },
@@ -350,6 +353,7 @@ describe('MailboxMonitor', () => {
       const email2 = {
         ...mockEmail,
         id: 'email-456',
+        internetMessageId: '<third@example.com>',
         subject: 'Another Different Subject',
         from: { emailAddress: { address: 'another-sender@example.com' } },
         body: { content: 'Another different content to avoid deduplication' },

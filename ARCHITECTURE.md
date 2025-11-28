@@ -440,3 +440,511 @@ After deployment, verify:
 ### Health Checks
 - `/health` - Basic server health
 - `/ready` - Mailbox monitor status
+
+---
+
+## Email Loop Prevention Architecture
+
+**Added**: October 20, 2025 (Post-incident)
+**Incident Report**: See [AZURE_EMAIL_LOOP_INCIDENT.md](./AZURE_EMAIL_LOOP_INCIDENT.md)
+
+### Critical Incident Background
+
+On October 20, 2025, the phishing agent entered an email loop, sending **10,000 emails in 24 hours** by replying to its own analysis emails. This section documents the multi-layer defense architecture implemented to prevent future incidents.
+
+### Multi-Layer Defense System
+
+**Defense in Depth Philosophy**: Never rely on a single safeguard. Email loop prevention requires 5+ layers:
+
+```
+┌────────────────────────────────────────────────────┐
+│ Layer 1: Email Loop Detection (CRITICAL)          │
+│ File: src/services/mailbox-monitor.ts:148-156     │
+│ Function: shouldProcessEmail()                     │
+│ Purpose: Prevent agent from replying to itself    │
+└────────────────┬───────────────────────────────────┘
+                 ↓ (If Layer 1 fails)
+┌────────────────────────────────────────────────────┐
+│ Layer 2: Rate Limiting (CRITICAL)                 │
+│ File: src/services/rate-limiter.ts                │
+│ Limits: 100/hour, 1000/day                        │
+│ Purpose: Cap total emails sent per time period    │
+└────────────────┬───────────────────────────────────┘
+                 ↓ (If Layers 1-2 fail)
+┌────────────────────────────────────────────────────┐
+│ Layer 3: Circuit Breaker (HIGH)                   │
+│ File: src/services/rate-limiter.ts:68-72          │
+│ Trigger: 50 emails in 10 minutes                  │
+│ Purpose: Emergency stop for burst sending         │
+└────────────────┬───────────────────────────────────┘
+                 ↓ (If Layers 1-3 fail)
+┌────────────────────────────────────────────────────┐
+│ Layer 4: Email Deduplication (MEDIUM)             │
+│ File: src/services/email-deduplication.ts         │
+│ Method: SHA-256 content hashing                   │
+│ Purpose: Prevent re-analyzing same email          │
+└────────────────┬───────────────────────────────────┘
+                 ↓ (If Layers 1-4 fail)
+┌────────────────────────────────────────────────────┐
+│ Layer 5: Sender Cooldown (MEDIUM)                 │
+│ File: src/services/email-deduplication.ts:59-67   │
+│ Cooldown: 24 hours per sender                     │
+│ Purpose: Max 1 reply per sender per day           │
+└────────────────────────────────────────────────────┘
+```
+
+### Layer 1: Email Loop Detection
+
+**Implementation**:
+```typescript
+// src/services/mailbox-monitor.ts:148-156
+private shouldProcessEmail(email: any): boolean {
+  const fromAddress = EmailParser.extractEmail(email.from.emailAddress.address);
+
+  // Prevent email loops: Don't reply to our own address
+  if (fromAddress.toLowerCase() === this.config.mailboxAddress.toLowerCase()) {
+    securityLogger.warn('Email loop detected: ignoring email from our own address', {
+      from: fromAddress,
+      subject: email.subject,
+    });
+    return false;
+  }
+
+  return true;
+}
+```
+
+**Purpose**: Primary defense against email loops
+**Detection**: Checks if `from` address matches agent's mailbox address
+**Action**: Ignore email (do not process or reply)
+
+**Why It Failed Initially**: This check was not implemented in the original deployment.
+
+### Layer 2: Rate Limiting
+
+**Implementation**:
+```typescript
+// src/services/rate-limiter.ts
+export class RateLimiter {
+  canSendEmail(): { allowed: boolean; reason?: string } {
+    this.cleanOldTimestamps();
+
+    // Check hourly limit
+    const hourlyCount = this.getCountInWindow(60 * 60 * 1000);
+    if (hourlyCount >= this.config.maxEmailsPerHour) {
+      return {
+        allowed: false,
+        reason: `Hourly limit reached (${hourlyCount}/${this.config.maxEmailsPerHour})`
+      };
+    }
+
+    // Check daily limit
+    const dailyCount = this.getCountInWindow(24 * 60 * 60 * 1000);
+    if (dailyCount >= this.config.maxEmailsPerDay) {
+      return {
+        allowed: false,
+        reason: `Daily limit reached (${dailyCount}/${this.config.maxEmailsPerDay})`
+      };
+    }
+
+    return { allowed: true };
+  }
+}
+```
+
+**Configuration**:
+```bash
+# Default limits
+MAX_EMAILS_PER_HOUR=100
+MAX_EMAILS_PER_DAY=1000
+```
+
+**Purpose**: Damage control if email loop detection fails
+**Algorithm**: Sliding window (maintains timestamp array)
+**Memory**: Auto-cleanup (removes timestamps older than 24 hours)
+
+**Impact During Incident**: Not implemented initially. Would have capped loop at 100 emails/hour vs 10,000/day.
+
+### Layer 3: Circuit Breaker
+
+**Implementation**:
+```typescript
+// src/services/rate-limiter.ts:68-72
+canSendEmail(): { allowed: boolean; reason?: string } {
+  // ... hourly/daily checks ...
+
+  // Check for burst (circuit breaker trigger)
+  const burstCount = this.getCountInWindow(this.config.circuitBreakerWindowMs);
+  if (burstCount >= this.config.circuitBreakerThreshold) {
+    this.tripCircuitBreaker();  // Auto-reset in 1 hour
+    return { allowed: false, reason: 'Circuit breaker tripped due to burst sending' };
+  }
+
+  return { allowed: true };
+}
+
+private tripCircuitBreaker(): void {
+  this.circuitBreakerTripped = true;
+  this.circuitBreakerResetTime = Date.now() + 60 * 60 * 1000;  // Reset in 1 hour
+
+  securityLogger.error('Circuit breaker tripped!', {
+    resetTime: new Date(this.circuitBreakerResetTime).toISOString(),
+    reason: 'Burst sending detected',
+  });
+}
+```
+
+**Configuration**:
+```bash
+CIRCUIT_BREAKER_THRESHOLD=50    # 50 emails
+CIRCUIT_BREAKER_WINDOW_MS=600000  # 10 minutes
+```
+
+**Purpose**: Emergency stop for rapid email loops
+**Detection**: 50 emails in 10 minutes = abnormal burst
+**Action**: Block all sending for 1 hour (auto-reset)
+**Alert**: Security log error + metric counter
+
+**Why Circuit Breaker vs Rate Limiting**:
+- Rate limiting: Gradual enforcement (100/hour spread evenly)
+- Circuit breaker: Immediate shutdown on burst pattern
+- Example: 50 emails in 5 min → Circuit breaker trips (doesn't wait for hourly limit)
+
+### Layer 4: Email Deduplication
+
+**Implementation**:
+```typescript
+// src/services/email-deduplication.ts
+private hashEmailContent(subject: string, body: string): string {
+  // Use first 1000 chars of body to avoid hashing entire email
+  const content = `${subject}||${body.substring(0, 1000)}`;
+  return crypto
+    .createHash('sha256')
+    .update(content.toLowerCase().trim())
+    .digest('hex');
+}
+
+shouldProcess(sender: string, subject: string, body: string): { allowed: boolean; reason?: string } {
+  const contentHash = this.hashEmailContent(subject, body);
+
+  if (this.isDuplicateContent(contentHash)) {
+    return {
+      allowed: false,
+      reason: `Duplicate email already processed (hash: ${contentHash.substring(0, 8)})`
+    };
+  }
+
+  return { allowed: true };
+}
+```
+
+**Configuration**:
+```bash
+DEDUPLICATION_ENABLED=true
+DEDUPLICATION_TTL_MS=86400000  # 24 hours
+```
+
+**Purpose**: Prevent re-analyzing identical emails
+**Algorithm**: SHA-256 hash of `subject + first 1000 chars of body`
+**Cache**: In-memory Map with TTL (auto-cleanup every 5 minutes)
+
+**Why It Helps with Loops**:
+- Agent's analysis replies have same content
+- Hash matches → Email ignored
+- Prevents processing same loop iteration multiple times
+
+### Layer 5: Sender Cooldown
+
+**Implementation**:
+```typescript
+// src/services/email-deduplication.ts:59-67
+shouldProcess(sender: string, subject: string, body: string): { allowed: boolean; reason?: string } {
+  // ... content hash check ...
+
+  // Check sender cooldown
+  if (this.isSenderInCooldown(sender)) {
+    const lastReply = this.senderLastReply.get(sender.toLowerCase());
+    const nextAllowed = new Date(lastReply + this.config.senderCooldownMs);
+    return {
+      allowed: false,
+      reason: `Sender in cooldown period (next allowed: ${nextAllowed.toISOString()})`
+    };
+  }
+
+  return { allowed: true };
+}
+```
+
+**Configuration**:
+```bash
+SENDER_COOLDOWN_MS=86400000  # 24 hours
+```
+
+**Purpose**: Max 1 reply per sender per day
+**Storage**: In-memory Map (sender email → last reply timestamp)
+
+**Why It Helps with Loops**:
+- Even if agent replies to itself once, cooldown prevents 2nd reply
+- Limits damage to 1 email per sender per 24 hours
+
+---
+
+## Email Processing Flow with Prevention
+
+### Complete Email Processing Pipeline
+
+```
+┌─────────────────────────────────┐
+│ Mailbox Monitor (60s polling)  │
+└────────────┬────────────────────┘
+             ↓
+┌─────────────────────────────────┐
+│ New Email Detected              │
+└────────────┬────────────────────┘
+             ↓
+     ┌───────────────┐
+     │ Layer 1 Check │ ← Email Loop Detection
+     │ Self-reply?   │
+     └───┬───────────┘
+         │ No
+         ↓
+     ┌───────────────┐
+     │ Layer 4 Check │ ← Email Deduplication
+     │ Duplicate?    │
+     └───┬───────────┘
+         │ No
+         ↓
+     ┌───────────────┐
+     │ Layer 5 Check │ ← Sender Cooldown
+     │ Cooldown?     │
+     └───┬───────────┘
+         │ No
+         ↓
+┌─────────────────────────────────┐
+│ Analyze Email                   │
+│ (Headers + Content + TI)        │
+└────────────┬────────────────────┘
+             ↓
+     ┌───────────────┐
+     │ Layer 2 Check │ ← Rate Limiting
+     │ Hourly/Daily? │
+     └───┬───────────┘
+         │ Allowed
+         ↓
+     ┌───────────────┐
+     │ Layer 3 Check │ ← Circuit Breaker
+     │ Burst?        │
+     └───┬───────────┘
+         │ Allowed
+         ↓
+┌─────────────────────────────────┐
+│ Send Reply                      │
+│ Record timestamp                │
+│ Update deduplication cache      │
+└─────────────────────────────────┘
+```
+
+### Error Handling Strategy
+
+**Graceful Degradation**:
+- If email loop detected → Log warning + ignore email
+- If rate limit exceeded → Log info + skip reply
+- If circuit breaker tripped → Log error + alert admins
+- If deduplication cache full → Continue processing (fail open)
+
+**No Silent Failures**:
+- Every blocked email logged with reason
+- Metrics tracked for monitoring
+- Alerts triggered on critical events
+
+---
+
+## Configuration
+
+### Environment Variables (Email Loop Prevention)
+
+```bash
+# Layer 1: Email Loop Detection (always enabled)
+PHISHING_MAILBOX_ADDRESS=phishing@yourcompany.com  # Agent's address
+
+# Layer 2: Rate Limiting
+RATE_LIMIT_ENABLED=true
+MAX_EMAILS_PER_HOUR=100
+MAX_EMAILS_PER_DAY=1000
+
+# Layer 3: Circuit Breaker
+CIRCUIT_BREAKER_THRESHOLD=50
+CIRCUIT_BREAKER_WINDOW_MS=600000  # 10 minutes
+
+# Layer 4: Email Deduplication
+DEDUPLICATION_ENABLED=true
+DEDUPLICATION_TTL_MS=86400000  # 24 hours
+
+# Layer 5: Sender Cooldown
+SENDER_COOLDOWN_MS=86400000  # 24 hours
+```
+
+### Recommended Settings by Environment
+
+**Development**:
+```bash
+MAX_EMAILS_PER_HOUR=10
+MAX_EMAILS_PER_DAY=50
+CIRCUIT_BREAKER_THRESHOLD=5
+```
+
+**Staging**:
+```bash
+MAX_EMAILS_PER_HOUR=50
+MAX_EMAILS_PER_DAY=200
+CIRCUIT_BREAKER_THRESHOLD=25
+```
+
+**Production**:
+```bash
+MAX_EMAILS_PER_HOUR=100
+MAX_EMAILS_PER_DAY=1000
+CIRCUIT_BREAKER_THRESHOLD=50
+```
+
+---
+
+## Testing
+
+### Email Loop Prevention Tests
+
+**Test Suite**: 106 tests added post-incident
+
+**Categories**:
+1. **Email Loop Simulation** (15 tests)
+   - Self-reply detection
+   - Bounce message handling
+   - Subject chain detection
+
+2. **Rate Limiter** (63 tests)
+   - Hourly limit enforcement
+   - Daily limit enforcement
+   - Circuit breaker triggering
+   - Sliding window algorithm
+
+3. **Email Deduplication** (28 tests)
+   - Content hash generation
+   - Duplicate detection
+   - Sender cooldown
+   - Cache expiration
+
+**Critical Test**:
+```typescript
+// tests/integration/email-loop.test.ts
+describe('Email Loop Prevention', () => {
+  it('should prevent infinite loop when agent replies to itself', async () => {
+    const emailAgent = new EmailAgent({ address: 'agent@company.com' });
+
+    // Step 1: User sends initial email
+    await emailAgent.processEmail({ from: 'user@company.com', ... });
+    expect(emailAgent.getSentEmailCount()).toBe(1);
+
+    // Step 2: Simulate agent receiving its own reply
+    await emailAgent.processEmail({ from: 'agent@company.com', ... });
+
+    // ✅ ASSERT: Agent should NOT reply to itself
+    expect(emailAgent.getSentEmailCount()).toBe(1);  // Still 1 (no new reply)
+  });
+});
+```
+
+---
+
+## Monitoring & Alerting
+
+### Metrics (Email Loop Prevention)
+
+```typescript
+interface EmailLoopMetrics {
+  selfRepliesDetected: number;      // Layer 1 hits
+  rateLimitHits: number;            // Layer 2 hits
+  circuitBreakerTrips: number;      // Layer 3 activations
+  duplicatesDetected: number;       // Layer 4 hits
+  senderCooldownHits: number;       // Layer 5 hits
+}
+```
+
+### Critical Alerts
+
+**Self-Reply Detected** (CRITICAL):
+```
+Trigger: selfRepliesDetected > 0
+Action: Immediate investigation required
+Message: "Email loop detected! Agent is replying to itself."
+```
+
+**Circuit Breaker Tripped** (CRITICAL):
+```
+Trigger: circuitBreakerTrips > 0
+Action: Immediate investigation required
+Message: "Circuit breaker tripped! Burst sending detected."
+```
+
+**Rate Limit Approaching** (WARNING):
+```
+Trigger: rateLimitHits > 90
+Action: Monitor for email loop
+Message: "Rate limit almost exceeded (90/100)"
+```
+
+---
+
+## Incident Response
+
+### If Email Loop Detected
+
+**Step 1: Emergency Stop**
+```bash
+# Azure Container Apps
+az containerapp stop --name phishing-agent --resource-group rg-phishing-agent
+
+# Docker
+docker stop phishing-agent
+```
+
+**Step 2: Assess Damage**
+```bash
+# Check sent email count
+grep "Email sent" logs.txt | wc -l
+
+# Check for self-reply pattern
+grep "from.*phishing@yourcompany.com" logs.txt
+```
+
+**Step 3: Review Logs**
+```bash
+# Find when loop started
+grep "Email loop detected" logs.txt | head -1
+
+# Check which layer failed
+grep -E "shouldProcessEmail|RateLimiter|CircuitBreaker" logs.txt
+```
+
+**Step 4: Fix & Redeploy**
+```bash
+# Verify all layers enabled
+npm test -- email-loop
+
+# Deploy with conservative limits
+export MAX_EMAILS_PER_HOUR=10
+npm run deploy
+```
+
+---
+
+## References
+
+- **Incident Report**: [AZURE_EMAIL_LOOP_INCIDENT.md](./AZURE_EMAIL_LOOP_INCIDENT.md)
+- **Lessons Learned**: [LESSONS_LEARNED.md](./LESSONS_LEARNED.md)
+- **Prevention Guide**: [EMAIL_LOOP_PREVENTION.md](./EMAIL_LOOP_PREVENTION.md)
+- **Testing**: `tests/integration/email-loop.test.ts`
+
+---
+
+**Document Version**: 1.1 (Updated with Email Loop Prevention)
+**Last Updated**: October 22, 2025

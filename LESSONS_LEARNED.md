@@ -562,9 +562,287 @@ docs: update roadmap with production deployment milestone
 
 ---
 
+## Critical Production Incident: Email Loop
+
+### The Incident (October 20, 2025)
+
+**Severity**: High
+**Impact**: 10,000 emails sent in 24 hours
+**Duration**: ~4 hours from start to resolution
+**Root Cause**: Agent replying to its own analysis emails
+
+**What Happened**:
+```
+09:00 AM - Agent analyzes legitimate phishing email
+09:02 AM - Agent sends reply to user
+09:03 AM - ❌ EMAIL LOOP BEGINS
+         - Agent polls mailbox, finds its own reply as "new email"
+         - Agent analyzes its own reply
+         - Agent sends another reply
+         - Repeat infinitely
+12:11 PM - Microsoft 365 alert: "Email sending limit exceeded"
+01:28 PM - Microsoft Defender shows dozens of loop emails
+02:00 PM - Container stopped manually
+04:06 PM - Fixed code deployed with safeguards
+```
+
+**Screenshot Evidence**:
+- Microsoft Defender: `./misc/Screenshot 2025-10-20 at 1.28.04 PM.png`
+- Office 365 Alert: `./misc/Screenshot 2025-10-20 at 8.25.44 PM.png`
+
+See full incident report: [AZURE_EMAIL_LOOP_INCIDENT.md](./AZURE_EMAIL_LOOP_INCIDENT.md)
+
+### Why It Happened
+
+**Missing Safeguards** (All added post-incident):
+
+1. **No Email Loop Detection** ⚠️ CRITICAL
+   ```typescript
+   // BEFORE (vulnerable)
+   async checkForNewEmails() {
+     const emails = await this.fetchNewEmails();
+     for (const email of emails) {
+       await this.processEmail(email);  // ❌ No check if from === our address
+     }
+   }
+
+   // AFTER (protected)
+   async checkForNewEmails() {
+     const emails = await this.fetchNewEmails();
+     for (const email of emails) {
+       if (!this.shouldProcessEmail(email)) continue;  // ✅ Loop detection
+       await this.processEmail(email);
+     }
+   }
+
+   private shouldProcessEmail(email: any): boolean {
+     const fromAddress = EmailParser.extractEmail(email.from.emailAddress.address);
+
+     if (fromAddress.toLowerCase() === this.config.mailboxAddress.toLowerCase()) {
+       securityLogger.warn('Email loop detected: ignoring self-reply');
+       return false;  // ✅ Prevents infinite loop
+     }
+
+     return true;
+   }
+   ```
+
+2. **No Rate Limiting** ⚠️ CRITICAL
+   - **Problem**: Agent could send unlimited emails per hour/day
+   - **Result**: 10,000 emails sent before Microsoft 365 intervened
+   - **Fix**: Implemented 100/hour, 1000/day limits + circuit breaker
+
+3. **No Circuit Breaker** ⚠️ HIGH
+   - **Problem**: No emergency stop for burst sending
+   - **Result**: Loop continued for hours without automatic intervention
+   - **Fix**: 50 emails in 10 minutes triggers auto-shutdown
+
+4. **No Email Deduplication** ⚠️ MEDIUM
+   - **Problem**: Same email analyzed repeatedly
+   - **Result**: Wasted compute + API calls
+   - **Fix**: SHA-256 content hashing with 24-hour cache
+
+### How We Fixed It
+
+**Multi-Layer Defense System**:
+
+**Layer 1: Email Loop Detection**
+```typescript
+// src/services/mailbox-monitor.ts:148-156
+if (fromAddress.toLowerCase() === this.config.mailboxAddress.toLowerCase()) {
+  return false;  // Ignore emails from our own address
+}
+```
+
+**Layer 2: Rate Limiting**
+```typescript
+// src/services/rate-limiter.ts
+- Hourly limit: 100 emails (default)
+- Daily limit: 1,000 emails (default)
+- Sliding window algorithm
+- Configurable via environment variables
+```
+
+**Layer 3: Circuit Breaker**
+```typescript
+// src/services/rate-limiter.ts:68-72
+if (burstCount >= 50) {  // 50 emails in 10 minutes
+  this.tripCircuitBreaker();  // Auto-reset in 1 hour
+  return { allowed: false };
+}
+```
+
+**Layer 4: Email Deduplication**
+```typescript
+// src/services/email-deduplication.ts
+const hash = crypto.createHash('sha256')
+  .update(`${subject}||${body.substring(0, 1000)}`)
+  .digest('hex');
+
+if (this.processedHashes.has(hash)) {
+  return { allowed: false };  // Duplicate email
+}
+```
+
+**Layer 5: Sender Cooldown**
+```typescript
+// src/services/email-deduplication.ts:59-67
+if (this.isSenderInCooldown(sender)) {
+  return { allowed: false };  // Max 1 reply per sender per 24 hours
+}
+```
+
+### Test Coverage Added
+
+**106 new tests** added specifically for email loop prevention:
+
+```typescript
+// tests/integration/email-loop.test.ts
+describe('Email Loop Prevention', () => {
+  it('should ignore emails from own mailbox address', async () => {
+    const email = { from: 'phishing@chelseapiers.com', ... };
+    expect(monitor.shouldProcessEmail(email)).toBe(false);
+  });
+
+  it('should ignore repeated "Re: Re: Re:" chains', async () => {
+    // Simulates email loop scenario
+  });
+
+  it('should trip circuit breaker on burst (50 emails in 10 min)', async () => {
+    // Simulates rapid sending
+  });
+});
+```
+
+**Test Suites**:
+- Email loop simulation: 15 tests
+- Rate limiter: 63 tests
+- Email deduplication: 28 tests
+
+### Cost of the Incident
+
+**Technical Cost**:
+- Investigation time: ~2 hours
+- Fix implementation: ~2 hours
+- Deployment + testing: ~1 hour
+- **Total**: ~5 hours engineering time
+
+**System Cost**:
+- Azure resources: Negligible ($0)
+- Microsoft Graph API: ~10,000 calls (well within quota)
+- Email deliverability: Temporary (resolved within 24 hours)
+
+**Reputational Cost**:
+- Internal only (test mailbox)
+- No customer-facing impact
+- Microsoft 365 security alert (cleared)
+
+### Lessons for ANY Email Agent
+
+**MUST HAVE on Day 1**:
+
+1. ✅ **Email Loop Detection** - Check if `from === agentAddress`
+2. ✅ **Rate Limiting** - Hourly/daily caps (100/1000)
+3. ✅ **Circuit Breaker** - Burst detection (50 emails/10 min)
+4. ✅ **Deduplication** - Content hashing to prevent re-analysis
+5. ✅ **Bounce Detection** - Ignore mailer-daemon, postmaster
+6. ✅ **Subject Chain Detection** - Limit "Re: Re: Re:" depth
+7. ✅ **Real-time Monitoring** - Alert on unusual sending patterns
+8. ✅ **Integration Tests** - Simulate email loop scenarios
+
+**Testing Checklist Before Production**:
+```markdown
+Email Agent Pre-Deployment Checklist:
+- [ ] Self-reply scenario tested (email from agent's own address)
+- [ ] "Re: Re: Re:" chain detection tested
+- [ ] Rate limiter tested (100 emails/hour, 1000 emails/day)
+- [ ] Circuit breaker tested (50 emails/10 min burst)
+- [ ] Duplicate email detection tested
+- [ ] Bounce/NDR handling tested (mailer-daemon)
+- [ ] Real production mailbox tested (not just test mailbox)
+- [ ] 24-hour monitoring period completed
+- [ ] Alert thresholds configured (50%, 90%, 100% of limits)
+- [ ] Emergency stop procedure documented
+```
+
+### Quotes & Reflections
+
+> "Email loops are not a theoretical risk - they WILL happen if you don't prevent them on day 1."
+
+> "The incident cost us 5 hours. The prevention system took 2 hours to build. We should have built it first."
+
+> "Microsoft 365's 10,000 email limit saved us from sending millions. Always rely on platform safety nets, but never depend on them."
+
+> "Testing the 'happy path' is easy. Testing the 'email loop path' is critical."
+
+---
+
 ## What We'd Do Differently
 
-### 1. Platform Architecture Detection Earlier
+### 1. Email Loop Prevention from Day 1
+
+**Issue**: Didn't implement email loop detection until after incident.
+
+**Improvement**: Add email loop prevention before first deployment:
+```typescript
+// Add this BEFORE deploying any email agent
+private shouldProcessEmail(email: any): boolean {
+  // Check 1: Self-reply prevention
+  if (email.from === process.env.PHISHING_MAILBOX_ADDRESS) {
+    return false;
+  }
+
+  // Check 2: Bounce detection
+  if (email.from.includes('mailer-daemon') || email.from.includes('postmaster')) {
+    return false;
+  }
+
+  // Check 3: Subject chain detection
+  const reCount = (email.subject.match(/Re:/g) || []).length;
+  if (reCount > 3) {
+    return false;
+  }
+
+  return true;
+}
+```
+
+**Lesson**: Email loop detection is not optional. Implement it before the first production email is sent.
+
+### 2. Rate Limiting as a Core Feature
+
+**Issue**: Treated rate limiting as "Phase 2 enhancement" (Issue #13).
+
+**Improvement**: Include rate limiting in MVP (Phase 1):
+```bash
+# Day 1 environment variables
+RATE_LIMIT_ENABLED=true
+MAX_EMAILS_PER_HOUR=100
+MAX_EMAILS_PER_DAY=1000
+CIRCUIT_BREAKER_THRESHOLD=50
+```
+
+**Lesson**: Rate limiting isn't a "nice-to-have" - it's a safety requirement for any email agent.
+
+### 3. Integration Tests for Worst-Case Scenarios
+
+**Issue**: Only tested "happy path" (legitimate phishing emails).
+
+**Improvement**: Test failure modes before deployment:
+```typescript
+// Add these tests BEFORE production
+describe('Email Agent Worst-Case Scenarios', () => {
+  it('handles email loop (self-reply)', async () => { ... });
+  it('handles bounce messages', async () => { ... });
+  it('handles duplicate emails', async () => { ... });
+  it('handles burst sending (50 emails)', async () => { ... });
+  it('handles malformed emails', async () => { ... });
+});
+```
+
+**Lesson**: Testing failure modes is more important than testing success cases.
+
+### 4. Platform Architecture Detection Earlier
 
 **Issue**: Wasted 10 minutes troubleshooting platform mismatch.
 

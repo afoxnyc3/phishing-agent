@@ -42,10 +42,10 @@ export function buildReplyHtml(analysis: PhishingAnalysisResult): string {
       <div class="section">
         <h2>Risk Assessment</h2>
         <table>
-          <tr><td>Risk Score:</td><td>${analysis.riskScore.toFixed(1)}/10</td></tr>
-          <tr><td>Severity:</td><td>${analysis.severity.toUpperCase()}</td></tr>
-          <tr><td>Confidence:</td><td>${(analysis.confidence * 100).toFixed(0)}%</td></tr>
-          <tr><td>Analysis ID:</td><td>${analysis.analysisId}</td></tr>
+          <tr><td>Risk Score:</td><td>${escapeHtml(analysis.riskScore.toFixed(1))}/10</td></tr>
+          <tr><td>Severity:</td><td>${escapeHtml(analysis.severity.toUpperCase())}</td></tr>
+          <tr><td>Confidence:</td><td>${escapeHtml((analysis.confidence * 100).toFixed(0))}%</td></tr>
+          <tr><td>Analysis ID:</td><td>${escapeHtml(analysis.analysisId)}</td></tr>
         </table>
       </div>
       ${analysis.isPhishing && analysis.indicators.length > 0 ? `<div class="section"><h2>Threat Indicators</h2><pre>${indicatorsList}</pre></div>` : ''}
@@ -69,7 +69,7 @@ export function buildReplyHtml(analysis: PhishingAnalysisResult): string {
 function buildIndicatorsList(analysis: PhishingAnalysisResult): string {
   return analysis.indicators
     .slice(0, 5)
-    .map((ind) => `  • ${ind.description}`)
+    .map((ind) => `  • ${escapeHtml(ind.description)}`)
     .join('\n');
 }
 
@@ -81,7 +81,7 @@ function buildActionsList(analysis: PhishingAnalysisResult): string {
     .slice(0, 3)
     .map((action) => {
       const icon = action.priority === 'urgent' ? '🔴' : action.priority === 'high' ? '🟡' : '🟢';
-      return `  ${icon} ${action.description}`;
+      return `  ${icon} ${escapeHtml(action.description)}`;
     })
     .join('\n');
 }
@@ -133,3 +133,15 @@ export function createReplyMessage(
     },
   };
 }
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Exported for tests
+export const __testEscapeHtml = escapeHtml;
