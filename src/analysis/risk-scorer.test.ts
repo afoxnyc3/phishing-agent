@@ -2,6 +2,7 @@ import { describe, it, expect } from '@jest/globals';
 import { RiskScorer } from './risk-scorer.js';
 import { HeaderValidationResult } from './header-validator.js';
 import { ContentAnalysisResult } from './content-analyzer.js';
+import { AttachmentAnalysisResult } from './attachment-analyzer.js';
 import { ThreatIndicator } from '../lib/types.js';
 
 describe('RiskScorer', () => {
@@ -458,6 +459,139 @@ describe('RiskScorer', () => {
       const result = RiskScorer.calculateRisk(headers, content);
 
       expect(result.analysis.contentScore).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Attachment Analysis Integration', () => {
+    const createDangerousAttachments = (): AttachmentAnalysisResult => ({
+      hasRiskyAttachments: true,
+      indicators: [
+        {
+          type: 'attachment',
+          description: 'Dangerous file type detected: .exe',
+          severity: 'critical',
+          evidence: 'Filename: malware.exe',
+          confidence: 0.95,
+        },
+      ],
+      riskLevel: 'critical',
+      totalAttachments: 1,
+      riskyAttachments: 1,
+    });
+
+    const createMacroAttachments = (): AttachmentAnalysisResult => ({
+      hasRiskyAttachments: true,
+      indicators: [
+        {
+          type: 'attachment',
+          description: 'Macro-enabled document: .xlsm',
+          severity: 'high',
+          evidence: 'Filename: invoice.xlsm',
+          confidence: 0.85,
+        },
+      ],
+      riskLevel: 'high',
+      totalAttachments: 1,
+      riskyAttachments: 1,
+    });
+
+    const createSafeAttachments = (): AttachmentAnalysisResult => ({
+      hasRiskyAttachments: false,
+      indicators: [],
+      riskLevel: 'none',
+      totalAttachments: 2,
+      riskyAttachments: 0,
+    });
+
+    it('should include attachment score in analysis', () => {
+      const headers = createLegitimateHeaders();
+      const content = createEmptyContent();
+      const attachments = createDangerousAttachments();
+
+      const result = RiskScorer.calculateRisk(headers, content, attachments);
+
+      expect(result.analysis.attachmentScore).toBeGreaterThan(0);
+    });
+
+    it('should include attachment indicators in result', () => {
+      const headers = createLegitimateHeaders();
+      const content = createEmptyContent();
+      const attachments = createDangerousAttachments();
+
+      const result = RiskScorer.calculateRisk(headers, content, attachments);
+
+      expect(result.indicators.some(i => i.type === 'attachment')).toBe(true);
+    });
+
+    it('should use 40/30/30 weighting when attachments present', () => {
+      const headers = createFailedHeaders();
+      const content = createPhishingContent();
+      const attachments = createDangerousAttachments();
+
+      const result = RiskScorer.calculateRisk(headers, content, attachments);
+
+      const expectedScore =
+        result.analysis.headerScore * 0.4 +
+        result.analysis.contentScore * 0.3 +
+        result.analysis.attachmentScore * 0.3;
+      expect(result.analysis.aggregatedScore).toBeCloseTo(expectedScore, 2);
+    });
+
+    it('should use 60/40 weighting when no attachments', () => {
+      const headers = createFailedHeaders();
+      const content = createPhishingContent();
+
+      const result = RiskScorer.calculateRisk(headers, content);
+
+      expect(result.analysis.attachmentScore).toBe(0);
+      const expectedScore =
+        result.analysis.headerScore * 0.6 + result.analysis.contentScore * 0.4;
+      expect(result.analysis.aggregatedScore).toBeCloseTo(expectedScore, 2);
+    });
+
+    it('should recommend block_attachment for dangerous executables', () => {
+      const headers = createLegitimateHeaders();
+      const content = createEmptyContent();
+      const attachments = createDangerousAttachments();
+
+      const result = RiskScorer.calculateRisk(headers, content, attachments);
+
+      if (result.isPhishing) {
+        expect(result.recommendedActions.some(a => a.action === 'block_attachment')).toBe(true);
+      }
+    });
+
+    it('should recommend strip_macros for macro documents', () => {
+      const headers = createLegitimateHeaders();
+      const content = createEmptyContent();
+      const attachments = createMacroAttachments();
+
+      const result = RiskScorer.calculateRisk(headers, content, attachments);
+
+      if (result.isPhishing) {
+        expect(result.recommendedActions.some(a => a.action === 'strip_macros')).toBe(true);
+      }
+    });
+
+    it('should not add attachment actions for safe attachments', () => {
+      const headers = createLegitimateHeaders();
+      const content = createEmptyContent();
+      const attachments = createSafeAttachments();
+
+      const result = RiskScorer.calculateRisk(headers, content, attachments);
+
+      expect(result.recommendedActions.every(a => a.action !== 'block_attachment')).toBe(true);
+      expect(result.recommendedActions.every(a => a.action !== 'strip_macros')).toBe(true);
+    });
+
+    it('should handle undefined attachment result', () => {
+      const headers = createFailedHeaders();
+      const content = createPhishingContent();
+
+      const result = RiskScorer.calculateRisk(headers, content, undefined);
+
+      expect(result.analysis.attachmentScore).toBe(0);
+      expect(result.indicators.every(i => i.type !== 'attachment')).toBe(true);
     });
   });
 });
