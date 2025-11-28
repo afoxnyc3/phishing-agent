@@ -50,6 +50,8 @@ export interface PhishingAnalysisResult {
   recommendedActions: RecommendedAction[];
   analysisTimestamp: Date;
   analysisId: string;
+  /** AI-generated natural language explanation of the threat (optional) */
+  explanation?: string;
 }
 
 // Threat indicator

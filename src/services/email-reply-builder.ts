@@ -49,6 +49,7 @@ export function buildReplyHtml(analysis: PhishingAnalysisResult): string {
         </table>
       </div>
       ${analysis.isPhishing && analysis.indicators.length > 0 ? `<div class="section"><h2>Threat Indicators</h2><pre>${indicatorsList}</pre></div>` : ''}
+      ${analysis.explanation ? `<div class="section" style="background-color: #E3F2FD; padding: 15px; border-radius: 4px;"><h2>🤖 AI Analysis</h2><p style="margin: 0;">${escapeHtml(analysis.explanation)}</p></div>` : ''}
       ${analysis.recommendedActions.length > 0 ? `<div class="section"><h2>Recommended Actions</h2><pre>${actionsList}</pre></div>` : ''}
       <div class="section">
         <h2>What to Do</h2>
