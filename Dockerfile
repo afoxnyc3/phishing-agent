@@ -2,8 +2,8 @@
 # Stage 1: Builder - Compile TypeScript
 # Stage 2: Production - Minimal runtime image
 
-# Build argument for Node version
-ARG NODE_VERSION=18
+# Build argument for Node version (20+ required for Azure SDK)
+ARG NODE_VERSION=20
 
 # ============================================
 # Stage 1: Builder
@@ -17,7 +17,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install ALL dependencies (including devDependencies for build)
-RUN npm ci --no-audit --no-fund
+# --ignore-scripts skips husky prepare script which fails in Docker
+RUN npm ci --no-audit --no-fund --ignore-scripts
 
 # Copy TypeScript configuration and source code
 COPY tsconfig.json ./
@@ -49,7 +50,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install ONLY production dependencies
-RUN npm ci --omit=dev --no-audit --no-fund && \
+# --ignore-scripts skips husky prepare script which fails in Docker
+RUN npm ci --omit=dev --no-audit --no-fund --ignore-scripts && \
     npm cache clean --force
 
 # Copy compiled application from builder stage
