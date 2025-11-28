@@ -2,8 +2,8 @@
 
 Email-triggered phishing analysis agent with automated risk assessment replies.
 
-**Version**: v0.2.2
-**Status**: Production-Ready MVP with Rate Limiting & Deduplication
+**Version**: v0.3.0
+**Status**: Production-Ready with Attachment Analysis & Reporting Dashboard
 
 ## Overview
 
@@ -21,11 +21,14 @@ Email-triggered phishing analysis agent with automated risk assessment replies.
 - **Fast Analysis**: < 1 second typical phishing detection using rule-based engine
 - **Clear Results**: HTML email replies with color-coded risk assessment
 - **Threat Indicators**: SPF/DKIM/DMARC validation, suspicious URL detection, brand impersonation
+- **Attachment Analysis**: Detect dangerous executables, macro-enabled docs, double extensions, archives
+- **Reporting Dashboard**: Analytics with top senders/domains, severity trends, indicator breakdown
+- **LLM-Enhanced Analysis**: Optional AI explanations for borderline cases with retry/circuit breaker
 - **Optional Intel**: VirusTotal, AbuseIPDB, URLScan.io integration
 - **Runtime Validation**: Zod schema validation for all external API responses
 - **Rate Limiting**: Prevent email sending abuse with configurable hourly/daily limits and circuit breaker
 - **Deduplication**: Prevent duplicate replies for same phishing email with content hashing and sender cooldown
-- **Atomic Code**: Max 25 lines per function, max 150 lines per file
+- **Atomic Code**: Max 25 lines per function, max 200 lines per file
 
 ---
 
@@ -293,29 +296,33 @@ Response:
 ```
 src/
 ├── agents/
-│   └── phishing-agent.ts      # Main orchestrator
+│   └── phishing-agent.ts        # Main orchestrator
 ├── analysis/
-│   ├── header-validator.ts    # SPF/DKIM/DMARC
-│   ├── content-analyzer.ts    # URLs, keywords
-│   └── risk-scorer.ts         # Risk calculation
+│   ├── header-validator.ts      # SPF/DKIM/DMARC
+│   ├── content-analyzer.ts      # URLs, keywords
+│   ├── attachment-analyzer.ts   # File type detection
+│   └── risk-scorer.ts           # Risk calculation
 ├── services/
-│   ├── mailbox-monitor.ts     # Graph API polling
-│   ├── graph-email-parser.ts  # Email conversion
-│   └── threat-intel.ts        # VirusTotal, AbuseIPDB, URLScan
+│   ├── mailbox-monitor.ts       # Graph API polling
+│   ├── graph-email-parser.ts    # Email conversion
+│   ├── threat-intel.ts          # VirusTotal, AbuseIPDB, URLScan
+│   ├── llm-analyzer.ts          # AI-enhanced analysis
+│   └── reporting-dashboard.ts   # Analytics & metrics
 ├── lib/
 │   ├── config.ts
 │   ├── logger.ts
 │   ├── types.ts
 │   └── email-parser.ts
-├── server.ts                   # Express HTTP server
-└── index.ts                    # Main entry point
+├── server.ts                     # Express HTTP server
+└── index.ts                      # Main entry point
 ```
 
 ### Data Flow
 
 ```
 Email received → Parse headers/body → Validate authentication →
-Analyze content → Calculate risk → Format HTML reply → Send to user
+Analyze content → Analyze attachments → Calculate risk →
+[Optional: LLM explanation] → Format HTML reply → Send to user
 ```
 
 For detailed architecture, see [ARCHITECTURE.md](./ARCHITECTURE.md).
@@ -359,7 +366,7 @@ export function validateSpfRecord(spfHeader: string | undefined): Result<string,
 
 ## Roadmap
 
-### v0.2.2 (Current - Production Ready)
+### v0.3.0 (Current - Enhanced Detection)
 - [x] Project structure and documentation
 - [x] Core analysis engine (header-validator, content-analyzer, risk-scorer)
 - [x] Mailbox monitoring via Microsoft Graph API
@@ -370,12 +377,15 @@ export function validateSpfRecord(spfHeader: string | undefined): Result<string,
 - [x] Email deduplication (content hashing, sender cooldown)
 - [x] Health checks and logging
 - [x] Docker containerization
-- [x] Testing framework (Jest, 95%+ coverage, 340 tests)
+- [x] Testing framework (Jest, 95%+ coverage, 496 tests)
+- [x] Attachment analysis - dangerous executables, macros, double extensions (Issue #2)
+- [x] LLM-enhanced analysis with retry/circuit breaker hardening (Issue #4)
+- [x] Reporting dashboard - analytics, top senders/domains, trends (Issue #5)
 
-### v0.3.0 (Enhanced Detection - Planned)
-- [ ] LLM-enhanced analysis hardening (Issue #4)
-- [ ] Attachment analysis (Issue #2)
-- [ ] Reporting dashboard (Issue #5)
+### v0.4.0 (Enterprise Features - Planned)
+- [ ] Redis-backed rate limiting for multi-replica deployments
+- [ ] Managed Identity authentication for Azure
+- [ ] Advanced attachment deep scanning
 
 For complete roadmap and GitHub issues, see [roadmap.md](./roadmap.md).
 
@@ -384,7 +394,8 @@ For complete roadmap and GitHub issues, see [roadmap.md](./roadmap.md).
 ## Documentation
 
 ### Core Documentation
-- **[AGENT_DESIGN.md](./AGENT_DESIGN.md)** - Design philosophy and methodology
+- **[CLAUDE.md](./CLAUDE.md)** - Claude Code project instructions
+- **[AGENT.md](./AGENT.md)** - Design philosophy and methodology
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System design and data flow
 - **[STATUS.md](./STATUS.md)** - Current project status
 - **[roadmap.md](./roadmap.md)** - Feature planning and roadmap

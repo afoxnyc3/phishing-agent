@@ -2,8 +2,8 @@
 
 **Purpose**: This document provides a comprehensive technical overview of the phishing agent system architecture, components, and data flow.
 
-**Last Updated**: 2025-10-20
-**Version**: v0.2.2
+**Last Updated**: 2025-11-28
+**Version**: v0.3.0
 
 ---
 
@@ -25,6 +25,7 @@
 - **Logging**: Winston (structured JSON logs)
 - **Authentication**: Azure Client Secret Credential
 - **Optional Intel**: VirusTotal, AbuseIPDB, URLScan.io
+- **Optional LLM**: Anthropic Claude (for borderline case explanations)
 
 ---
 
@@ -57,10 +58,11 @@
 
 **Pipeline**:
 ```
-Email → Header Validation → Content Analysis → [Threat Intel Enrichment] → Risk Scoring → Result
+Email → Header Validation → Content Analysis → Attachment Analysis →
+[Threat Intel Enrichment] → Risk Scoring → [LLM Explanation] → Result
 ```
 
-**Note**: Threat intel enrichment runs in parallel with core analysis for speed.
+**Note**: Threat intel enrichment runs in parallel with core analysis for speed. LLM explanation only runs for borderline cases (risk 4.0-6.0).
 
 ### 3. Threat Intel Enricher
 **File**: `src/services/threat-intel.ts`
@@ -113,10 +115,62 @@ const results = await Promise.allSettled([
 **Atomic Functions**:
 - `calculateHeaderRisk(headerResult)` - Score auth failures
 - `calculateContentRisk(contentResult)` - Score suspicious patterns
-- `aggregateRiskScore(headerRisk, contentRisk)` - Combine scores
+- `calculateAttachmentRisk(attachmentResult)` - Score dangerous files
+- `aggregateRiskScore(header, content, attachment)` - Weighted combination
 - `determineSeverity(riskScore)` - Map to LOW/MEDIUM/HIGH/CRITICAL
 
-### 6. Graph Email Parser
+**Weighting**:
+- With attachments: Header (40%) + Content (30%) + Attachment (30%)
+- Without attachments: Header (60%) + Content (40%)
+
+### 6. Attachment Analyzer
+**File**: `src/analysis/attachment-analyzer.ts`
+
+**Responsibilities**:
+- Detect dangerous executable extensions (.exe, .bat, .vbs, .scr, etc.)
+- Flag macro-enabled documents (.docm, .xlsm, .pptm)
+- Identify double extension tricks (invoice.pdf.exe)
+- Detect archive files that may hide malware (.zip, .rar, .iso)
+- Flag suspicious file sizes (too small or too large)
+
+**Risk Levels**:
+- CRITICAL: Executables, double extensions
+- HIGH: Macro-enabled documents
+- MEDIUM: Archives, suspicious sizes
+
+### 7. LLM Analyzer
+**File**: `src/services/llm-analyzer.ts`
+
+**Responsibilities**:
+- Generate natural language threat explanations
+- Only runs for borderline cases (risk score 4.0-6.0)
+- Retry logic with exponential backoff (3 attempts)
+- Circuit breaker (opens after 5 failures, resets after 60s)
+- Graceful degradation (analysis continues without explanation)
+
+**Configuration**:
+```typescript
+ANTHROPIC_API_KEY=your-key  // Optional - enables LLM explanations
+LLM_MODEL=claude-sonnet-4-20250514  // Model to use
+LLM_MAX_TOKENS=500  // Response length limit
+```
+
+### 8. Reporting Dashboard
+**File**: `src/services/reporting-dashboard.ts`
+
+**Responsibilities**:
+- Aggregate phishing analysis metrics
+- Track top phishing senders and domains
+- Calculate severity distribution and trends
+- Provide indicator type breakdown
+
+**Key Methods**:
+- `recordAnalysis(result, sender)` - Store analysis result
+- `generateReport(days)` - Generate dashboard report
+- `getTopSenders(limit)` - Get top phishing senders
+- `getSeverityTrend(days)` - Get severity over time
+
+### 9. Graph Email Parser
 **File**: `src/services/graph-email-parser.ts`
 
 **Responsibilities**:

@@ -2,8 +2,8 @@
 
 **Purpose**: This document explains the design principles, decision-making framework, and implementation approach for the phishing detection agent.
 
-**Last Updated**: 2025-10-20
-**Version**: v0.2.2
+**Last Updated**: 2025-11-28
+**Version**: v0.3.0
 
 ---
 
@@ -32,9 +32,13 @@ Header Validation (SPF, DKIM, DMARC)
     ↓
 Content Analysis (URLs, Keywords, Patterns)
     ↓
+Attachment Analysis (Executables, Macros, Archives)
+    ↓
 Threat Intelligence Enrichment (Optional)
     ↓
-Risk Scoring (0-10 scale)
+Risk Scoring (0-10 scale, weighted aggregation)
+    ↓
+LLM Explanation (Optional, for borderline cases)
     ↓
 Verdict Generation & Email Reply
 ```
@@ -75,6 +79,19 @@ The agent calculates a risk score (0-10) by aggregating findings from multiple a
 - Known malicious URL/domain (+2.0)
 - Suspicious sender IP (+1.5)
 - Recent phishing campaign match (+2.5)
+
+**Attachment Risks** (variable points):
+- Dangerous executables (.exe, .bat, .vbs, .scr) - CRITICAL (+2.5)
+- Macro-enabled documents (.docm, .xlsm) - HIGH (+1.5)
+- Double extension tricks (invoice.pdf.exe) - CRITICAL (+2.5)
+- Archive files (.zip, .rar, .iso) - MEDIUM (+0.75)
+- Suspicious file sizes (too small/large) - MEDIUM (+0.75)
+
+### Score Weighting
+
+When attachments are present, scores are weighted:
+- **With attachments**: Header (40%) + Content (30%) + Attachment (30%)
+- **Without attachments**: Header (60%) + Content (40%)
 
 ### Severity Mapping
 
@@ -260,6 +277,42 @@ const finalScore = baseScore + threatIntelRisk;
 
 ---
 
+## LLM-Enhanced Analysis
+
+### Purpose
+
+For borderline cases (risk score 4.0-6.0), the agent can generate natural language explanations using Claude to help users understand the threat assessment.
+
+### Hardening Features
+
+The LLM integration includes production-grade reliability:
+
+**Retry Logic**:
+- 3 retry attempts with exponential backoff
+- Initial delay: 1 second, max delay: 10 seconds
+- Only retries on transient errors (rate limits, timeouts)
+
+**Circuit Breaker**:
+- Opens after 5 consecutive failures
+- Half-open state after 60 seconds
+- Prevents cascade failures during API outages
+
+**Graceful Degradation**:
+- Analysis continues without explanation if LLM unavailable
+- Risk scoring unaffected by LLM failures
+- Users still receive core threat indicators
+
+### When LLM Analysis Runs
+
+```typescript
+// Only runs for borderline cases
+if (riskScore >= 4.0 && riskScore <= 6.0) {
+  const explanation = await generateThreatExplanation(context);
+}
+```
+
+---
+
 ## Performance Characteristics
 
 ### Target vs. Actual
@@ -410,12 +463,13 @@ For implementation details, see:
 - **ARCHITECTURE.md** - System design and data flow
 - **TECH_STACK.md** - Technology choices and rationale
 - **README.md** - Quick start and usage guide
+- **CLAUDE.md** - Claude Code project instructions
 
 For operational procedures, see:
 - **SECURITY.md** - Credential management
-- **ROADMAP.md** - Feature planning
+- **roadmap.md** - Feature planning
 
 ---
 
-**Document Version**: 1.0
-**Last Reviewed**: 2025-10-20
+**Document Version**: 2.0
+**Last Reviewed**: 2025-11-28
