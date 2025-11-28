@@ -8,8 +8,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc && tsc-alias -p tsconfig.json",
     "start": "node dist/index.js",
-    "test": "jest",
-    "test:watch": "jest --watch",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "prepare": "husky"

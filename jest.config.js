@@ -21,6 +21,10 @@ export default {
       },
     ],
   },
+  // Transform ESM packages in node_modules (p-retry, p-limit, etc.)
+  transformIgnorePatterns: [
+    '/node_modules/(?!(p-retry|p-limit|retry)/)',
+  ],
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.test.ts',
