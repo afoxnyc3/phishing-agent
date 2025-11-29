@@ -17,87 +17,9 @@ export class EmailParser {
    * Parse raw email text into structured format
    */
   static parseEmail(rawEmail: string): ParsedEmail {
-    const lines = rawEmail.split(/\r?\n/);
-    const headers: EmailHeaders = {
-      'message-id': '',
-      from: '',
-      to: '',
-      subject: '',
-      date: '',
-    };
-    const rawHeaders = new Map<string, string[]>();
-    let body = '';
-    let inHeaders = true;
-    let currentHeaderName = '';
-    let currentHeaderValue = '';
-
-    for (const line of lines) {
-      // Detect end of headers (blank line)
-      if (inHeaders && line.trim() === '') {
-        // Flush last header
-        if (currentHeaderName) {
-          this.addHeader(rawHeaders, currentHeaderName, currentHeaderValue.trim());
-        }
-        inHeaders = false;
-        continue;
-      }
-
-      if (inHeaders) {
-        // Check if this is a continuation line (starts with whitespace)
-        if (line.match(/^\s/) && currentHeaderName) {
-          currentHeaderValue += ' ' + line.trim();
-        } else {
-          // New header line
-          // First, save previous header if exists
-          if (currentHeaderName) {
-            this.addHeader(rawHeaders, currentHeaderName, currentHeaderValue.trim());
-          }
-
-          // Parse new header
-          const match = line.match(/^([^:]+):\s*(.*)$/);
-          if (match) {
-            currentHeaderName = match[1].toLowerCase();
-            currentHeaderValue = match[2];
-          }
-        }
-      } else {
-        // Body content
-        body += line + '\n';
-      }
-    }
-
-    // Extract standard headers
-    headers['message-id'] = this.getHeader(rawHeaders, 'message-id') || `generated-${Date.now()}@parser`;
-    headers.from = this.getHeader(rawHeaders, 'from') || '';
-    headers.to = this.getHeader(rawHeaders, 'to') || '';
-    headers.subject = this.getHeader(rawHeaders, 'subject') || '';
-    headers.date = this.getHeader(rawHeaders, 'date') || new Date().toISOString();
-
-    // Extract authentication headers (only if they exist)
-    const receivedSpf = this.getHeader(rawHeaders, 'received-spf');
-    if (receivedSpf) headers['received-spf'] = receivedSpf;
-
-    const authResults = this.getHeader(rawHeaders, 'authentication-results');
-    if (authResults) headers['authentication-results'] = authResults;
-
-    const dmarcResults = this.getHeader(rawHeaders, 'dmarc-results');
-    if (dmarcResults) headers['dmarc-results'] = dmarcResults;
-
-    const originatingIp = this.getHeader(rawHeaders, 'x-originating-ip');
-    if (originatingIp) headers['x-originating-ip'] = originatingIp;
-
-    const replyTo = this.getHeader(rawHeaders, 'reply-to');
-    if (replyTo) headers['reply-to'] = replyTo;
-
-    const received = this.getHeader(rawHeaders, 'received');
-    if (received) headers.received = received;
-
-    // Add any other headers that exist
-    for (const [key, values] of rawHeaders.entries()) {
-      if (!headers[key]) {
-        headers[key] = values[0];
-      }
-    }
+    const { rawHeaders, body } = this.parseHeaderSection(rawEmail.split(/\r?\n/));
+    const headers = this.extractStandardHeaders(rawHeaders);
+    this.copyRemainingHeaders(rawHeaders, headers);
 
     securityLogger.debug('Email parsed successfully', {
       messageId: headers['message-id'],
@@ -106,18 +28,76 @@ export class EmailParser {
       headerCount: rawHeaders.size,
     });
 
+    const result: ParsedEmail = { headers, rawHeaders };
     const trimmedBody = body.trim();
-    const result: ParsedEmail = {
-      headers,
-      rawHeaders,
-    };
-
-    // Only add body if it exists
-    if (trimmedBody) {
-      result.body = trimmedBody;
-    }
-
+    if (trimmedBody) result.body = trimmedBody;
     return result;
+  }
+
+  /** Parse header section and separate body */
+  private static parseHeaderSection(lines: string[]): { rawHeaders: Map<string, string[]>; body: string } {
+    const rawHeaders = new Map<string, string[]>();
+    let body = '';
+    let inHeaders = true;
+    let currentName = '';
+    let currentValue = '';
+
+    for (const line of lines) {
+      if (inHeaders && line.trim() === '') {
+        if (currentName) this.addHeader(rawHeaders, currentName, currentValue.trim());
+        inHeaders = false;
+        continue;
+      }
+      if (inHeaders) {
+        ({ currentName, currentValue } = this.processHeaderLine(line, currentName, currentValue, rawHeaders));
+      } else {
+        body += line + '\n';
+      }
+    }
+    return { rawHeaders, body };
+  }
+
+  /** Process a single header line */
+  private static processHeaderLine(
+    line: string, currentName: string, currentValue: string, rawHeaders: Map<string, string[]>
+  ): { currentName: string; currentValue: string } {
+    if (line.match(/^\s/) && currentName) {
+      return { currentName, currentValue: currentValue + ' ' + line.trim() };
+    }
+    if (currentName) this.addHeader(rawHeaders, currentName, currentValue.trim());
+    const match = line.match(/^([^:]+):\s*(.*)$/);
+    return match ? { currentName: match[1].toLowerCase(), currentValue: match[2] } : { currentName: '', currentValue: '' };
+  }
+
+  /** Extract standard email headers from raw headers map */
+  private static extractStandardHeaders(rawHeaders: Map<string, string[]>): EmailHeaders {
+    const headers: EmailHeaders = {
+      'message-id': this.getHeader(rawHeaders, 'message-id') || `generated-${Date.now()}@parser`,
+      from: this.getHeader(rawHeaders, 'from') || '',
+      to: this.getHeader(rawHeaders, 'to') || '',
+      subject: this.getHeader(rawHeaders, 'subject') || '',
+      date: this.getHeader(rawHeaders, 'date') || new Date().toISOString(),
+    };
+    this.copyOptionalHeader(rawHeaders, headers, 'received-spf');
+    this.copyOptionalHeader(rawHeaders, headers, 'authentication-results');
+    this.copyOptionalHeader(rawHeaders, headers, 'dmarc-results');
+    this.copyOptionalHeader(rawHeaders, headers, 'x-originating-ip');
+    this.copyOptionalHeader(rawHeaders, headers, 'reply-to');
+    this.copyOptionalHeader(rawHeaders, headers, 'received');
+    return headers;
+  }
+
+  /** Copy optional header if it exists */
+  private static copyOptionalHeader(rawHeaders: Map<string, string[]>, headers: EmailHeaders, name: string): void {
+    const value = this.getHeader(rawHeaders, name);
+    if (value) headers[name] = value;
+  }
+
+  /** Copy remaining headers not already in headers object */
+  private static copyRemainingHeaders(rawHeaders: Map<string, string[]>, headers: EmailHeaders): void {
+    for (const [key, values] of rawHeaders.entries()) {
+      if (!headers[key]) headers[key] = values[0];
+    }
   }
 
   /**
