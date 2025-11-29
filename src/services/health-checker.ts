@@ -3,9 +3,10 @@
  */
 import { PhishingAgent } from '../agents/phishing-agent.js';
 import { MailboxMonitor } from '../services/mailbox-monitor.js';
-import { RateLimiter } from '../services/rate-limiter.js';
-import { EmailDeduplication } from '../services/email-deduplication.js';
+import { IRateLimiter } from '../services/rate-limiter.js';
+import { IEmailDeduplication } from '../services/email-deduplication.js';
 import { getLlmServiceStatus, healthCheck as llmHealthCheck } from '../services/llm-analyzer.js';
+import { ResilientCacheProvider, CacheStatus } from '../lib/resilient-cache-provider.js';
 
 export interface HealthStatus {
   healthy: boolean;
@@ -23,6 +24,7 @@ export interface SystemHealth {
     rateLimiter: HealthStatus;
     deduplication: HealthStatus;
     llmAnalyzer: HealthStatus;
+    cache: HealthStatus;
     memory: HealthStatus;
   };
 }
@@ -30,8 +32,9 @@ export interface SystemHealth {
 export class HealthChecker {
   private phishingAgent?: PhishingAgent;
   private mailboxMonitor?: MailboxMonitor;
-  private rateLimiter?: RateLimiter;
-  private deduplication?: EmailDeduplication;
+  private rateLimiter?: IRateLimiter;
+  private deduplication?: IEmailDeduplication;
+  private cacheProvider?: ResilientCacheProvider;
 
   setPhishingAgent(agent: PhishingAgent): void {
     this.phishingAgent = agent;
@@ -39,20 +42,24 @@ export class HealthChecker {
   setMailboxMonitor(monitor: MailboxMonitor): void {
     this.mailboxMonitor = monitor;
   }
-  setRateLimiter(limiter: RateLimiter): void {
+  setRateLimiter(limiter: IRateLimiter): void {
     this.rateLimiter = limiter;
   }
-  setDeduplication(dedupe: EmailDeduplication): void {
+  setDeduplication(dedupe: IEmailDeduplication): void {
     this.deduplication = dedupe;
+  }
+  setCacheProvider(cache: ResilientCacheProvider): void {
+    this.cacheProvider = cache;
   }
 
   async checkHealth(): Promise<SystemHealth> {
     const components = {
       phishingAgent: await this.checkPhishingAgent(),
       mailboxMonitor: await this.checkMailboxMonitor(),
-      rateLimiter: this.checkRateLimiter(),
-      deduplication: this.checkDeduplication(),
+      rateLimiter: await this.checkRateLimiter(),
+      deduplication: await this.checkDeduplication(),
       llmAnalyzer: await this.checkLlmAnalyzer(),
+      cache: this.checkCache(),
       memory: this.checkMemory(),
     };
     const healthy = Object.values(components).every((c) => c.healthy);
@@ -81,7 +88,7 @@ export class HealthChecker {
       return { healthy: false, component: 'mailboxMonitor', message: 'Component not initialized' };
     }
     try {
-      const status = this.mailboxMonitor.getStatus();
+      const status = await this.mailboxMonitor.getStatus();
       const healthy = await this.mailboxMonitor.healthCheck();
       return {
         healthy,
@@ -99,11 +106,11 @@ export class HealthChecker {
     }
   }
 
-  private checkRateLimiter(): HealthStatus {
+  private async checkRateLimiter(): Promise<HealthStatus> {
     if (!this.rateLimiter) {
       return { healthy: true, component: 'rateLimiter', message: 'Component not configured' };
     }
-    const stats = this.rateLimiter.getStats();
+    const stats = await this.rateLimiter.getStats();
     const healthy = !stats.circuitBreakerTripped;
     return {
       healthy,
@@ -118,11 +125,11 @@ export class HealthChecker {
     };
   }
 
-  private checkDeduplication(): HealthStatus {
+  private async checkDeduplication(): Promise<HealthStatus> {
     if (!this.deduplication) {
       return { healthy: true, component: 'deduplication', message: 'Component not configured' };
     }
-    const stats = this.deduplication.getStats();
+    const stats = await this.deduplication.getStats();
     return {
       healthy: true,
       component: 'deduplication',
@@ -158,6 +165,31 @@ export class HealthChecker {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       return { healthy: true, component: 'llmAnalyzer', message: `Health check failed: ${msg}` };
     }
+  }
+
+  private checkCache(): HealthStatus {
+    if (!this.cacheProvider) {
+      return { healthy: true, component: 'cache', message: 'Cache not configured (using in-memory)' };
+    }
+    const status: CacheStatus = this.cacheProvider.getStatus();
+    const healthy = !status.degraded || status.mode === 'fallback';
+    const modeMessages: Record<string, string> = {
+      redis: 'Redis cache operational',
+      fallback: 'Redis degraded - using memory fallback',
+      memory: 'In-memory cache active',
+    };
+    return {
+      healthy,
+      component: 'cache',
+      message: modeMessages[status.mode] || 'Unknown cache mode',
+      details: {
+        mode: status.mode,
+        circuitState: status.circuitState,
+        redisReady: status.redisReady,
+        degraded: status.degraded,
+        lastError: status.lastError,
+      },
+    };
   }
 
   private checkMemory(): HealthStatus {

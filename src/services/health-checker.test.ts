@@ -2,15 +2,15 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { HealthChecker } from './health-checker.js';
 import { PhishingAgent } from '../agents/phishing-agent.js';
 import { MailboxMonitor } from './mailbox-monitor.js';
-import { RateLimiter } from './rate-limiter.js';
-import { EmailDeduplication } from './email-deduplication.js';
+import { IRateLimiter } from './rate-limiter.js';
+import { IEmailDeduplication } from './email-deduplication.js';
 
 describe('HealthChecker', () => {
   let checker: HealthChecker;
   let mockAgent: jest.Mocked<PhishingAgent>;
   let mockMonitor: jest.Mocked<MailboxMonitor>;
-  let mockRateLimiter: jest.Mocked<RateLimiter>;
-  let mockDeduplication: jest.Mocked<EmailDeduplication>;
+  let mockRateLimiter: jest.Mocked<IRateLimiter>;
+  let mockDeduplication: jest.Mocked<IEmailDeduplication>;
 
   beforeEach(() => {
     checker = new HealthChecker();
@@ -29,28 +29,69 @@ describe('HealthChecker', () => {
     } as unknown as jest.Mocked<PhishingAgent>;
 
     mockMonitor = {
-      healthCheck: jest.fn(),
-      getStatus: jest.fn(),
+      healthCheck: jest.fn<() => Promise<boolean>>(),
+      getStatus: jest.fn<() => Promise<{
+        isRunning: boolean;
+        mailbox: string;
+        lastCheckTime: Date;
+        checkInterval: number;
+        rateLimitStats: unknown;
+        deduplicationStats: unknown;
+      }>>(),
     } as unknown as jest.Mocked<MailboxMonitor>;
 
+    // Mock rate limiter with async methods (interfaces are async)
     mockRateLimiter = {
-      getStats: jest.fn(),
-    } as unknown as jest.Mocked<RateLimiter>;
+      canSendEmail: jest.fn<() => Promise<{ allowed: boolean; reason?: string }>>(),
+      recordEmailSent: jest.fn<() => Promise<void>>(),
+      getStats: jest.fn<() => Promise<{
+        lastHour: number;
+        lastDay: number;
+        last10Min: number;
+        circuitBreakerTripped: boolean;
+        hourlyLimit: number;
+        dailyLimit: number;
+      }>>(),
+      reset: jest.fn<() => Promise<void>>(),
+    } as jest.Mocked<IRateLimiter>;
 
+    // Mock deduplication with async methods (interfaces are async)
     mockDeduplication = {
-      getStats: jest.fn(),
-    } as unknown as jest.Mocked<EmailDeduplication>;
+      shouldProcess: jest.fn<() => Promise<{ allowed: boolean; reason?: string }>>(),
+      recordProcessed: jest.fn<() => Promise<void>>(),
+      getStats: jest.fn<() => Promise<{
+        processedEmailsCount: number;
+        uniqueSendersCount: number;
+        enabled: boolean;
+      }>>(),
+      reset: jest.fn<() => Promise<void>>(),
+    } as jest.Mocked<IEmailDeduplication>;
   });
 
   describe('checkHealth', () => {
     it('should return healthy when all components are healthy', async () => {
       mockAgent.healthCheck.mockResolvedValue(true);
       mockMonitor.healthCheck.mockResolvedValue(true);
-      (mockMonitor.getStatus as jest.Mock).mockReturnValue({
+      mockMonitor.getStatus.mockResolvedValue({
         isRunning: true,
+        mailbox: 'test@example.com',
         lastCheckTime: new Date(),
+        checkInterval: 60000,
+        rateLimitStats: {
+          lastHour: 0,
+          lastDay: 0,
+          last10Min: 0,
+          circuitBreakerTripped: false,
+          hourlyLimit: 100,
+          dailyLimit: 1000,
+        },
+        deduplicationStats: {
+          processedEmailsCount: 0,
+          uniqueSendersCount: 0,
+          enabled: true,
+        },
       });
-      (mockRateLimiter.getStats as jest.Mock).mockReturnValue({
+      mockRateLimiter.getStats.mockResolvedValue({
         circuitBreakerTripped: false,
         lastHour: 5,
         lastDay: 10,
@@ -58,7 +99,7 @@ describe('HealthChecker', () => {
         hourlyLimit: 100,
         dailyLimit: 1000,
       });
-      (mockDeduplication.getStats as jest.Mock).mockReturnValue({
+      mockDeduplication.getStats.mockResolvedValue({
         processedEmailsCount: 10,
         uniqueSendersCount: 5,
         enabled: true,
@@ -90,7 +131,7 @@ describe('HealthChecker', () => {
     });
 
     it('should return unhealthy when circuit breaker is tripped', async () => {
-      (mockRateLimiter.getStats as jest.Mock).mockReturnValue({
+      mockRateLimiter.getStats.mockResolvedValue({
         circuitBreakerTripped: true,
         lastHour: 100,
         lastDay: 500,
@@ -151,7 +192,7 @@ describe('HealthChecker', () => {
 
   describe('Component Details', () => {
     it('should include rate limiter stats', async () => {
-      (mockRateLimiter.getStats as jest.Mock).mockReturnValue({
+      mockRateLimiter.getStats.mockResolvedValue({
         circuitBreakerTripped: false,
         lastHour: 25,
         lastDay: 100,
@@ -170,7 +211,7 @@ describe('HealthChecker', () => {
     });
 
     it('should include deduplication stats', async () => {
-      (mockDeduplication.getStats as jest.Mock).mockReturnValue({
+      mockDeduplication.getStats.mockResolvedValue({
         processedEmailsCount: 42,
         uniqueSendersCount: 15,
         enabled: true,

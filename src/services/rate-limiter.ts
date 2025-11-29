@@ -3,8 +3,8 @@
  * Prevents email sending abuse with multiple protection layers
  * All functions are atomic (max 25 lines)
  *
- * NOTE: Currently uses in-memory storage. For multi-replica deployments,
- * configure REDIS_URL to enable distributed rate limiting (future enhancement).
+ * For multi-replica deployments, configure REDIS_URL to enable distributed rate limiting.
+ * Use createRateLimiter() factory to automatically select the appropriate implementation.
  */
 
 import { securityLogger } from '../lib/logger.js';
@@ -16,7 +16,58 @@ export interface RateLimiterConfig {
   circuitBreakerThreshold: number; // emails per 10 minutes
   circuitBreakerWindowMs: number;
   enabled: boolean;
-  cacheProvider?: CacheProvider; // Optional: for distributed rate limiting (future)
+  cacheProvider?: CacheProvider; // Optional: for distributed rate limiting
+}
+
+/** Stats returned by getStats() */
+export interface RateLimiterStats {
+  lastHour: number;
+  lastDay: number;
+  last10Min: number;
+  circuitBreakerTripped: boolean;
+  hourlyLimit: number;
+  dailyLimit: number;
+}
+
+/** Common interface for rate limiters (in-memory and Redis) */
+export interface IRateLimiter {
+  canSendEmail(): Promise<{ allowed: boolean; reason?: string }>;
+  recordEmailSent(): Promise<void>;
+  getStats(): Promise<RateLimiterStats>;
+  reset(): Promise<void>;
+}
+
+/**
+ * Factory function to create appropriate rate limiter
+ * Returns RedisRateLimiter if cacheProvider is ready, otherwise in-memory RateLimiter
+ */
+export async function createRateLimiter(
+  config: RateLimiterConfig,
+  cacheProvider?: CacheProvider
+): Promise<IRateLimiter> {
+  if (cacheProvider?.isReady()) {
+    const { RedisRateLimiter } = await import('./redis-rate-limiter.js');
+    return new RedisRateLimiter(cacheProvider, config);
+  }
+  return new RateLimiterWrapper(new RateLimiter(config));
+}
+
+/** Wrapper to make in-memory RateLimiter async-compatible */
+export class RateLimiterWrapper implements IRateLimiter {
+  constructor(private limiter: RateLimiter) {}
+
+  async canSendEmail(): Promise<{ allowed: boolean; reason?: string }> {
+    return this.limiter.canSendEmail();
+  }
+  async recordEmailSent(): Promise<void> {
+    this.limiter.recordEmailSent();
+  }
+  async getStats(): Promise<RateLimiterStats> {
+    return this.limiter.getStats();
+  }
+  async reset(): Promise<void> {
+    this.limiter.reset();
+  }
 }
 
 interface EmailTimestamp {

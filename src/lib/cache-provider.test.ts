@@ -200,44 +200,44 @@ describe('Cache Factory Functions', () => {
   });
 
   describe('createCacheProvider', () => {
-    it('should create memory cache when Redis not configured', () => {
-      const provider = createCacheProvider();
+    it('should create memory cache when Redis not configured', async () => {
+      const provider = await createCacheProvider();
       expect(provider).toBeDefined();
       expect(provider.isReady()).toBe(true);
     });
 
-    it('should return same instance on multiple calls', () => {
-      const provider1 = createCacheProvider();
-      const provider2 = createCacheProvider();
+    it('should return same instance on multiple calls', async () => {
+      const provider1 = await createCacheProvider();
+      const provider2 = await createCacheProvider();
       expect(provider1).toBe(provider2);
     });
   });
 
   describe('getCacheProvider', () => {
-    it('should create provider if not exists', () => {
-      const provider = getCacheProvider();
+    it('should create provider if not exists', async () => {
+      const provider = await getCacheProvider();
       expect(provider).toBeDefined();
     });
 
-    it('should return existing provider', () => {
-      const provider1 = createCacheProvider();
-      const provider2 = getCacheProvider();
+    it('should return existing provider', async () => {
+      const provider1 = await createCacheProvider();
+      const provider2 = await getCacheProvider();
       expect(provider1).toBe(provider2);
     });
   });
 
   describe('shutdownCacheProvider', () => {
     it('should shutdown and clear provider', async () => {
-      createCacheProvider();
+      await createCacheProvider();
       await shutdownCacheProvider();
 
       // After shutdown, a new call should create a new instance
-      const newProvider = createCacheProvider();
+      const newProvider = await createCacheProvider();
       expect(newProvider).toBeDefined();
     });
 
     it('should handle multiple shutdown calls', async () => {
-      createCacheProvider();
+      await createCacheProvider();
       await shutdownCacheProvider();
       await expect(shutdownCacheProvider()).resolves.not.toThrow();
     });

@@ -16,6 +16,7 @@ async function bootstrap(): Promise<{
   PhishingAgent: typeof import('./agents/phishing-agent.js').PhishingAgent;
   MailboxMonitor: typeof import('./services/mailbox-monitor.js').MailboxMonitor;
   HttpServer: typeof import('./server.js').HttpServer;
+  createResilientCacheProvider: typeof import('./lib/cache-provider.js').createResilientCacheProvider;
 }> {
   // Load secrets from Key Vault if configured
   await loadSecretsFromKeyVault();
@@ -26,8 +27,9 @@ async function bootstrap(): Promise<{
   const { PhishingAgent } = await import('./agents/phishing-agent.js');
   const { MailboxMonitor } = await import('./services/mailbox-monitor.js');
   const { HttpServer } = await import('./server.js');
+  const { createResilientCacheProvider } = await import('./lib/cache-provider.js');
 
-  return { securityLogger, config, PhishingAgent, MailboxMonitor, HttpServer };
+  return { securityLogger, config, PhishingAgent, MailboxMonitor, HttpServer, createResilientCacheProvider };
 }
 
 // Type definitions for bootstrapped modules
@@ -41,6 +43,7 @@ class Application {
   private phishingAgent!: InstanceType<BootstrappedModules['PhishingAgent']>;
   private mailboxMonitor!: InstanceType<BootstrappedModules['MailboxMonitor']>;
   private httpServer!: InstanceType<BootstrappedModules['HttpServer']>;
+  private cacheProvider?: Awaited<ReturnType<BootstrappedModules['createResilientCacheProvider']>>;
 
   constructor(modules: BootstrappedModules) {
     this.modules = modules;
@@ -50,9 +53,16 @@ class Application {
    * Initialize application
    */
   async initialize(): Promise<void> {
-    const { securityLogger, config, PhishingAgent, MailboxMonitor, HttpServer } = this.modules;
+    const { securityLogger, config, PhishingAgent, MailboxMonitor, HttpServer, createResilientCacheProvider } =
+      this.modules;
 
     securityLogger.info('Initializing Phishing Agent...');
+
+    // Initialize cache provider if Redis URL is configured
+    if (config.redis.url) {
+      securityLogger.info('Initializing Redis cache provider...', { keyPrefix: config.redis.keyPrefix });
+      this.cacheProvider = await createResilientCacheProvider(config.redis.url, config.redis.keyPrefix);
+    }
 
     // Initialize phishing agent
     this.phishingAgent = new PhishingAgent();
@@ -69,6 +79,7 @@ class Application {
         enabled: config.mailbox.enabled,
         rateLimiter: config.rateLimit,
         deduplication: config.deduplication,
+        cacheProvider: this.cacheProvider,
       },
       this.phishingAgent
     );
@@ -84,6 +95,15 @@ class Application {
     this.httpServer = new HttpServer();
     this.httpServer.setPhishingAgent(this.phishingAgent);
     this.httpServer.setMailboxMonitor(this.mailboxMonitor);
+
+    // Set cache provider for health checks (only if Redis is configured)
+    if (this.cacheProvider && config.redis.url) {
+      // Import ResilientCacheProvider type for casting
+      const { ResilientCacheProvider } = await import('./lib/resilient-cache-provider.js');
+      if (this.cacheProvider instanceof ResilientCacheProvider) {
+        this.httpServer.setCacheProvider(this.cacheProvider);
+      }
+    }
 
     securityLogger.info('Phishing Agent initialized successfully');
   }
@@ -119,6 +139,12 @@ class Application {
 
     this.mailboxMonitor.stop();
     await this.phishingAgent.shutdown();
+
+    // Shutdown cache provider if initialized
+    if (this.cacheProvider) {
+      securityLogger.info('Shutting down cache provider...');
+      await this.cacheProvider.shutdown();
+    }
 
     securityLogger.info('Phishing Agent stopped');
   }
@@ -178,6 +204,7 @@ async function main(): Promise<void> {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
+    // eslint-disable-next-line no-console -- Top-level error before logger may be available
     console.error('Failed to start Phishing Agent:', errorMessage, errorStack);
     process.exit(1);
   }

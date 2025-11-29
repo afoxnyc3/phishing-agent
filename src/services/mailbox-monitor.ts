@@ -1,35 +1,54 @@
-/**
- * Mailbox Monitor
- * Monitors phishing mailbox for new emails and triggers analysis
- * Refactored to use email-processor and email-reply-builder modules
- */
+/** Mailbox Monitor - Monitors phishing mailbox for new emails and triggers analysis */
 
 import { Client } from '@microsoft/microsoft-graph-client';
 import pLimit from 'p-limit';
 import { securityLogger } from '../lib/logger.js';
 import { PhishingAgent } from '../agents/phishing-agent.js';
-import { GraphEmail, GraphEmailListResponse } from '../lib/schemas.js';
-import { validateGraphEmailListResponse } from './graph-email-parser.js';
-import { RateLimiter, RateLimiterConfig } from './rate-limiter.js';
-import { EmailDeduplication, DeduplicationConfig } from './email-deduplication.js';
+import { GraphEmail } from '../lib/schemas.js';
+import { fetchNewEmails } from './email-fetcher.js';
+import {
+  createRateLimiter,
+  IRateLimiter,
+  RateLimiterConfig,
+  RateLimiter,
+  RateLimiterWrapper,
+} from './rate-limiter.js';
+import {
+  createEmailDeduplication,
+  IEmailDeduplication,
+  DeduplicationConfig,
+  EmailDeduplication,
+  EmailDeduplicationWrapper,
+} from './email-deduplication.js';
 import { processEmail } from './email-processor.js';
 import { createGraphClient, AzureAuthMethod } from './azure-auth.js';
+import { CacheProvider } from '../lib/cache-provider.js';
 
 export type { AzureAuthMethod };
 
 export interface MailboxMonitorConfig {
   tenantId: string;
   clientId: string;
-  clientSecret?: string; // Optional when using managed identity
-  authMethod?: AzureAuthMethod; // Defaults based on environment
+  clientSecret?: string;
+  authMethod?: AzureAuthMethod;
   mailboxAddress: string;
   checkIntervalMs?: number;
   enabled?: boolean;
   rateLimiter?: RateLimiterConfig;
   deduplication?: DeduplicationConfig;
-  maxPages?: number; // Max pagination pages (default: 5)
-  parallelLimit?: number; // Parallel processing limit (default: 5)
+  maxPages?: number;
+  parallelLimit?: number;
+  cacheProvider?: CacheProvider;
 }
+
+const DEFAULT_RATE_LIMITER: RateLimiterConfig = {
+  enabled: true, maxEmailsPerHour: 100, maxEmailsPerDay: 1000,
+  circuitBreakerThreshold: 50, circuitBreakerWindowMs: 600000,
+};
+
+const DEFAULT_DEDUPLICATION: DeduplicationConfig = {
+  enabled: true, contentHashTtlMs: 86400000, senderCooldownMs: 86400000,
+};
 
 export class MailboxMonitor {
   private client: Client;
@@ -38,8 +57,8 @@ export class MailboxMonitor {
   private checkInterval: NodeJS.Timeout | null = null;
   private lastCheckTime: Date;
   private isRunning: boolean = false;
-  private rateLimiter: RateLimiter;
-  private deduplication: EmailDeduplication;
+  private rateLimiter!: IRateLimiter;
+  private deduplication!: IEmailDeduplication;
 
   constructor(config: MailboxMonitorConfig, phishingAgent: PhishingAgent) {
     this.config = { checkIntervalMs: 60000, enabled: true, ...config };
@@ -52,33 +71,32 @@ export class MailboxMonitor {
       authMethod: config.authMethod,
     });
 
-    this.rateLimiter = new RateLimiter(
-      config.rateLimiter || {
-        enabled: true,
-        maxEmailsPerHour: 100,
-        maxEmailsPerDay: 1000,
-        circuitBreakerThreshold: 50,
-        circuitBreakerWindowMs: 600000,
-      }
-    );
-
-    this.deduplication = new EmailDeduplication(
-      config.deduplication || {
-        enabled: true,
-        contentHashTtlMs: 86400000,
-        senderCooldownMs: 86400000,
-      }
-    );
+    // Create sync (in-memory) services - upgraded to Redis in initialize() if cacheProvider available
+    const rlConfig = config.rateLimiter || DEFAULT_RATE_LIMITER;
+    const dedupConfig = config.deduplication || DEFAULT_DEDUPLICATION;
+    this.rateLimiter = new RateLimiterWrapper(new RateLimiter(rlConfig));
+    this.deduplication = new EmailDeduplicationWrapper(new EmailDeduplication(dedupConfig));
   }
 
-  /**
-   * Initialize and verify mailbox access
-   */
+  /** Upgrades to Redis-backed services if cacheProvider is available */
+  private async initializeServices(): Promise<void> {
+    if (!this.config.cacheProvider?.isReady()) return;
+    const rlConfig = this.config.rateLimiter || DEFAULT_RATE_LIMITER;
+    const dedupConfig = this.config.deduplication || DEFAULT_DEDUPLICATION;
+    this.rateLimiter = await createRateLimiter(rlConfig, this.config.cacheProvider);
+    this.deduplication = await createEmailDeduplication(dedupConfig, this.config.cacheProvider);
+  }
+
+  /** Initialize and verify mailbox access */
   async initialize(): Promise<void> {
     securityLogger.info('Initializing mailbox monitor', {
       mailbox: this.config.mailboxAddress,
       checkInterval: this.config.checkIntervalMs,
+      cacheMode: this.config.cacheProvider?.isReady() ? 'distributed' : 'in-memory',
     });
+
+    // Initialize rate limiter and deduplication (uses Redis if available)
+    await this.initializeServices();
 
     try {
       await this.client.api(`/users/${this.config.mailboxAddress}/messages`).top(1).get();
@@ -90,9 +108,7 @@ export class MailboxMonitor {
     }
   }
 
-  /**
-   * Start monitoring
-   */
+  /** Start monitoring */
   start(): void {
     if (this.isRunning || !this.config.enabled) {
       securityLogger.warn('Mailbox monitor already running or disabled');
@@ -119,9 +135,7 @@ export class MailboxMonitor {
     securityLogger.info('Mailbox monitor started successfully');
   }
 
-  /**
-   * Stop monitoring
-   */
+  /** Stop monitoring */
   stop(): void {
     if (!this.isRunning) return;
 
@@ -131,9 +145,7 @@ export class MailboxMonitor {
     securityLogger.info('Mailbox monitor stopped');
   }
 
-  /**
-   * Check for new emails
-   */
+  /** Check for new emails */
   private async checkForNewEmails(): Promise<void> {
     const checkTime = new Date();
     const filterDate = this.lastCheckTime.toISOString();
@@ -144,7 +156,10 @@ export class MailboxMonitor {
     });
 
     try {
-      const emails = await this.fetchNewEmails(filterDate);
+      const emails = await fetchNewEmails(this.client, {
+        mailboxAddress: this.config.mailboxAddress,
+        maxPages: this.config.maxPages,
+      }, filterDate);
 
       if (emails.length === 0) {
         securityLogger.debug('No new emails found');
@@ -162,65 +177,7 @@ export class MailboxMonitor {
     }
   }
 
-  /**
-   * Fetch new emails from mailbox with pagination support
-   * Handles @odata.nextLink for large result sets
-   */
-  private async fetchNewEmails(sinceDate: string): Promise<GraphEmail[]> {
-    const allEmails: GraphEmail[] = [];
-    const maxPages = this.config.maxPages || 5;
-    let pageCount = 0;
-    let nextLink: string | undefined = undefined;
-
-    do {
-      const response = await this.fetchEmailPage(sinceDate, nextLink);
-      const validatedEmails = validateGraphEmailListResponse(response);
-      allEmails.push(...validatedEmails);
-      nextLink = (response as GraphEmailListResponse)['@odata.nextLink'];
-      pageCount++;
-      if (nextLink) {
-        securityLogger.debug('Fetching next page of emails', {
-          pageCount,
-          maxPages,
-          emailsSoFar: allEmails.length,
-        });
-      }
-    } while (nextLink && pageCount < maxPages);
-
-    if (nextLink && pageCount >= maxPages) {
-      securityLogger.warn('Pagination limit reached - some emails may not be fetched', {
-        pageCount,
-        maxPages,
-        totalFetched: allEmails.length,
-      });
-    }
-    return allEmails;
-  }
-
-  private async fetchEmailPage(
-    sinceDate: string,
-    nextLink?: string
-  ): Promise<GraphEmailListResponse> {
-    if (nextLink) {
-      return this.client.api(nextLink).get();
-    }
-    return this.client
-      .api(`/users/${this.config.mailboxAddress}/messages`)
-      .filter(`receivedDateTime ge ${sinceDate}`)
-      .orderby('receivedDateTime asc')
-      .top(50)
-      .select(
-        'id,subject,from,toRecipients,receivedDateTime,sentDateTime,' +
-          'internetMessageId,internetMessageHeaders,body,hasAttachments'
-      )
-      .expand('attachments($select=name,contentType,size)')
-      .get();
-  }
-
-  /**
-   * Process multiple emails with bounded parallelism
-   * Uses p-limit to prevent overwhelming downstream services
-   */
+  /** Process multiple emails with bounded parallelism */
   private async processEmails(emails: GraphEmail[]): Promise<void> {
     const parallelLimit = this.config.parallelLimit || 5;
     const limit = pLimit(parallelLimit);
@@ -250,44 +207,36 @@ export class MailboxMonitor {
     await Promise.all(tasks);
   }
 
-  /**
-   * Get monitoring status
-   */
-  getStatus(): {
+  /** Get monitoring status */
+  async getStatus(): Promise<{
     isRunning: boolean;
     mailbox: string;
     lastCheckTime: Date;
     checkInterval: number;
-    rateLimitStats: ReturnType<RateLimiter['getStats']>;
-    deduplicationStats: ReturnType<EmailDeduplication['getStats']>;
-  } {
+    rateLimitStats: Awaited<ReturnType<IRateLimiter['getStats']>>;
+    deduplicationStats: Awaited<ReturnType<IEmailDeduplication['getStats']>>;
+  }> {
     return {
       isRunning: this.isRunning,
       mailbox: this.config.mailboxAddress,
       lastCheckTime: this.lastCheckTime,
       checkInterval: this.config.checkIntervalMs!,
-      rateLimitStats: this.rateLimiter.getStats(),
-      deduplicationStats: this.deduplication.getStats(),
+      rateLimitStats: await this.rateLimiter.getStats(),
+      deduplicationStats: await this.deduplication.getStats(),
     };
   }
 
-  /**
-   * Get rate limiter instance
-   */
-  getRateLimiter(): RateLimiter {
+  /** Get rate limiter instance */
+  getRateLimiter(): IRateLimiter {
     return this.rateLimiter;
   }
 
-  /**
-   * Get deduplication instance
-   */
-  getDeduplication(): EmailDeduplication {
+  /** Get deduplication instance */
+  getDeduplication(): IEmailDeduplication {
     return this.deduplication;
   }
 
-  /**
-   * Health check
-   */
+  /** Health check */
   async healthCheck(): Promise<boolean> {
     try {
       await this.client.api(`/users/${this.config.mailboxAddress}/messages`).top(1).get();

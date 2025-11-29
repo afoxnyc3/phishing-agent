@@ -13,6 +13,7 @@ import { MailboxMonitor } from './services/mailbox-monitor.js';
 import { metrics } from './services/metrics.js';
 import { healthChecker, SystemHealth } from './services/health-checker.js';
 import { NextFunction } from 'express';
+import { ResilientCacheProvider } from './lib/resilient-cache-provider.js';
 
 // Health check cache for /health/deep to avoid Graph API rate limiting
 let deepHealthCache: { result: SystemHealth; timestamp: number } | null = null;
@@ -191,6 +192,13 @@ export class HttpServer {
     healthChecker.setMailboxMonitor(monitor);
     healthChecker.setRateLimiter(monitor.getRateLimiter());
     healthChecker.setDeduplication(monitor.getDeduplication());
+  }
+
+  /**
+   * Set cache provider for health checks
+   */
+  setCacheProvider(cache: ResilientCacheProvider): void {
+    healthChecker.setCacheProvider(cache);
   }
 
   /**

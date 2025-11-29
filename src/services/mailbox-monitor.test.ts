@@ -98,15 +98,15 @@ describe('MailboxMonitor', () => {
   });
 
   describe('Constructor', () => {
-    it('should initialize with provided config', () => {
+    it('should initialize with provided config', async () => {
       expect(monitor).toBeDefined();
-      const status = monitor.getStatus();
+      const status = await monitor.getStatus();
       expect(status.mailbox).toBe('phishing@test.com');
       expect(status.checkInterval).toBe(1000);
       expect(status.isRunning).toBe(false);
     });
 
-    it('should use default check interval if not provided', () => {
+    it('should use default check interval if not provided', async () => {
       const config = {
         tenantId: 'test-tenant',
         clientId: 'test-client',
@@ -115,7 +115,10 @@ describe('MailboxMonitor', () => {
       };
 
       const mon = new MailboxMonitor(config, mockPhishingAgent);
-      expect(mon.getStatus().checkInterval).toBe(60000);
+      // Need to initialize to create rate limiter and deduplication
+      mockGraphGet.mockResolvedValue({ value: [] });
+      await mon.initialize();
+      expect((await mon.getStatus()).checkInterval).toBe(60000);
     });
 
     it('should set enabled to true by default', () => {
@@ -147,26 +150,26 @@ describe('MailboxMonitor', () => {
   });
 
   describe('Start/Stop', () => {
-    it('should start monitoring', () => {
+    it('should start monitoring', async () => {
       mockGraphGet.mockResolvedValue({ value: [] });
 
       monitor.start();
 
-      expect(monitor.getStatus().isRunning).toBe(true);
+      expect((await monitor.getStatus()).isRunning).toBe(true);
     });
 
-    it('should not start if already running', () => {
+    it('should not start if already running', async () => {
       mockGraphGet.mockResolvedValue({ value: [] });
 
       monitor.start();
-      const firstStart = monitor.getStatus().isRunning;
+      const firstStart = (await monitor.getStatus()).isRunning;
       monitor.start();
 
       expect(firstStart).toBe(true);
-      expect(monitor.getStatus().isRunning).toBe(true);
+      expect((await monitor.getStatus()).isRunning).toBe(true);
     });
 
-    it('should not start if disabled', () => {
+    it('should not start if disabled', async () => {
       const config = {
         tenantId: 'test-tenant',
         clientId: 'test-client',
@@ -178,23 +181,23 @@ describe('MailboxMonitor', () => {
       const disabledMonitor = new MailboxMonitor(config, mockPhishingAgent);
       disabledMonitor.start();
 
-      expect(disabledMonitor.getStatus().isRunning).toBe(false);
+      expect((await disabledMonitor.getStatus()).isRunning).toBe(false);
     });
 
-    it('should stop monitoring', () => {
+    it('should stop monitoring', async () => {
       mockGraphGet.mockResolvedValue({ value: [] });
 
       monitor.start();
-      expect(monitor.getStatus().isRunning).toBe(true);
+      expect((await monitor.getStatus()).isRunning).toBe(true);
 
       monitor.stop();
-      expect(monitor.getStatus().isRunning).toBe(false);
+      expect((await monitor.getStatus()).isRunning).toBe(false);
     });
 
-    it('should handle stop when not running', () => {
-      expect(monitor.getStatus().isRunning).toBe(false);
+    it('should handle stop when not running', async () => {
+      expect((await monitor.getStatus()).isRunning).toBe(false);
       monitor.stop();
-      expect(monitor.getStatus().isRunning).toBe(false);
+      expect((await monitor.getStatus()).isRunning).toBe(false);
     });
   });
 
@@ -218,8 +221,8 @@ describe('MailboxMonitor', () => {
   });
 
   describe('Status', () => {
-    it('should return monitoring status', () => {
-      const status = monitor.getStatus();
+    it('should return monitoring status', async () => {
+      const status = await monitor.getStatus();
 
       expect(status).toHaveProperty('isRunning');
       expect(status).toHaveProperty('mailbox');
@@ -227,16 +230,16 @@ describe('MailboxMonitor', () => {
       expect(status).toHaveProperty('checkInterval');
     });
 
-    it('should reflect running state', () => {
+    it('should reflect running state', async () => {
       mockGraphGet.mockResolvedValue({ value: [] });
 
-      expect(monitor.getStatus().isRunning).toBe(false);
+      expect((await monitor.getStatus()).isRunning).toBe(false);
 
       monitor.start();
-      expect(monitor.getStatus().isRunning).toBe(true);
+      expect((await monitor.getStatus()).isRunning).toBe(true);
 
       monitor.stop();
-      expect(monitor.getStatus().isRunning).toBe(false);
+      expect((await monitor.getStatus()).isRunning).toBe(false);
     });
   });
 
@@ -394,13 +397,13 @@ describe('MailboxMonitor', () => {
     it('should update lastCheckTime after processing', async () => {
       mockGraphGet.mockResolvedValue({ value: [] });
 
-      const beforeStart = monitor.getStatus().lastCheckTime;
+      const beforeStart = (await monitor.getStatus()).lastCheckTime;
 
       monitor.start();
       await new Promise(resolve => setTimeout(resolve, 100));
       monitor.stop();
 
-      const afterStop = monitor.getStatus().lastCheckTime;
+      const afterStop = (await monitor.getStatus()).lastCheckTime;
       expect(afterStop.getTime()).toBeGreaterThan(beforeStart.getTime());
     });
   });

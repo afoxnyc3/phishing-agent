@@ -10,8 +10,8 @@ import { PhishingAgent } from '../agents/phishing-agent.js';
 import { PhishingAnalysisResult } from '../lib/types.js';
 import { GraphEmail } from '../lib/schemas.js';
 import { parseGraphEmail } from './graph-email-parser.js';
-import { RateLimiter } from './rate-limiter.js';
-import { EmailDeduplication } from './email-deduplication.js';
+import { IRateLimiter } from './rate-limiter.js';
+import { IEmailDeduplication } from './email-deduplication.js';
 import { buildReplyHtml, buildErrorReplyHtml, createReplyMessage } from './email-reply-builder.js';
 import { metrics } from './metrics.js';
 import { evaluateEmailGuards, __testResetMessageIdCache } from './email-guards.js';
@@ -23,8 +23,8 @@ export interface EmailProcessorConfig {
   mailboxAddress: string;
   graphClient: Client;
   phishingAgent: PhishingAgent;
-  rateLimiter: RateLimiter;
-  deduplication: EmailDeduplication;
+  rateLimiter: IRateLimiter;
+  deduplication: IEmailDeduplication;
 }
 
 interface EmailContext {
@@ -43,11 +43,11 @@ function extractEmailContext(graphEmail: GraphEmail): EmailContext {
   };
 }
 
-function checkPreConditions(
+async function checkPreConditions(
   graphEmail: GraphEmail,
   ctx: EmailContext,
   config: EmailProcessorConfig
-): boolean {
+): Promise<boolean> {
   const guardResult = evaluateEmailGuards(graphEmail, config.mailboxAddress);
   if (!guardResult.allowed) {
     metrics.recordDeduplicationHit();
@@ -58,7 +58,7 @@ function checkPreConditions(
     });
     return false;
   }
-  const dedupeCheck = config.deduplication.shouldProcess(ctx.senderEmail, ctx.subject, ctx.body);
+  const dedupeCheck = await config.deduplication.shouldProcess(ctx.senderEmail, ctx.subject, ctx.body);
   if (!dedupeCheck.allowed) {
     metrics.recordDeduplicationHit();
     securityLogger.info('Email skipped due to deduplication', {
@@ -85,12 +85,12 @@ export async function processEmail(
     from: ctx.senderEmail,
   });
 
-  if (!checkPreConditions(graphEmail, ctx, config)) return;
+  if (!(await checkPreConditions(graphEmail, ctx, config))) return;
 
   try {
     const analysisResult = await executeAnalysis(graphEmail, ctx.processingId, config);
     await sendAnalysisReply(graphEmail, analysisResult, ctx.processingId, config);
-    config.deduplication.recordProcessed(ctx.senderEmail, ctx.subject, ctx.body);
+    await config.deduplication.recordProcessed(ctx.senderEmail, ctx.subject, ctx.body);
     securityLogger.info('Email processing completed successfully', { processingId: ctx.processingId });
   } catch (error: unknown) {
     await handleProcessingError(error, graphEmail, ctx.processingId, config);
@@ -148,14 +148,14 @@ async function sendAnalysisReply(
   }
 
   // Check rate limits before sending
-  const rateLimitCheck = config.rateLimiter.canSendEmail();
+  const rateLimitCheck = await config.rateLimiter.canSendEmail();
   if (!rateLimitCheck.allowed) {
     metrics.recordRateLimitHit();
     securityLogger.warn('Email reply blocked by rate limiter', {
       processingId,
       recipient: senderEmail,
       reason: rateLimitCheck.reason,
-      stats: config.rateLimiter.getStats(),
+      stats: await config.rateLimiter.getStats(),
     });
     return;
   }
@@ -175,14 +175,14 @@ async function sendAnalysisReply(
     metrics.recordReplySent();
 
     // Record email sent after successful send
-    config.rateLimiter.recordEmailSent();
+    await config.rateLimiter.recordEmailSent();
 
     securityLogger.info('Analysis reply sent', {
       processingId,
       recipient: senderEmail,
       isPhishing: analysis.isPhishing,
       riskScore: analysis.riskScore,
-      rateLimitStats: config.rateLimiter.getStats(),
+      rateLimitStats: await config.rateLimiter.getStats(),
     });
   } catch (error: unknown) {
     metrics.recordReplyFailed();

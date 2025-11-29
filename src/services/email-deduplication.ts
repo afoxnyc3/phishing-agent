@@ -3,8 +3,8 @@
  * Prevents duplicate analysis replies for same phishing email
  * All functions are atomic (max 25 lines)
  *
- * NOTE: Currently uses in-memory storage. For multi-replica deployments,
- * configure REDIS_URL to enable distributed deduplication (future enhancement).
+ * For multi-replica deployments, configure REDIS_URL to enable distributed deduplication.
+ * Use createEmailDeduplication() factory to automatically select the appropriate implementation.
  */
 
 import crypto from 'crypto';
@@ -15,7 +15,59 @@ export interface DeduplicationConfig {
   enabled: boolean;
   contentHashTtlMs: number; // How long to remember processed emails
   senderCooldownMs: number; // Min time between replies to same sender
-  cacheProvider?: CacheProvider; // Optional: for distributed deduplication (future)
+  cacheProvider?: CacheProvider; // Optional: for distributed deduplication
+}
+
+/** Stats returned by getStats() */
+export interface DeduplicationStats {
+  processedEmailsCount: number;
+  uniqueSendersCount: number;
+  enabled: boolean;
+}
+
+/** Common interface for deduplication services (in-memory and Redis) */
+export interface IEmailDeduplication {
+  shouldProcess(sender: string, subject: string, body: string): Promise<{ allowed: boolean; reason?: string }>;
+  recordProcessed(sender: string, subject: string, body: string): Promise<void>;
+  getStats(): Promise<DeduplicationStats>;
+  reset(): Promise<void>;
+}
+
+/**
+ * Factory function to create appropriate deduplication service
+ * Returns RedisEmailDeduplication if cacheProvider is ready, otherwise in-memory
+ */
+export async function createEmailDeduplication(
+  config: DeduplicationConfig,
+  cacheProvider?: CacheProvider
+): Promise<IEmailDeduplication> {
+  if (cacheProvider?.isReady()) {
+    const { RedisEmailDeduplication } = await import('./redis-email-deduplication.js');
+    return new RedisEmailDeduplication(cacheProvider, config);
+  }
+  return new EmailDeduplicationWrapper(new EmailDeduplication(config));
+}
+
+/** Wrapper to make in-memory EmailDeduplication async-compatible */
+export class EmailDeduplicationWrapper implements IEmailDeduplication {
+  constructor(private dedup: EmailDeduplication) {}
+
+  async shouldProcess(
+    sender: string,
+    subject: string,
+    body: string
+  ): Promise<{ allowed: boolean; reason?: string }> {
+    return this.dedup.shouldProcess(sender, subject, body);
+  }
+  async recordProcessed(sender: string, subject: string, body: string): Promise<void> {
+    this.dedup.recordProcessed(sender, subject, body);
+  }
+  async getStats(): Promise<DeduplicationStats> {
+    return this.dedup.getStats();
+  }
+  async reset(): Promise<void> {
+    this.dedup.reset();
+  }
 }
 
 interface CacheEntry {
