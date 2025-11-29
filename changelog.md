@@ -2,6 +2,20 @@
 
 All notable changes to the phishing-agent project will be documented in this file.
 
+## [0.3.2] - 2025-11-29
+
+### Changed
+- **Content Analyzer Refactoring** (Issue #26): Split into focused modules for 200-line compliance
+  - `content-analyzer.ts` (164 lines) - Orchestration layer
+  - `url-analyzer.ts` (147 lines) - URL and link mismatch detection
+  - `social-engineering-detector.ts` (83 lines) - Keyword detection
+  - `brand-detector.ts` (51 lines) - Brand impersonation and typosquatting
+- Updated documentation (ARCHITECTURE.md, README.md, CLAUDE.md)
+
+### Fixed
+- Removed `eslint-disable max-lines` workaround from content-analyzer.ts
+- All analysis files now comply with 200-line ESLint limit
+
 ## [0.3.1] - 2025-11-28
 
 ### Added

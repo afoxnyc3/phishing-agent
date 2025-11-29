@@ -4,6 +4,39 @@ This document tracks significant technical and architectural decisions made duri
 
 ---
 
+## Decision: Split Content Analyzer into Focused Modules
+
+**Date**: 2025-11-29
+**Status**: Accepted
+**Context**: `content-analyzer.ts` exceeded 200-line ESLint limit (400 lines), requiring an `eslint-disable` workaround.
+
+**Decision**: Split into 4 focused modules following single-responsibility principle:
+- `content-analyzer.ts` (164 lines) - Orchestration layer
+- `url-analyzer.ts` (147 lines) - URL extraction, validation, link mismatch detection
+- `social-engineering-detector.ts` (83 lines) - Urgency, credential, financial lure detection
+- `brand-detector.ts` (51 lines) - Brand impersonation and typosquatting
+
+**Rationale**:
+- Each module has clear single responsibility
+- All files now comply with 200-line limit
+- Maintains backward-compatible public API
+- Follows existing codebase patterns (e.g., threat-intel service/client split)
+- Link mismatch kept with URL analyzer (both analyze links)
+- Brand detection uses existing config file
+
+**Consequences**:
+- ✅ All 661 tests pass unchanged
+- ✅ No API changes for consumers
+- ✅ ESLint now passes without disable comments
+- ✅ Easier to maintain and test individual concerns
+- ⚠️ 3 additional files to maintain
+
+**Alternatives Considered**:
+- 4-file split per issue suggestion (rejected: link-mismatch too small for own file)
+- 2-file split (rejected: content-analyzer.ts would still be ~180 lines)
+
+---
+
 ## Decision: Use Microsoft Graph API for Email Monitoring
 
 **Date**: 2025-10-16

@@ -87,7 +87,14 @@ External services (threat intel APIs, LLM) are optional. Analysis continues with
 ```
 src/
 ├── agents/         # Main orchestrator (phishing-agent.ts)
-├── analysis/       # Header, content, attachment, risk scoring
+├── analysis/       # Detection modules:
+│   ├── content-analyzer.ts      # Content analysis orchestrator
+│   ├── url-analyzer.ts          # URL/link mismatch detection
+│   ├── social-engineering-detector.ts  # Keyword detection
+│   ├── brand-detector.ts        # Brand impersonation
+│   ├── header-validator.ts      # SPF/DKIM/DMARC
+│   ├── attachment-analyzer.ts   # File type detection
+│   └── risk-scorer.ts           # Risk calculation
 ├── services/       # External integrations:
 │   ├── threat-intel.ts         # Orchestrates threat intel lookups
 │   ├── threat-intel-clients.ts # VirusTotal, AbuseIPDB client classes

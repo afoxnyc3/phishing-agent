@@ -1,6 +1,6 @@
 {
   "name": "phishing-agent",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Email-triggered phishing analysis agent with automated replies",
   "main": "dist/index.js",
   "type": "module",

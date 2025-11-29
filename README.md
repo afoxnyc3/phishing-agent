@@ -312,7 +312,10 @@ src/
 │   └── phishing-agent.ts        # Main orchestrator
 ├── analysis/
 │   ├── header-validator.ts      # SPF/DKIM/DMARC
-│   ├── content-analyzer.ts      # URLs, keywords
+│   ├── content-analyzer.ts      # Content analysis orchestrator
+│   ├── url-analyzer.ts          # URL and link mismatch detection
+│   ├── social-engineering-detector.ts  # Keyword detection
+│   ├── brand-detector.ts        # Brand impersonation
 │   ├── attachment-analyzer.ts   # File type detection
 │   └── risk-scorer.ts           # Risk calculation
 ├── services/

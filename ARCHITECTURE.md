@@ -94,13 +94,19 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 - `extractAuthenticationResults(headers)` - Parse auth headers
 
 ### 4. Content Analyzer
-**File**: `src/analysis/content-analyzer.ts`
+**Files**:
+- `src/analysis/content-analyzer.ts` - Main orchestrator
+- `src/analysis/url-analyzer.ts` - URL extraction and validation
+- `src/analysis/social-engineering-detector.ts` - Keyword detection
+- `src/analysis/brand-detector.ts` - Brand impersonation detection
+- `src/analysis/brand-detection-config.ts` - Brand/typosquat patterns
 
-**Atomic Functions**:
-- `extractUrls(body)` - Find all URLs using regex
-- `detectSuspiciousUrls(urls)` - Identify IP addresses, typosquatting
-- `detectBrandImpersonation(body, domain)` - Match brand keywords
-- `detectUrgencyKeywords(body)` - Find pressure tactics
+**Responsibilities**:
+- Orchestrate content analysis across focused modules
+- Detect suspicious URLs (IP addresses, shorteners, suspicious TLDs)
+- Detect mismatched links (display text differs from href)
+- Detect social engineering (urgency, credential harvesting, financial lures)
+- Detect brand impersonation and typosquatting
 
 ### 5. Risk Scorer
 **File**: `src/analysis/risk-scorer.ts`
