@@ -7,6 +7,7 @@
 import { ThreatIndicator } from '../lib/types.js';
 import { securityLogger } from '../lib/logger.js';
 import { BRAND_TARGETS, TYPOSQUAT_PATTERNS } from './brand-detection-config.js';
+import sanitizeHtml from 'sanitize-html';
 
 export interface ContentAnalysisResult {
   hasPhishingPatterns: boolean;
@@ -305,7 +306,7 @@ export class ContentAnalyzer {
 
     while ((match = linkRegex.exec(body)) !== null) {
       const [, , url, text] = match;
-      const cleanText = text.replace(/<[^>]+>/g, '').trim();
+      const cleanText = sanitizeHtml(text, { allowedTags: [], allowedAttributes: {} }).trim();
 
       if (this.isLinkMismatch(url, cleanText)) {
         mismatches.push({ text: cleanText, url });
