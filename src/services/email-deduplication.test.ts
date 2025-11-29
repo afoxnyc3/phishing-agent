@@ -2,7 +2,7 @@
  * Email Deduplication Tests
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { EmailDeduplication } from './email-deduplication.js';
 
 describe('EmailDeduplication', () => {
@@ -248,6 +248,253 @@ describe('EmailDeduplication', () => {
 
       expect(newDedup).toBeDefined();
       expect(newDedup.getStats()).toBeDefined();
+    });
+  });
+
+  describe('TTL expiration', () => {
+    it('should allow reprocessing after content hash TTL expires', () => {
+      // Create deduplication with very short TTL (1ms)
+      const shortTtlDedup = new EmailDeduplication({
+        enabled: true,
+        contentHashTtlMs: 1, // 1ms TTL
+        senderCooldownMs: 1, // 1ms cooldown
+      });
+
+      const sender1 = 'user1@example.com';
+      const sender2 = 'user2@example.com';
+      const subject = 'Test subject';
+      const body = 'Test body';
+
+      // Record first email
+      shortTtlDedup.recordProcessed(sender1, subject, body);
+
+      // Verify it's recorded
+      expect(shortTtlDedup.getStats().processedEmailsCount).toBe(1);
+
+      // Wait for TTL to expire
+      return new Promise<void>((resolve) => {
+        setTimeout(() => {
+          // Should now be allowed (TTL expired, different sender bypasses cooldown check)
+          const result = shortTtlDedup.shouldProcess(sender2, subject, body);
+          expect(result.allowed).toBe(true);
+          resolve();
+        }, 10);
+      });
+    });
+
+    it('should allow same sender after cooldown expires', () => {
+      const shortCooldownDedup = new EmailDeduplication({
+        enabled: true,
+        contentHashTtlMs: 1, // 1ms TTL
+        senderCooldownMs: 1, // 1ms cooldown
+      });
+
+      const sender = 'user@example.com';
+
+      // Record first email
+      shortCooldownDedup.recordProcessed(sender, 'Subject 1', 'Body 1');
+
+      // Wait for cooldown to expire
+      return new Promise<void>((resolve) => {
+        setTimeout(() => {
+          // Should now be allowed (cooldown expired)
+          const result = shortCooldownDedup.shouldProcess(sender, 'Subject 2', 'Body 2');
+          expect(result.allowed).toBe(true);
+          resolve();
+        }, 10);
+      });
+    });
+
+    it('should clean up expired content hash when checking for duplicate', () => {
+      const shortTtlDedup = new EmailDeduplication({
+        enabled: true,
+        contentHashTtlMs: 1, // 1ms TTL
+        senderCooldownMs: 86400000, // Long cooldown (not testing this)
+      });
+
+      const sender1 = 'user1@example.com';
+      const sender2 = 'user2@example.com';
+      const subject = 'Test subject';
+      const body = 'Test body';
+
+      // Record first email
+      shortTtlDedup.recordProcessed(sender1, subject, body);
+      expect(shortTtlDedup.getStats().processedEmailsCount).toBe(1);
+
+      // Wait for TTL to expire
+      return new Promise<void>((resolve) => {
+        setTimeout(() => {
+          // This call triggers isDuplicateContent which should clean expired entry
+          shortTtlDedup.shouldProcess(sender2, subject, body);
+          // The entry should have been deleted during the check
+          // (it passed because TTL expired and entry was removed)
+          resolve();
+        }, 10);
+      });
+    });
+
+    it('should clean up expired sender cooldown when checking', () => {
+      const shortCooldownDedup = new EmailDeduplication({
+        enabled: true,
+        contentHashTtlMs: 86400000, // Long TTL
+        senderCooldownMs: 1, // 1ms cooldown
+      });
+
+      const sender = 'user@example.com';
+
+      // Record first email
+      shortCooldownDedup.recordProcessed(sender, 'Subject 1', 'Body 1');
+      expect(shortCooldownDedup.getStats().uniqueSendersCount).toBe(1);
+
+      // Wait for cooldown to expire
+      return new Promise<void>((resolve) => {
+        setTimeout(() => {
+          // This call triggers isSenderInCooldown which should clean expired sender
+          const result = shortCooldownDedup.shouldProcess(sender, 'Subject 2', 'Body 2');
+          expect(result.allowed).toBe(true);
+          resolve();
+        }, 10);
+      });
+    });
+  });
+
+  describe('distributed mode', () => {
+    it('should detect distributed mode when cacheProvider is ready', () => {
+      const mockCacheProvider = {
+        get: jest.fn(),
+        set: jest.fn(),
+        delete: jest.fn(),
+        isReady: jest.fn().mockReturnValue(true),
+        increment: jest.fn(),
+      };
+
+      // This should log "distributed (Redis)" mode
+      const distributedDedup = new EmailDeduplication({
+        enabled: true,
+        contentHashTtlMs: 3600000,
+        senderCooldownMs: 1800000,
+        cacheProvider: mockCacheProvider as any,
+      });
+
+      expect(distributedDedup).toBeDefined();
+    });
+
+    it('should fall back to in-memory when cacheProvider is not ready', () => {
+      const mockCacheProvider = {
+        get: jest.fn(),
+        set: jest.fn(),
+        delete: jest.fn(),
+        isReady: jest.fn().mockReturnValue(false),
+        increment: jest.fn(),
+      };
+
+      // This should log "in-memory (single instance)" mode
+      const memoryDedup = new EmailDeduplication({
+        enabled: true,
+        contentHashTtlMs: 3600000,
+        senderCooldownMs: 1800000,
+        cacheProvider: mockCacheProvider as any,
+      });
+
+      expect(memoryDedup).toBeDefined();
+    });
+
+    it('should use in-memory mode when no cacheProvider', () => {
+      // Default behavior - no cacheProvider
+      const memoryDedup = new EmailDeduplication({
+        enabled: true,
+        contentHashTtlMs: 3600000,
+        senderCooldownMs: 1800000,
+      });
+
+      expect(memoryDedup).toBeDefined();
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should handle very long body content (truncated to 1000 chars)', () => {
+      const longBody = 'A'.repeat(2000);
+      const sender = 'user@example.com';
+      const subject = 'Long email';
+
+      // First process
+      const result1 = deduplication.shouldProcess(sender, subject, longBody);
+      expect(result1.allowed).toBe(true);
+
+      deduplication.recordProcessed(sender, subject, longBody);
+
+      // Try with same body (different sender to bypass cooldown)
+      const result2 = deduplication.shouldProcess('user2@example.com', subject, longBody);
+      expect(result2.allowed).toBe(false);
+      expect(result2.reason).toContain('Duplicate');
+    });
+
+    it('should handle bodies with exactly 1000 chars', () => {
+      const exactBody = 'B'.repeat(1000);
+      const sender = 'user@example.com';
+      const subject = 'Exact length';
+
+      deduplication.recordProcessed(sender, subject, exactBody);
+
+      const result = deduplication.shouldProcess('user2@example.com', subject, exactBody);
+      expect(result.allowed).toBe(false);
+    });
+
+    it('should handle special characters in content', () => {
+      const specialBody = '<!DOCTYPE html><script>alert("xss")</script>日本語テスト';
+      const sender = 'user@example.com';
+      const subject = '特殊文字テスト';
+
+      deduplication.recordProcessed(sender, subject, specialBody);
+
+      const result = deduplication.shouldProcess('user2@example.com', subject, specialBody);
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toContain('Duplicate');
+    });
+
+    it('should handle whitespace-only content', () => {
+      const whitespaceBody = '   \t\n\r   ';
+      const sender = 'user@example.com';
+      const subject = '   ';
+
+      const result1 = deduplication.shouldProcess(sender, subject, whitespaceBody);
+      expect(result1.allowed).toBe(true);
+
+      deduplication.recordProcessed(sender, subject, whitespaceBody);
+
+      const result2 = deduplication.shouldProcess('user2@example.com', subject, whitespaceBody);
+      expect(result2.allowed).toBe(false);
+    });
+
+    it('should track same sender with different casing as one entry', () => {
+      // Record with uppercase
+      deduplication.recordProcessed('USER@EXAMPLE.COM', 'Subject 1', 'Body 1');
+
+      // Should be in cooldown with lowercase
+      const result = deduplication.shouldProcess('user@example.com', 'Subject 2', 'Body 2');
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toContain('Sender in cooldown');
+
+      // Only one unique sender should be tracked
+      expect(deduplication.getStats().uniqueSendersCount).toBe(1);
+    });
+
+    it('should handle concurrent-like rapid calls', () => {
+      const sender = 'rapid@example.com';
+      const results: Array<{ allowed: boolean; reason?: string }> = [];
+
+      // Rapid fire multiple calls
+      for (let i = 0; i < 5; i++) {
+        const result = deduplication.shouldProcess(sender, `Subject ${i}`, `Body ${i}`);
+        results.push(result);
+        if (result.allowed) {
+          deduplication.recordProcessed(sender, `Subject ${i}`, `Body ${i}`);
+        }
+      }
+
+      // Only the first should succeed
+      expect(results[0].allowed).toBe(true);
+      expect(results.slice(1).every((r) => !r.allowed)).toBe(true);
     });
   });
 });

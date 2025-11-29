@@ -447,4 +447,225 @@ describe('ThreatIntelService', () => {
       expect(getCacheMock).toHaveBeenCalledWith('domain-age-example.com');
     });
   });
+
+  describe('Circuit Breaker', () => {
+    it('should return null when virusTotalBreaker is not available', async () => {
+      (service as any).virusTotalBreaker = undefined;
+      (service as any).virusTotalClient = {}; // Client exists but breaker doesn't
+
+      const result = await service.checkUrlReputation('https://test.com');
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null when abuseIpDbBreaker is not available', async () => {
+      (service as any).abuseIpDbBreaker = undefined;
+      (service as any).abuseIpDbClient = {}; // Client exists but breaker doesn't
+
+      const result = await service.checkIpReputation('1.2.3.4');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('Validation Failures', () => {
+    it('should return null when VirusTotal response is invalid', async () => {
+      // Mock a successful API call that returns invalid data
+      const invalidData = { data: { invalid: 'data' } };
+      const mockFire = jest.fn<() => Promise<typeof invalidData>>().mockResolvedValue(invalidData);
+      const mockBreaker = { fire: mockFire };
+      (service as any).virusTotalBreaker = mockBreaker;
+      (service as any).cache.get = jest.fn().mockReturnValue(null);
+
+      const result = await service.checkUrlReputation('https://test.com');
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null when AbuseIPDB response is invalid', async () => {
+      // Mock a successful API call that returns invalid data
+      const invalidData = { data: { invalid: 'data' } };
+      const mockFire = jest.fn<() => Promise<typeof invalidData>>().mockResolvedValue(invalidData);
+      const mockBreaker = { fire: mockFire };
+      (service as any).abuseIpDbBreaker = mockBreaker;
+      (service as any).cache.get = jest.fn().mockReturnValue(null);
+
+      const result = await service.checkIpReputation('1.2.3.4');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('Medium Risk Scenarios', () => {
+    it('should assign medium severity for domains aged 7-30 days', async () => {
+      jest.spyOn(service, 'checkDomainAge').mockResolvedValue({
+        domain: 'newerdomain.com',
+        ageDays: 15, // Between 7 and 30 days
+        createdDate: '2024-01-15',
+        suspicious: true,
+        suspicionReasons: ['Relatively new'],
+      });
+
+      const result = await service.enrichEmail('test@newerdomain.com', null, []);
+
+      const domainIndicator = result.indicators.find(i => i.description.includes('Domain registered'));
+      expect(domainIndicator).toBeDefined();
+      expect(domainIndicator?.severity).toBe('medium');
+      expect(result.riskContribution).toBe(1.0);
+    });
+
+    it('should assign high severity for URL with low confidence score', async () => {
+      jest.spyOn(service, 'checkUrlReputation').mockResolvedValue({
+        url: 'https://suspicious.com',
+        malicious: true,
+        maliciousCount: 2,
+        totalScans: 20,
+        detectedBy: ['Scanner1'],
+        confidenceScore: 0.3, // Below 0.5
+      });
+
+      const result = await service.enrichEmail('test@example.com', null, ['https://suspicious.com']);
+
+      const urlIndicator = result.indicators.find(i => i.type === 'url');
+      expect(urlIndicator).toBeDefined();
+      expect(urlIndicator?.severity).toBe('high'); // Not critical due to low confidence
+    });
+
+    it('should assign medium severity for IP with abuse confidence 50-74', async () => {
+      jest.spyOn(service, 'checkIpReputation').mockResolvedValue({
+        ip: '5.6.7.8',
+        malicious: true,
+        abuseConfidenceScore: 60,
+        totalReports: 20,
+      });
+
+      const result = await service.enrichEmail('test@example.com', '5.6.7.8', []);
+
+      const ipIndicator = result.indicators.find(i => i.type === 'sender' && i.description.includes('IP'));
+      expect(ipIndicator).toBeDefined();
+      expect(ipIndicator?.severity).toBe('medium');
+    });
+
+    it('should not add IP indicator when abuse confidence is below 50', async () => {
+      jest.spyOn(service, 'checkIpReputation').mockResolvedValue({
+        ip: '5.6.7.8',
+        malicious: false, // Below threshold, but also marked not malicious
+        abuseConfidenceScore: 30,
+        totalReports: 5,
+      });
+
+      const result = await service.enrichEmail('test@example.com', '5.6.7.8', []);
+
+      const ipIndicator = result.indicators.find(i => i.type === 'sender' && i.description.includes('IP'));
+      expect(ipIndicator).toBeUndefined();
+    });
+  });
+
+  describe('Empty Results', () => {
+    it('should handle null results from all lookups', async () => {
+      jest.spyOn(service, 'checkUrlReputation').mockResolvedValue(null);
+      jest.spyOn(service, 'checkIpReputation').mockResolvedValue(null);
+      jest.spyOn(service, 'checkDomainAge').mockResolvedValue(null);
+
+      const result = await service.enrichEmail('test@example.com', '1.2.3.4', ['https://test.com']);
+
+      expect(result.indicators).toEqual([]);
+      expect(result.riskContribution).toBe(0);
+    });
+
+    it('should handle rejected lookups gracefully', async () => {
+      jest.spyOn(service, 'checkUrlReputation').mockRejectedValue(new Error('Network error'));
+      jest.spyOn(service, 'checkIpReputation').mockRejectedValue(new Error('Timeout'));
+      jest.spyOn(service, 'checkDomainAge').mockRejectedValue(new Error('WHOIS error'));
+
+      const result = await service.enrichEmail('test@example.com', '1.2.3.4', ['https://test.com']);
+
+      // Should not throw, should return empty result
+      expect(result).toBeDefined();
+      expect(result.indicators).toEqual([]);
+      expect(result.riskContribution).toBe(0);
+    });
+  });
+
+  describe('URL Processing Edge Cases', () => {
+    it('should handle non-malicious URL results', async () => {
+      jest.spyOn(service, 'checkUrlReputation').mockResolvedValue({
+        url: 'https://safe.com',
+        malicious: false,
+        maliciousCount: 0,
+        totalScans: 50,
+        detectedBy: [],
+        confidenceScore: 0,
+      });
+
+      const result = await service.enrichEmail('test@example.com', null, ['https://safe.com']);
+
+      expect(result.indicators.filter(i => i.type === 'url')).toHaveLength(0);
+      expect(result.riskContribution).toBe(0);
+    });
+
+    it('should process multiple malicious URLs', async () => {
+      jest.spyOn(service, 'checkUrlReputation').mockResolvedValue({
+        url: 'https://evil.com',
+        malicious: true,
+        maliciousCount: 5,
+        totalScans: 10,
+        detectedBy: ['Scanner1', 'Scanner2'],
+        confidenceScore: 0.6,
+      });
+
+      const result = await service.enrichEmail('test@example.com', null, [
+        'https://evil1.com',
+        'https://evil2.com',
+        'https://evil3.com',
+      ]);
+
+      expect(result.indicators.filter(i => i.type === 'url')).toHaveLength(3);
+      expect(result.riskContribution).toBeGreaterThan(6.0); // 3 URLs * ~2.6 each
+    });
+  });
+
+  describe('Domain Extraction Edge Cases', () => {
+    it('should skip domain lookup when domain extraction fails', async () => {
+      const checkDomainAgeSpy = jest.spyOn(service, 'checkDomainAge');
+
+      await service.enrichEmail('invalid-email', null, []);
+
+      expect(checkDomainAgeSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Parallel Lookup Combinations', () => {
+    it('should handle all lookups with mixed results', async () => {
+      jest.spyOn(service, 'checkUrlReputation').mockResolvedValue({
+        url: 'https://evil.com',
+        malicious: true,
+        maliciousCount: 8,
+        totalScans: 10,
+        detectedBy: ['Scanner1'],
+        confidenceScore: 0.8,
+      });
+      jest.spyOn(service, 'checkIpReputation').mockResolvedValue({
+        ip: '1.2.3.4',
+        malicious: true,
+        abuseConfidenceScore: 80,
+        totalReports: 50,
+      });
+      jest.spyOn(service, 'checkDomainAge').mockResolvedValue({
+        domain: 'newsite.com',
+        ageDays: 5,
+        createdDate: '2024-01-20',
+        suspicious: true,
+        suspicionReasons: ['Very new'],
+      });
+
+      const result = await service.enrichEmail('test@newsite.com', '1.2.3.4', ['https://evil.com']);
+
+      // Should have indicators from all three sources
+      expect(result.indicators.some(i => i.type === 'url')).toBe(true);
+      expect(result.indicators.some(i => i.description.includes('IP'))).toBe(true);
+      expect(result.indicators.some(i => i.description.includes('Domain registered'))).toBe(true);
+      expect(result.riskContribution).toBeGreaterThan(5.0);
+    });
+  });
 });
