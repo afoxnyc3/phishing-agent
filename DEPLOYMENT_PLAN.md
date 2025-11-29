@@ -271,11 +271,25 @@ Add to README.md:
 - `AZURE_SUBSCRIPTION_ID` - Azure subscription ID
 - `AZURE_TENANT_ID` - Azure AD tenant ID
 - `AZURE_CLIENT_ID` - App registration client ID
-- `AZURE_CLIENT_SECRET` - App registration client secret
+- `AZURE_CLIENT_SECRET` - App registration client secret (optional with Managed Identity)
 - `PHISHING_MAILBOX_ADDRESS` - Monitored mailbox
 - `VIRUSTOTAL_API_KEY` (optional)
 - `ABUSEIPDB_API_KEY` (optional)
 - `URLSCAN_API_KEY` (optional)
+
+**Authentication Options:**
+
+| Environment | Auth Method | Secrets Required |
+|-------------|-------------|------------------|
+| Production (Azure) | Managed Identity | `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` only |
+| Local Development | Client Secret | All Azure secrets including `AZURE_CLIENT_SECRET` |
+| CI/CD Pipeline | Service Principal | `AZURE_CREDENTIALS` JSON |
+
+**Managed Identity Benefits:**
+- No secrets to rotate or manage
+- Automatic credential handling by Azure
+- Reduced attack surface (no secrets in environment)
+- Automatic token refresh
 
 ---
 

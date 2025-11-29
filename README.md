@@ -2,8 +2,8 @@
 
 Email-triggered phishing analysis agent with automated risk assessment replies.
 
-**Version**: v0.3.0
-**Status**: Production-Ready with Attachment Analysis & Reporting Dashboard
+**Version**: v0.3.1
+**Status**: Production-Ready with Managed Identity Authentication
 
 ## Overview
 
@@ -158,7 +158,7 @@ For production deployments to Azure Container Apps, AWS ECS, or Kubernetes, see 
 # Azure Configuration
 AZURE_TENANT_ID=your-tenant-id
 AZURE_CLIENT_ID=your-app-client-id
-AZURE_CLIENT_SECRET=your-app-secret
+AZURE_CLIENT_SECRET=your-app-secret  # Optional in production with Managed Identity
 
 # Mailbox Configuration
 PHISHING_MAILBOX_ADDRESS=phishing@company.com
@@ -166,8 +166,21 @@ MAILBOX_CHECK_INTERVAL_MS=60000
 
 # Server
 PORT=3000
-NODE_ENV=development
+NODE_ENV=production  # Set to 'production' to enable Managed Identity
 ```
+
+### Authentication Methods
+
+| Environment | Auth Method | Required Variables |
+|-------------|-------------|-------------------|
+| **Production (Azure)** | Managed Identity | `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` |
+| **Local Development** | Client Secret | All above + `AZURE_CLIENT_SECRET` |
+
+**Managed Identity Benefits:**
+- No secrets to manage or rotate
+- Automatic credential handling
+- More secure than client secrets
+- See [DEPLOY_MANUAL.md](./DEPLOY_MANUAL.md) for setup instructions
 
 ### Optional Threat Intelligence
 
@@ -377,15 +390,19 @@ export function validateSpfRecord(spfHeader: string | undefined): Result<string,
 - [x] Email deduplication (content hashing, sender cooldown)
 - [x] Health checks and logging
 - [x] Docker containerization
-- [x] Testing framework (Jest, 95%+ coverage, 496 tests)
+- [x] Testing framework (Jest, 95%+ coverage, 661 tests)
 - [x] Attachment analysis - dangerous executables, macros, double extensions (Issue #2)
 - [x] LLM-enhanced analysis with retry/circuit breaker hardening (Issue #4)
 - [x] Reporting dashboard - analytics, top senders/domains, trends (Issue #5)
 
+### v0.3.1 (Security & Auth - Current)
+- [x] Managed Identity authentication for Azure (Issue #21)
+- [x] Comprehensive security module test coverage (661 tests)
+
 ### v0.4.0 (Enterprise Features - Planned)
-- [ ] Redis-backed rate limiting for multi-replica deployments
-- [ ] Managed Identity authentication for Azure
+- [ ] Redis-backed rate limiting for multi-replica deployments (Issue #20)
 - [ ] Advanced attachment deep scanning
+- [ ] WHOIS domain age checking integration
 
 For complete roadmap and GitHub issues, see [roadmap.md](./roadmap.md).
 
