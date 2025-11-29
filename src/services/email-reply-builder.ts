@@ -5,6 +5,20 @@
  */
 
 import { PhishingAnalysisResult } from '../lib/types.js';
+import { GraphEmail } from '../lib/schemas.js';
+
+/** Graph API reply message structure */
+export interface GraphReplyMessage {
+  message: {
+    subject: string;
+    body: { contentType: 'HTML' | 'text'; content: string };
+    toRecipients: Array<{ emailAddress: { address: string } }>;
+    importance: 'low' | 'normal' | 'high';
+  };
+}
+
+/** CSS styles for email template */
+const EMAIL_STYLES = `body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;line-height:1.6;color:#333}.container{max-width:600px;margin:0 auto;padding:20px}.header{color:white;padding:20px;border-radius:8px 8px 0 0}.header h1{margin:0;font-size:24px}.content{background-color:#f5f5f5;padding:20px;border-radius:0 0 8px 8px}.section{margin-bottom:20px}.section h2{color:#1976D2;font-size:18px;margin-bottom:10px}table{width:100%;border-collapse:collapse}td{padding:8px 0}td:first-child{font-weight:600;width:150px}pre{background-color:#fff;padding:10px;border-left:3px solid #1976D2;overflow-x:auto;font-size:11px}.footer{margin-top:20px;padding-top:20px;border-top:1px solid #ddd;font-size:12px;color:#666}`;
 
 /**
  * Build HTML reply body
@@ -14,54 +28,27 @@ export function buildReplyHtml(analysis: PhishingAnalysisResult): string {
   const color = analysis.isPhishing ? '#D32F2F' : '#388E3C';
   const indicatorsList = buildIndicatorsList(analysis);
   const actionsList = buildActionsList(analysis);
+  const indicatorsSection = analysis.isPhishing && analysis.indicators.length > 0
+    ? `<div class="section"><h2>Threat Indicators</h2><pre>${indicatorsList}</pre></div>` : '';
+  const explanationSection = analysis.explanation
+    ? `<div class="section" style="background-color:#E3F2FD;padding:15px;border-radius:4px;"><h2>🤖 AI Analysis</h2><p style="margin:0;">${escapeHtml(analysis.explanation)}</p></div>` : '';
+  const actionsSection = analysis.recommendedActions.length > 0
+    ? `<div class="section"><h2>Recommended Actions</h2><pre>${actionsList}</pre></div>` : '';
+  const guidance = analysis.isPhishing
+    ? '<p><strong>⚠️ Do NOT click any links or provide credentials.</strong></p>'
+    : '<p>This email appears legitimate. However, always remain vigilant.</p>';
 
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background-color: ${color}; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
-    .header h1 { margin: 0; font-size: 24px; }
-    .content { background-color: #f5f5f5; padding: 20px; border-radius: 0 0 8px 8px; }
-    .section { margin-bottom: 20px; }
-    .section h2 { color: #1976D2; font-size: 18px; margin-bottom: 10px; }
-    table { width: 100%; border-collapse: collapse; }
-    td { padding: 8px 0; }
-    td:first-child { font-weight: 600; width: 150px; }
-    pre { background-color: #fff; padding: 10px; border-left: 3px solid #1976D2; overflow-x: auto; font-size: 11px; }
-    .footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header"><h1>${verdict}</h1></div>
-    <div class="content">
-      <div class="section">
-        <h2>Risk Assessment</h2>
-        <table>
-          <tr><td>Risk Score:</td><td>${escapeHtml(analysis.riskScore.toFixed(1))}/10</td></tr>
-          <tr><td>Severity:</td><td>${escapeHtml(analysis.severity.toUpperCase())}</td></tr>
-          <tr><td>Confidence:</td><td>${escapeHtml((analysis.confidence * 100).toFixed(0))}%</td></tr>
-          <tr><td>Analysis ID:</td><td>${escapeHtml(analysis.analysisId)}</td></tr>
-        </table>
-      </div>
-      ${analysis.isPhishing && analysis.indicators.length > 0 ? `<div class="section"><h2>Threat Indicators</h2><pre>${indicatorsList}</pre></div>` : ''}
-      ${analysis.explanation ? `<div class="section" style="background-color: #E3F2FD; padding: 15px; border-radius: 4px;"><h2>🤖 AI Analysis</h2><p style="margin: 0;">${escapeHtml(analysis.explanation)}</p></div>` : ''}
-      ${analysis.recommendedActions.length > 0 ? `<div class="section"><h2>Recommended Actions</h2><pre>${actionsList}</pre></div>` : ''}
-      <div class="section">
-        <h2>What to Do</h2>
-        ${analysis.isPhishing ? '<p><strong>⚠️ Do NOT click any links or provide credentials.</strong></p>' : '<p>This email appears legitimate. However, always remain vigilant.</p>'}
-      </div>
-      <div class="footer">
-        <p><strong>Phishing Agent</strong> | Analyzed at ${new Date(analysis.analysisTimestamp).toLocaleString()}</p>
-      </div>
-    </div>
-  </div>
-</body>
-</html>`;
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${EMAIL_STYLES}.header{background-color:${color}}</style></head><body>
+<div class="container"><div class="header"><h1>${verdict}</h1></div><div class="content">
+<div class="section"><h2>Risk Assessment</h2><table>
+<tr><td>Risk Score:</td><td>${escapeHtml(analysis.riskScore.toFixed(1))}/10</td></tr>
+<tr><td>Severity:</td><td>${escapeHtml(analysis.severity.toUpperCase())}</td></tr>
+<tr><td>Confidence:</td><td>${escapeHtml((analysis.confidence * 100).toFixed(0))}%</td></tr>
+<tr><td>Analysis ID:</td><td>${escapeHtml(analysis.analysisId)}</td></tr>
+</table></div>${indicatorsSection}${explanationSection}${actionsSection}
+<div class="section"><h2>What to Do</h2>${guidance}</div>
+<div class="footer"><p><strong>Phishing Agent</strong> | Analyzed at ${new Date(analysis.analysisTimestamp).toLocaleString()}</p></div>
+</div></div></body></html>`;
 }
 
 /**
@@ -118,12 +105,12 @@ export function buildErrorReplyHtml(processingId: string): string {
  * Create Graph API reply message structure
  */
 export function createReplyMessage(
-  originalEmail: any,
+  originalEmail: GraphEmail,
   htmlBody: string,
   isPhishing: boolean
-): any {
+): GraphReplyMessage {
   const subject = originalEmail.subject || '(No Subject)';
-  const senderEmail = originalEmail.from?.emailAddress?.address;
+  const senderEmail = originalEmail.from?.emailAddress?.address || 'unknown@unknown.com';
 
   return {
     message: {

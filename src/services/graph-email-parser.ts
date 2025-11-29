@@ -5,15 +5,15 @@
  * Uses Zod for runtime validation of Graph API responses
  */
 
-import { EmailAnalysisRequest } from '../lib/types.js';
+import { EmailAnalysisRequest, EmailHeaders, EmailAttachment } from '../lib/types.js';
 import { securityLogger } from '../lib/logger.js';
-import { GraphEmailSchema, GraphEmailListResponseSchema, safeParse } from '../lib/schemas.js';
+import { GraphEmail, GraphEmailSchema, GraphEmailListResponseSchema, GraphAttachment, safeParse } from '../lib/schemas.js';
 
 /**
  * Parse Graph API email to analysis request
  * Validates input with Zod before processing
  */
-export function parseGraphEmail(graphEmail: any): EmailAnalysisRequest {
+export function parseGraphEmail(graphEmail: unknown): EmailAnalysisRequest {
   // Validate Graph email structure
   const validatedEmail = safeParse(GraphEmailSchema, graphEmail, 'Graph API email');
 
@@ -40,14 +40,14 @@ export function parseGraphEmail(graphEmail: any): EmailAnalysisRequest {
  * Extract headers from Graph email
  */
 function extractHeaders(
-  graphEmail: any,
+  graphEmail: GraphEmail,
   sender: string,
   recipient: string,
   subject: string,
   messageId: string,
   timestamp: Date
-): any {
-  const headers: any = {
+): EmailHeaders {
+  const headers: EmailHeaders = {
     'message-id': messageId,
     from: sender,
     to: recipient,
@@ -70,12 +70,12 @@ function extractHeaders(
 /**
  * Extract attachments from Graph email
  */
-function extractAttachments(graphEmail: any): any[] {
+function extractAttachments(graphEmail: GraphEmail): EmailAttachment[] {
   if (!graphEmail.attachments || !Array.isArray(graphEmail.attachments)) {
     return [];
   }
 
-  return graphEmail.attachments.map((att: any) => ({
+  return graphEmail.attachments.map((att: GraphAttachment) => ({
     filename: att.name || 'unknown',
     contentType: att.contentType || 'application/octet-stream',
     size: att.size || 0,
@@ -108,7 +108,7 @@ export function validateAnalysisRequest(request: EmailAnalysisRequest): boolean 
  * Validate Graph API email list response
  * Returns validated emails array
  */
-export function validateGraphEmailListResponse(response: any): any[] {
+export function validateGraphEmailListResponse(response: unknown): GraphEmail[] {
   const validated = safeParse(GraphEmailListResponseSchema, response, 'Graph API email list');
   return validated.value;
 }

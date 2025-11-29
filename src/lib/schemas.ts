@@ -227,6 +227,8 @@ export const GraphAttachmentSchema = z.object({
   isInline: z.boolean().optional(),
 });
 
+export type GraphAttachment = z.infer<typeof GraphAttachmentSchema>;
+
 export const GraphEmailSchema = z.object({
   id: z.string(),
   internetMessageId: z.string().optional(),

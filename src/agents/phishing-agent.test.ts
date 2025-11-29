@@ -1,4 +1,5 @@
-// @ts-nocheck - Test file with complex Jest mocks
+ 
+// Test file uses `as any` to access private members for testing
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { PhishingAgent } from './phishing-agent.js';
 import { EmailAnalysisRequest } from '../lib/types.js';
@@ -14,9 +15,9 @@ jest.mock('../lib/logger.js', () => ({
 }));
 
 jest.mock('../services/threat-intel.js', () => ({
-  ThreatIntelService: jest.fn().mockImplementation(() => ({
-    healthCheck: jest.fn().mockResolvedValue(true),
-    enrichEmail: jest.fn().mockResolvedValue({
+  ThreatIntelService: jest.fn<any>().mockImplementation(() => ({
+    healthCheck: jest.fn<any>().mockResolvedValue(true),
+    enrichEmail: jest.fn<any>().mockResolvedValue({
       indicators: [],
       riskContribution: 0,
     }),
@@ -209,8 +210,8 @@ describe('PhishingAgent', () => {
   describe('Threat Intel Integration', () => {
     it('should enrich analysis with threat intel data', async () => {
       const mockThreatIntel = {
-        healthCheck: jest.fn().mockResolvedValue(true),
-        enrichEmail: jest.fn().mockResolvedValue({
+        healthCheck: jest.fn<any>().mockResolvedValue(true),
+        enrichEmail: jest.fn<any>().mockResolvedValue({
           indicators: [
             {
               type: 'url',
@@ -251,8 +252,8 @@ describe('PhishingAgent', () => {
 
     it('should continue analysis if threat intel fails', async () => {
       const mockThreatIntel = {
-        healthCheck: jest.fn().mockResolvedValue(true),
-        enrichEmail: jest.fn().mockRejectedValue(new Error('API Error')),
+        healthCheck: jest.fn<any>().mockResolvedValue(true),
+        enrichEmail: jest.fn<any>().mockRejectedValue(new Error('API Error')),
       };
 
       (agent as any).threatIntel = mockThreatIntel;
@@ -282,8 +283,8 @@ describe('PhishingAgent', () => {
   describe('Severity Determination', () => {
     it('should boost severity with high threat intel contribution', async () => {
       const mockThreatIntel = {
-        healthCheck: jest.fn().mockResolvedValue(true),
-        enrichEmail: jest.fn().mockResolvedValue({
+        healthCheck: jest.fn<any>().mockResolvedValue(true),
+        enrichEmail: jest.fn<any>().mockResolvedValue({
           indicators: [
             {
               type: 'url',
@@ -426,7 +427,7 @@ describe('PhishingAgent', () => {
 
     it('should handle health check errors', async () => {
       const mockThreatIntel = {
-        healthCheck: jest.fn().mockRejectedValue(new Error('Health check failed')),
+        healthCheck: jest.fn<any>().mockRejectedValue(new Error('Health check failed')),
       };
 
       (agent as any).threatIntel = mockThreatIntel;

@@ -30,23 +30,24 @@ export class SecurityLogger {
   private performanceMetrics: PerformanceMetrics[] = [];
   private maxMetrics = 1000;
 
-  info(message: string, meta?: any): void {
+  info(message: string, meta?: Record<string, unknown>): void {
     logger.info(message, meta);
   }
 
-  warn(message: string, meta?: any): void {
+  warn(message: string, meta?: Record<string, unknown>): void {
     logger.warn(message, meta);
   }
 
-  error(message: string, error?: any): void {
-    logger.error(message, { error: error?.message || error, stack: error?.stack });
+  error(message: string, error?: unknown): void {
+    const err = error as { message?: string; stack?: string } | undefined;
+    logger.error(message, { error: err?.message || error, stack: err?.stack });
   }
 
-  debug(message: string, meta?: any): void {
+  debug(message: string, meta?: Record<string, unknown>): void {
     logger.debug(message, meta);
   }
 
-  security(message: string, meta?: any): void {
+  security(message: string, meta?: Record<string, unknown>): void {
     logger.info(`[SECURITY] ${message}`, meta);
   }
 

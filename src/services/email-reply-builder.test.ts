@@ -184,6 +184,7 @@ describe('email reply builder', () => {
 
   describe('createReplyMessage', () => {
     const mockOriginalEmail = {
+      id: 'test-graph-id',
       subject: 'Suspicious Email',
       from: { emailAddress: { address: 'sender@example.com' } },
     };

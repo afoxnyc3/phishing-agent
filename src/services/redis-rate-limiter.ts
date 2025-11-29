@@ -113,7 +113,7 @@ export class RedisRateLimiter {
     await pipeline.exec();
 
     const stats = await this.getStats();
-    securityLogger.debug('Email sent recorded (Redis)', stats);
+    securityLogger.debug('Email sent recorded (Redis)', stats as unknown as Record<string, unknown>);
   }
 
   /**
