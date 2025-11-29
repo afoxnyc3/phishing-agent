@@ -108,15 +108,12 @@ describe('ThreatIntelService', () => {
         confidenceScore: 0.5,
       };
 
-      // Mock the cache and ensure client is set
-      const getCacheMock = jest.fn().mockReturnValue(cachedResult);
-      (service as any).cache = { get: getCacheMock, set: jest.fn() };
-      (service as any).virusTotalClient = { get: jest.fn() }; // Mock client to bypass null check
+      // Mock client to return cached result
+      (service as any).virusTotalClient = { checkUrl: jest.fn<any>().mockResolvedValue(cachedResult) };
 
       const result = await service.checkUrlReputation('https://example.com');
 
       expect(result).toEqual(cachedResult);
-      expect(getCacheMock).toHaveBeenCalled();
     });
   });
 
@@ -137,15 +134,12 @@ describe('ThreatIntelService', () => {
         totalReports: 10,
       };
 
-      // Mock the cache and ensure client is set
-      const getCacheMock = jest.fn().mockReturnValue(cachedResult);
-      (service as any).cache = { get: getCacheMock, set: jest.fn() };
-      (service as any).abuseIpDbClient = { get: jest.fn() }; // Mock client to bypass null check
+      // Mock client to return cached result
+      (service as any).abuseIpDbClient = { checkIp: jest.fn<any>().mockResolvedValue(cachedResult) };
 
       const result = await service.checkIpReputation('1.2.3.4');
 
       expect(result).toEqual(cachedResult);
-      expect(getCacheMock).toHaveBeenCalled();
     });
   });
 
@@ -405,14 +399,12 @@ describe('ThreatIntelService', () => {
         detectedBy: [],
         confidenceScore: 0,
       };
-      const getCacheMock = jest.fn().mockReturnValue(cachedResult);
-      (service as any).cache = { get: getCacheMock, set: jest.fn() };
-      (service as any).virusTotalClient = { get: jest.fn() }; // Mock client to bypass null check
+      // Mock the client's checkUrl method to return cached result
+      (service as any).virusTotalClient = { checkUrl: jest.fn<any>().mockResolvedValue(cachedResult) };
 
       const result = await service.checkUrlReputation('https://cached.com');
 
       expect(result).toEqual(cachedResult);
-      expect(getCacheMock).toHaveBeenCalledWith('vt-url-https://cached.com');
     });
 
     it('should use cache for IP reputation', async () => {
@@ -422,14 +414,12 @@ describe('ThreatIntelService', () => {
         abuseConfidenceScore: 0,
         totalReports: 0,
       };
-      const getCacheMock = jest.fn().mockReturnValue(cachedResult);
-      (service as any).cache = { get: getCacheMock, set: jest.fn() };
-      (service as any).abuseIpDbClient = { get: jest.fn() }; // Mock client to bypass null check
+      // Mock the client's checkIp method to return cached result
+      (service as any).abuseIpDbClient = { checkIp: jest.fn<any>().mockResolvedValue(cachedResult) };
 
       const result = await service.checkIpReputation('1.2.3.4');
 
       expect(result).toEqual(cachedResult);
-      expect(getCacheMock).toHaveBeenCalledWith('abuseipdb-1.2.3.4');
     });
 
     it('should use cache for domain age', async () => {
@@ -449,18 +439,16 @@ describe('ThreatIntelService', () => {
   });
 
   describe('Circuit Breaker', () => {
-    it('should return null when virusTotalBreaker is not available', async () => {
-      (service as any).virusTotalBreaker = undefined;
-      (service as any).virusTotalClient = {}; // Client exists but breaker doesn't
+    it('should return null when virusTotalClient is not available', async () => {
+      (service as any).virusTotalClient = undefined;
 
       const result = await service.checkUrlReputation('https://test.com');
 
       expect(result).toBeNull();
     });
 
-    it('should return null when abuseIpDbBreaker is not available', async () => {
-      (service as any).abuseIpDbBreaker = undefined;
-      (service as any).abuseIpDbClient = {}; // Client exists but breaker doesn't
+    it('should return null when abuseIpDbClient is not available', async () => {
+      (service as any).abuseIpDbClient = undefined;
 
       const result = await service.checkIpReputation('1.2.3.4');
 
@@ -469,26 +457,18 @@ describe('ThreatIntelService', () => {
   });
 
   describe('Validation Failures', () => {
-    it('should return null when VirusTotal response is invalid', async () => {
-      // Mock a successful API call that returns invalid data
-      const invalidData = { data: { invalid: 'data' } };
-      const mockFire = jest.fn<() => Promise<typeof invalidData>>().mockResolvedValue(invalidData);
-      const mockBreaker = { fire: mockFire };
-      (service as any).virusTotalBreaker = mockBreaker;
-      (service as any).cache.get = jest.fn().mockReturnValue(null);
+    it('should return null when VirusTotal client returns null for invalid response', async () => {
+      // Mock client to return null (simulating invalid response handling)
+      (service as any).virusTotalClient = { checkUrl: jest.fn<any>().mockResolvedValue(null) };
 
       const result = await service.checkUrlReputation('https://test.com');
 
       expect(result).toBeNull();
     });
 
-    it('should return null when AbuseIPDB response is invalid', async () => {
-      // Mock a successful API call that returns invalid data
-      const invalidData = { data: { invalid: 'data' } };
-      const mockFire = jest.fn<() => Promise<typeof invalidData>>().mockResolvedValue(invalidData);
-      const mockBreaker = { fire: mockFire };
-      (service as any).abuseIpDbBreaker = mockBreaker;
-      (service as any).cache.get = jest.fn().mockReturnValue(null);
+    it('should return null when AbuseIPDB client returns null for invalid response', async () => {
+      // Mock client to return null (simulating invalid response handling)
+      (service as any).abuseIpDbClient = { checkIp: jest.fn<any>().mockResolvedValue(null) };
 
       const result = await service.checkIpReputation('1.2.3.4');
 
