@@ -280,7 +280,7 @@ Response:
 {
   "status": "healthy",
   "timestamp": "2025-10-20T12:00:00Z",
-  "version": "0.2.2"
+  "version": "0.3.1"
 }
 ```
 
@@ -347,7 +347,7 @@ For detailed architecture, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 ### Code Quality Standards
 
 - **Functions**: Max 25 lines, single responsibility
-- **Files**: Max 150 lines
+- **Files**: Max 200 lines
 - **Style**: Stateless, deterministic, type-safe
 - **Error Handling**: Use `Result<T, E>` pattern
 
