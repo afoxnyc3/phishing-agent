@@ -86,10 +86,15 @@ External services (threat intel APIs, LLM) are optional. Analysis continues with
 
 ```
 src/
-├── agents/         # Main orchestrator
+├── agents/         # Main orchestrator (phishing-agent.ts)
 ├── analysis/       # Header, content, attachment, risk scoring
-├── services/       # External integrations (Graph API, threat intel, LLM)
-├── lib/            # Config, types, utilities
+├── services/       # External integrations:
+│   ├── threat-intel.ts         # Orchestrates threat intel lookups
+│   ├── threat-intel-clients.ts # VirusTotal, AbuseIPDB client classes
+│   ├── rate-limiter.ts         # In-memory rate limiting
+│   ├── redis-rate-limiter.ts   # Redis-backed rate limiting
+│   └── ...                     # Graph API, LLM, etc.
+├── lib/            # Config, types, schemas, cache providers
 ├── server.ts       # Express HTTP server
 └── index.ts        # Entry point
 ```

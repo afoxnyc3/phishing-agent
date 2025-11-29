@@ -2,8 +2,8 @@
 
 **Purpose**: This document explains the design principles, decision-making framework, and implementation approach for the phishing detection agent.
 
-**Last Updated**: 2025-11-28
-**Version**: v0.3.0
+**Last Updated**: 2025-11-29
+**Version**: v0.3.1
 
 ---
 

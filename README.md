@@ -318,14 +318,19 @@ src/
 ├── services/
 │   ├── mailbox-monitor.ts       # Graph API polling
 │   ├── graph-email-parser.ts    # Email conversion
-│   ├── threat-intel.ts          # VirusTotal, AbuseIPDB, URLScan
+│   ├── threat-intel.ts          # Threat intel orchestrator
+│   ├── threat-intel-clients.ts  # VirusTotal, AbuseIPDB clients
 │   ├── llm-analyzer.ts          # AI-enhanced analysis
+│   ├── rate-limiter.ts          # Email rate limiting
+│   ├── redis-rate-limiter.ts    # Redis-backed rate limiting
 │   └── reporting-dashboard.ts   # Analytics & metrics
 ├── lib/
 │   ├── config.ts
 │   ├── logger.ts
 │   ├── types.ts
-│   └── email-parser.ts
+│   ├── schemas.ts               # Zod validation schemas
+│   ├── email-parser.ts
+│   └── cache-provider.ts        # Redis/memory cache abstraction
 ├── server.ts                     # Express HTTP server
 └── index.ts                      # Main entry point
 ```
@@ -400,7 +405,7 @@ export function validateSpfRecord(spfHeader: string | undefined): Result<string,
 - [x] Comprehensive security module test coverage (661 tests)
 
 ### v0.4.0 (Enterprise Features - Planned)
-- [ ] Redis-backed rate limiting for multi-replica deployments (Issue #20)
+- [x] Redis-backed rate limiting for multi-replica deployments (Issue #20)
 - [ ] Advanced attachment deep scanning
 - [ ] WHOIS domain age checking integration
 

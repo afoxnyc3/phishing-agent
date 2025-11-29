@@ -2,8 +2,8 @@
 
 **Purpose**: This document provides a comprehensive technical overview of the phishing agent system architecture, components, and data flow.
 
-**Last Updated**: 2025-11-28
-**Version**: v0.3.0
+**Last Updated**: 2025-11-29
+**Version**: v0.3.1
 
 ---
 
@@ -23,7 +23,7 @@
 - **Email API**: Microsoft Graph API (app-only authentication)
 - **HTTP Server**: Express 5 (minimal, health checks only)
 - **Logging**: Winston (structured JSON logs)
-- **Authentication**: Azure Client Secret Credential
+- **Authentication**: Azure Managed Identity (production) or Client Secret (development)
 - **Optional Intel**: VirusTotal, AbuseIPDB, URLScan.io
 - **Optional LLM**: Anthropic Claude (for borderline case explanations)
 
@@ -65,29 +65,22 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 **Note**: Threat intel enrichment runs in parallel with core analysis for speed. LLM explanation only runs for borderline cases (risk 4.0-6.0).
 
 ### 3. Threat Intel Enricher
-**File**: `src/services/threat-intel.ts`
+**Files**:
+- `src/services/threat-intel.ts` - Main orchestrator service
+- `src/services/threat-intel-clients.ts` - API client implementations
 
 **Responsibilities**:
 - Enrich analysis with external threat intelligence
-- Query VirusTotal, AbuseIPDB, URLScan.io in parallel
-- Apply 5-second timeout per API
+- Query VirusTotal, AbuseIPDB in parallel via dedicated client classes
+- Each client has built-in retry logic (p-retry) and circuit breaker (opossum)
 - Cache results (5-min TTL) to avoid rate limits
 - Gracefully degrade if APIs unavailable
 
-**Strategy**: Custom async orchestration with `Promise.allSettled()`
+**Architecture**: Service + Client pattern for separation of concerns
 
-**Parallel Execution**:
-```typescript
-// All APIs called in parallel with timeout protection
-const results = await Promise.allSettled([
-  Promise.race([checkVirusTotal(url), timeout(5000)]),
-  Promise.race([checkAbuseIPDB(ip), timeout(5000)]),
-  Promise.race([checkURLScan(url), timeout(5000)])
-]);
-// Continue analysis even if some APIs fail
-```
-
-**Rate Limiting**: 10 req/s per API using `p-limit` library
+**Client Features**:
+- **VirusTotalClient**: URL reputation checking with retry + circuit breaker
+- **AbuseIPDBClient**: IP abuse scoring with retry + circuit breaker
 
 **Caching**: 5-minute TTL using `node-cache` (avoid duplicate lookups)
 
@@ -1000,5 +993,5 @@ npm run deploy
 
 ---
 
-**Document Version**: 1.1 (Updated with Email Loop Prevention)
-**Last Updated**: October 22, 2025
+**Document Version**: 1.2 (Updated with threat-intel split)
+**Last Updated**: November 29, 2025
