@@ -2,6 +2,32 @@
 
 All notable changes to the phishing-agent project will be documented in this file.
 
+## [0.3.1] - 2025-11-28
+
+### Added
+- **Managed Identity Authentication** (Issue #21): Passwordless Azure authentication
+  - `DefaultAzureCredential` support for production deployments
+  - Automatic fallback to client secret for local development
+  - Updated deployment documentation with Managed Identity setup
+  - Azure Container Apps system-assigned identity integration
+  - Microsoft Graph API permission assignment via CLI
+- **Comprehensive Test Coverage**: Security module tests
+  - `email-guards.test.ts`: 54 tests for email security guards
+  - Extended `email-deduplication.test.ts`: +13 tests (17 → 30)
+  - Extended `threat-intel.test.ts`: +14 tests (31 → 45)
+  - Total: 661 tests (+81 from v0.3.0)
+
+### Changed
+- Updated `DEPLOY_MANUAL.md` with Managed Identity as recommended auth method
+- Updated `DEPLOYMENT_PLAN.md` with authentication options table
+- Updated `STATUS.md` to v0.3.1 with Phase 4 features
+- Test count increased from 580 to 661 tests
+
+### Security
+- Removed requirement for `AZURE_CLIENT_SECRET` in production
+- Reduced attack surface with passwordless authentication
+- Added security guards test coverage for critical email validation
+
 ## [0.3.0] - 2025-11-28
 
 ### Added

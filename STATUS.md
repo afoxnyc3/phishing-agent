@@ -1,14 +1,14 @@
 # Project Status
 
 **Last Updated**: 2025-11-28
-**Current Version**: v0.3.0
-**Progress**: MVP Complete + Phase 3 Features (Attachment Analysis, LLM Hardening, Reporting)
+**Current Version**: v0.3.1
+**Progress**: MVP Complete + Phase 3 Features + Managed Identity Authentication
 
 ---
 
 ## Current Milestone
 
-✅ **v0.3.0 COMPLETE - PRODUCTION-READY WITH ADVANCED DETECTION**
+✅ **v0.3.1 COMPLETE - PRODUCTION-READY WITH MANAGED IDENTITY**
 
 ### Completed Features
 
@@ -37,11 +37,17 @@
 - ✅ LLM-enhanced analysis with retry/circuit breaker hardening
 - ✅ Reporting dashboard (analytics, top senders/domains, severity trends)
 
+**Phase 4 Features** (v0.3.1):
+- ✅ Managed Identity authentication for Azure (Issue #21)
+- ✅ Passwordless authentication in production
+- ✅ DefaultAzureCredential with auto-fallback
+- ✅ Comprehensive security module test coverage
+
 **Infrastructure**:
 - ✅ GitHub repository established
 - ✅ Code quality validated (atomic functions ≤ 25 lines)
 - ✅ TypeScript builds successfully
-- ✅ Test suite: 502 tests passing, 95%+ coverage
+- ✅ Test suite: 661 tests passing, 95%+ coverage
 - ✅ Docker multi-stage build optimized
 - ✅ Ready for cloud deployment
 - ✅ Pre-commit hooks (husky + lint-staged)
@@ -221,8 +227,8 @@ npm test -- --watch
 ```
 
 **Current Coverage**:
-- Test Suites: 21 passed
-- Tests: 502 passed
+- Test Suites: 26 passed
+- Tests: 661 passed
 - Coverage: 95%+ across all modules
 
 ### Test Categories
@@ -244,13 +250,13 @@ If deployed to production:
 3. Gather user feedback on analysis quality
 4. Track performance metrics (latency, throughput)
 
-### Planned Enhancements (Phase 4)
+### Planned Enhancements (Phase 4+)
 
 **Future Priority**:
-- Redis-backed rate limiting for multi-replica deployments
-- Managed Identity authentication (replace client secret)
+- Redis-backed rate limiting for multi-replica deployments (Issue #20)
 - Advanced attachment deep scanning
 - SIEM/SOAR integration
+- Custom domain WHOIS age checking
 
 See [roadmap.md](./roadmap.md) for detailed feature planning.
 

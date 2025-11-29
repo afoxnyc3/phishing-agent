@@ -12,7 +12,27 @@
 - ✅ Docker image built locally (`phishing-agent:latest`)
 - ✅ Azure CLI installed (`az --version`)
 - ✅ Azure subscription with Contributor access
-- ✅ Valid Azure AD credentials in `.env` file
+- ✅ Azure AD app registration with Mail.Read/Mail.Send permissions
+
+---
+
+## Authentication Options
+
+### Option A: Managed Identity (Recommended for Production)
+
+**Why Managed Identity?**
+- No secrets to manage, rotate, or store
+- Automatic credential management by Azure
+- More secure than client secrets
+- Simplified deployment
+
+**When to use:** Production deployments in Azure Container Apps
+
+### Option B: Client Secret (For Local Development)
+
+**When to use:** Local development, testing, or non-Azure deployments
+
+**Requirements:** `AZURE_CLIENT_SECRET` environment variable
 
 ---
 
@@ -110,7 +130,7 @@ az containerapp env show \
 
 ---
 
-## Step 4: Deploy Container App (15 min)
+## Step 4: Deploy Container App with Managed Identity (15 min)
 
 ### Get ACR Credentials
 ```bash
@@ -121,6 +141,95 @@ az acr credential show --name phishingagentacr
 # - Username: phishingagentacr
 # - Password: <use password from output>
 ```
+
+### Option A: Deploy with Managed Identity (Recommended)
+
+This is the **recommended approach** for production. No client secret required.
+
+```bash
+# Create container app with system-assigned managed identity
+az containerapp create \
+  --name phishing-agent \
+  --resource-group rg-phishing-agent \
+  --environment cae-phishing-agent \
+  --image phishingagentacr.azurecr.io/phishing-agent:v0.3.0 \
+  --target-port 3000 \
+  --ingress external \
+  --registry-server phishingagentacr.azurecr.io \
+  --registry-username phishingagentacr \
+  --registry-password "<password-from-previous-step>" \
+  --cpu 0.5 \
+  --memory 1Gi \
+  --min-replicas 1 \
+  --max-replicas 3 \
+  --system-assigned \
+  --env-vars \
+    "AZURE_TENANT_ID=<your-tenant-id>" \
+    "AZURE_CLIENT_ID=<your-client-id>" \
+    "PHISHING_MAILBOX_ADDRESS=<your-mailbox>" \
+    "MAILBOX_CHECK_INTERVAL_MS=60000" \
+    "MAILBOX_MONITOR_ENABLED=true" \
+    "NODE_ENV=production" \
+    "PORT=3000" \
+    "LOG_LEVEL=info"
+```
+
+**Note:** `AZURE_CLIENT_SECRET` is NOT required when using Managed Identity in production.
+
+### Configure Microsoft Graph API Access for Managed Identity
+
+After creating the container app, grant the Managed Identity permission to access Microsoft Graph:
+
+```bash
+# Get the Managed Identity principal ID
+PRINCIPAL_ID=$(az containerapp show \
+  --name phishing-agent \
+  --resource-group rg-phishing-agent \
+  --query identity.principalId \
+  --output tsv)
+
+echo "Managed Identity Principal ID: $PRINCIPAL_ID"
+
+# Get Microsoft Graph service principal
+GRAPH_SP_ID=$(az ad sp list \
+  --filter "appId eq '00000003-0000-0000-c000-000000000000'" \
+  --query "[0].id" \
+  --output tsv)
+
+# Grant Mail.Read permission (requires admin)
+# Permission ID for Mail.Read: 570282fd-fa5c-430d-a7fd-fc8dc98a9dca
+az rest --method POST \
+  --uri "https://graph.microsoft.com/v1.0/servicePrincipals/$GRAPH_SP_ID/appRoleAssignments" \
+  --headers "Content-Type=application/json" \
+  --body "{
+    \"principalId\": \"$PRINCIPAL_ID\",
+    \"resourceId\": \"$GRAPH_SP_ID\",
+    \"appRoleId\": \"570282fd-fa5c-430d-a7fd-fc8dc98a9dca\"
+  }"
+
+# Grant Mail.Send permission (requires admin)
+# Permission ID for Mail.Send: b633e1c5-b582-4048-a93e-9f11b44c7e96
+az rest --method POST \
+  --uri "https://graph.microsoft.com/v1.0/servicePrincipals/$GRAPH_SP_ID/appRoleAssignments" \
+  --headers "Content-Type=application/json" \
+  --body "{
+    \"principalId\": \"$PRINCIPAL_ID\",
+    \"resourceId\": \"$GRAPH_SP_ID\",
+    \"appRoleId\": \"b633e1c5-b582-4048-a93e-9f11b44c7e96\"
+  }"
+```
+
+**Alternative:** Use Azure Portal
+1. Go to Azure AD → Enterprise applications
+2. Find the Managed Identity (same name as container app)
+3. Add API permissions: Mail.Read, Mail.Send
+4. Grant admin consent
+
+---
+
+### Option B: Deploy with Client Secret (Alternative)
+
+Use this for local development or non-Azure environments.
 
 ### Prepare Environment Variables
 
@@ -377,6 +486,31 @@ Check logs for:
 - `Mailbox not found` → Wrong mailbox address
 - `Timeout` → Network/firewall issue
 
+### Managed Identity Authentication Issues
+
+**Error: "AZURE_CLIENT_SECRET is required"**
+- Ensure `NODE_ENV=production` is set (triggers Managed Identity mode)
+- Or explicitly set `AZURE_AUTH_METHOD=managed-identity`
+
+**Error: "Authorization failed"**
+- Verify Managed Identity has Mail.Read and Mail.Send permissions
+- Check Graph API permissions were granted admin consent
+- Wait 5-10 minutes after granting permissions (propagation delay)
+
+**Verify Managed Identity is enabled:**
+```bash
+az containerapp show \
+  --name phishing-agent \
+  --resource-group rg-phishing-agent \
+  --query identity
+```
+
+**Check permission assignments:**
+```bash
+az rest --method GET \
+  --uri "https://graph.microsoft.com/v1.0/servicePrincipals/<principal-id>/appRoleAssignments"
+```
+
 ---
 
 ## Cost Management
@@ -467,4 +601,4 @@ Once deployed and validated:
 
 **Deployment Date:** <!-- Add date -->
 **Deployed By:** <!-- Add name -->
-**Version:** v0.2.0
+**Version:** v0.3.1
