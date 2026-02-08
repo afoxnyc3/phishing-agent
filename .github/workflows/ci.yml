@@ -9,6 +9,21 @@ on:
     branches: [ main ]
 
 jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          config-path: .gitleaks.toml
+        env:
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
   test:
     runs-on: ubuntu-latest
 
