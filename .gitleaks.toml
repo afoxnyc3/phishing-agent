@@ -10,7 +10,6 @@ useDefault = true
 # Allowlist paths that contain test fixtures or false positives
 [allowlist]
 paths = [
-  '''\.test\.ts$''',
   '''\.env\.example$''',
   '''\.env\.template$''',
 ]

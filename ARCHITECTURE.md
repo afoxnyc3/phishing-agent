@@ -105,7 +105,7 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 - `validateDmarcRecord(dmarcHeader)` - Check DMARC policy
 - `extractAuthenticationResults(headers)` - Parse auth headers
 
-### 4. Content Analyzer
+### 5. Content Analyzer
 
 **Files**:
 
@@ -123,7 +123,7 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 - Detect social engineering (urgency, credential harvesting, financial lures)
 - Detect brand impersonation and typosquatting
 
-### 5. Risk Scorer
+### 6. Risk Scorer
 
 **File**: `src/analysis/risk-scorer.ts`
 
@@ -140,7 +140,7 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 - With attachments: Header (40%) + Content (30%) + Attachment (30%)
 - Without attachments: Header (60%) + Content (40%)
 
-### 6. Attachment Analyzer
+### 7. Attachment Analyzer
 
 **File**: `src/analysis/attachment-analyzer.ts`
 
@@ -158,7 +158,7 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 - HIGH: Macro-enabled documents
 - MEDIUM: Archives, suspicious sizes
 
-### 7. LLM Analyzer
+### 8. LLM Analyzer
 
 **File**: `src/services/llm-analyzer.ts`
 
@@ -172,13 +172,13 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 
 **Configuration**:
 
-```typescript
-ANTHROPIC_API_KEY = your - key; // Optional - enables LLM explanations
-LLM_MODEL = claude - sonnet - 4 - 20250514; // Model to use
-LLM_MAX_TOKENS = 500; // Response length limit
+```bash
+ANTHROPIC_API_KEY=your-key           # Optional - enables LLM explanations
+LLM_MODEL=claude-sonnet-4-20250514   # Model to use
+LLM_MAX_TOKENS=500                   # Response length limit
 ```
 
-### 8. Reporting Dashboard
+### 9. Reporting Dashboard
 
 **File**: `src/services/reporting-dashboard.ts`
 
@@ -196,7 +196,7 @@ LLM_MAX_TOKENS = 500; // Response length limit
 - `getTopSenders(limit)` - Get top phishing senders
 - `getSeverityTrend(days)` - Get severity over time
 
-### 9. Graph Email Parser
+### 10. Graph Email Parser
 
 **File**: `src/services/graph-email-parser.ts`
 

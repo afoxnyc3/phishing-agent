@@ -4,7 +4,7 @@ import { EmailParser } from '../lib/email-parser.js';
 import { HeaderValidator } from '../analysis/header-validator.js';
 import { ContentAnalyzer, SuspiciousUrl } from '../analysis/content-analyzer.js';
 import { AttachmentAnalyzer } from '../analysis/attachment-analyzer.js';
-import { RiskScorer, RiskScoringResult } from '../analysis/risk-scorer.js';
+import { RiskScorer } from '../analysis/risk-scorer.js';
 import { ThreatIntelService, ThreatIntelResult } from '../services/threat-intel.js';
 import { shouldRunLlmAnalysis, generateThreatExplanation } from '../services/llm-analyzer.js';
 
@@ -65,39 +65,19 @@ export class PhishingAgent {
     );
     const explanation = await this.generateExplanation(request, enhancedScore, allIndicators);
 
-    return this.logAndBuildResult(
-      request,
-      analysisId,
-      enhancedScore,
-      riskResult,
-      severity,
-      allIndicators,
-      attachmentResult.riskLevel,
-      explanation
-    );
-  }
-
-  private logAndBuildResult(
-    request: EmailAnalysisRequest,
-    analysisId: string,
-    score: number,
-    riskResult: RiskScoringResult,
-    severity: 'low' | 'medium' | 'high' | 'critical',
-    indicators: ThreatIndicator[],
-    attachmentRisk: string,
-    explanation: string | undefined
-  ): PhishingAnalysisResult {
     // prettier-ignore
     securityLogger.info('Email analysis completed', { analysisId, messageId: request.messageId,
-      isPhishing: score >= 5.0, finalRiskScore: score, severity,
-      totalIndicators: indicators.length, attachmentRisk, hasExplanation: !!explanation });
+      isPhishing: enhancedScore >= 5.0, finalRiskScore: enhancedScore, severity,
+      totalIndicators: allIndicators.length, attachmentRisk: attachmentResult.riskLevel,
+      hasExplanation: !!explanation });
+
     return {
       messageId: request.messageId,
-      isPhishing: score >= 5.0,
+      isPhishing: enhancedScore >= 5.0,
       confidence: riskResult.confidence,
-      riskScore: score,
+      riskScore: enhancedScore,
       severity,
-      indicators,
+      indicators: allIndicators,
       recommendedActions: riskResult.recommendedActions,
       analysisTimestamp: new Date(),
       analysisId,
@@ -173,29 +153,39 @@ export class PhishingAgent {
     error: unknown
   ): PhishingAnalysisResult {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    securityLogger.error('Email analysis failed', { analysisId, messageId: request.messageId, error: errorMsg });
-    const indicator: ThreatIndicator = {
-      type: 'behavioral',
-      description: 'Analysis error - unable to complete security scan',
-      severity: 'medium',
-      evidence: errorMsg,
-      confidence: 1.0,
-    };
-    const action = {
-      priority: 'medium' as const,
-      action: 'flag_for_review',
-      description: 'Manual review required due to analysis error',
-      automated: false,
-      requiresApproval: false,
-    };
-    return {
+    securityLogger.error('Email analysis failed', {
+      analysisId,
       messageId: request.messageId,
+      error: errorMsg,
+    });
+    return this.buildErrorResult(request.messageId, analysisId, errorMsg);
+  }
+
+  private buildErrorResult(messageId: string, analysisId: string, errorMsg: string): PhishingAnalysisResult {
+    return {
+      messageId,
       isPhishing: false,
       confidence: 0,
       riskScore: 0,
       severity: 'medium',
-      indicators: [indicator],
-      recommendedActions: [action],
+      indicators: [
+        {
+          type: 'behavioral' as const,
+          severity: 'medium' as const,
+          description: 'Analysis error - unable to complete security scan',
+          evidence: errorMsg,
+          confidence: 1.0,
+        },
+      ],
+      recommendedActions: [
+        {
+          priority: 'medium' as const,
+          action: 'flag_for_review',
+          description: 'Manual review required due to analysis error',
+          automated: false,
+          requiresApproval: false,
+        },
+      ],
       analysisTimestamp: new Date(),
       analysisId,
     };
