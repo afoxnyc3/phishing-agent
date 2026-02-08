@@ -37,8 +37,13 @@ export class SecurityLogger {
   }
 
   error(message: string, error?: unknown): void {
-    const err = error as { message?: string; stack?: string } | undefined;
-    logger.error(message, { error: err?.message || error, stack: err?.stack });
+    if (error instanceof Error) {
+      logger.error(message, piiRedactor.redactObject({ error: error.message, stack: error.stack }));
+    } else if (error != null && typeof error === 'object') {
+      logger.error(message, piiRedactor.redactObject(error as Record<string, unknown>));
+    } else {
+      logger.error(message, error !== undefined ? { error: String(error) } : undefined);
+    }
   }
 
   debug(message: string, meta?: Record<string, unknown>): void {
