@@ -14,7 +14,7 @@
 - **Node.js**: 18.x (LTS)
 - **TypeScript**: 5.3+
 - **Target**: ES2022
-- **Module System**: CommonJS (CJS)
+- **Module System**: ES Modules (ESM)
 
 ### Compiler Configuration
 
@@ -42,7 +42,7 @@
 
 ```json
 "axios": "^1.6.5"
-"express": "^5.0.0"
+"express": "^5.1.0"
 ```
 
 **axios**: External API calls (VirusTotal, AbuseIPDB, URLScan)
@@ -72,7 +72,7 @@
 ### Runtime Validation
 
 ```json
-"zod": "^3.22.4"
+"zod": "^4.1.12"
 ```
 
 **Purpose**: Runtime schema validation for external data
@@ -86,10 +86,10 @@
 ### TypeScript Tooling
 
 ```json
-"typescript": "^5.3.3"
-"@types/node": "^20.10.6"
-"@types/express": "^4.17.21"
-"tsx": "^4.7.0"
+"typescript": "^5.6.2"
+"@types/node": "^22.5.4"
+"@types/express": "^5.0.3"
+"tsx": "^4.19.0"
 ```
 
 **tsx**: Hot-reload development server (faster than ts-node)
@@ -102,16 +102,16 @@
 "@types/jest": "^29.5.11"
 ```
 
-**Coverage**: 95%+ overall (340 passing tests)
+**Coverage**: 95%+ overall (661 passing tests)
 **Strategy**: Unit tests for atomic functions, integration tests for services
 **Includes**: Rate limiting tests (63 tests), deduplication tests, core analysis tests
 
 ### Code Quality
 
 ```json
-"eslint": "^8.56.0"
-"@typescript-eslint/parser": "^6.18.1"
-"@typescript-eslint/eslint-plugin": "^6.18.1"
+"eslint": "^9.10.0"
+"@typescript-eslint/parser": "^8.5.0"
+"@typescript-eslint/eslint-plugin": "^8.5.0"
 ```
 
 **Rules**: Strict TypeScript linting, no unused variables, consistent formatting
@@ -204,7 +204,7 @@ npm test -- --coverage # Coverage report
 ```bash
 npm run lint          # ESLint validation
 npm run lint:fix      # Auto-fix linting issues
-npm run typecheck     # TypeScript type checking
+npm run type-check    # TypeScript type checking
 ```
 
 ### Docker

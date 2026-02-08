@@ -209,7 +209,8 @@ describe('LlmAnalyzer', () => {
         expect.objectContaining({
           model: 'claude-3-5-haiku-20241022',
           max_tokens: 300,
-        })
+        }),
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
       );
     });
 
@@ -230,7 +231,8 @@ describe('LlmAnalyzer', () => {
               content: expect.stringContaining('URGENT: Account Suspended'),
             }),
           ]),
-        })
+        }),
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
       );
     });
 

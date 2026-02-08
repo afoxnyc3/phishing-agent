@@ -97,11 +97,11 @@ az acr show \
 
 ```bash
 # Tag local image for ACR
-docker tag phishing-agent:latest phishingagentacr.azurecr.io/phishing-agent:v0.2.0
+docker tag phishing-agent:latest phishingagentacr.azurecr.io/phishing-agent:v0.3.2
 docker tag phishing-agent:latest phishingagentacr.azurecr.io/phishing-agent:latest
 
 # Push to ACR
-docker push phishingagentacr.azurecr.io/phishing-agent:v0.2.0
+docker push phishingagentacr.azurecr.io/phishing-agent:v0.3.2
 docker push phishingagentacr.azurecr.io/phishing-agent:latest
 
 # Verify image in registry
@@ -160,7 +160,7 @@ az containerapp create \
   --name phishing-agent \
   --resource-group rg-phishing-agent \
   --environment cae-phishing-agent \
-  --image phishingagentacr.azurecr.io/phishing-agent:v0.3.0 \
+  --image phishingagentacr.azurecr.io/phishing-agent:v0.3.2 \
   --target-port 3000 \
   --ingress external \
   --registry-server phishingagentacr.azurecr.io \
@@ -257,7 +257,7 @@ az containerapp create \
   --name phishing-agent \
   --resource-group rg-phishing-agent \
   --environment cae-phishing-agent \
-  --image phishingagentacr.azurecr.io/phishing-agent:v0.2.0 \
+  --image phishingagentacr.azurecr.io/phishing-agent:v0.3.2 \
   --target-port 3000 \
   --ingress external \
   --registry-server phishingagentacr.azurecr.io \
@@ -287,7 +287,7 @@ az containerapp create \
   --name phishing-agent \
   --resource-group rg-phishing-agent \
   --environment cae-phishing-agent \
-  --image phishingagentacr.azurecr.io/phishing-agent:v0.2.0 \
+  --image phishingagentacr.azurecr.io/phishing-agent:v0.3.2 \
   --target-port 3000 \
   --ingress external \
   --registry-server phishingagentacr.azurecr.io \
@@ -385,7 +385,7 @@ az containerapp revision list \
 ### Send Test Phishing Email
 
 1. **Find a real phishing email** (from spam folder, PhishTank, etc.)
-2. **Forward it** to your monitored mailbox (e.g., phishing@chelseapiers.com)
+2. **Forward it** to your monitored mailbox (e.g., phishing@yourcompany.com)
 3. **Wait 60 seconds** (mailbox polling interval)
 4. **Check logs** for analysis activity:
    ```bash

@@ -196,7 +196,7 @@ export class RiskScorer {
     return actions;
   }
 
-  private static getSeverityActions(severity: string): RecommendedAction[] {
+  private static getSeverityActions(severity: 'low' | 'medium' | 'high' | 'critical'): RecommendedAction[] {
     if (severity === 'critical') {
       return [
         this.action('urgent', 'quarantine_email', 'Quarantine and prevent delivery', false, true),

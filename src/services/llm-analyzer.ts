@@ -105,11 +105,14 @@ async function makeApiCall(apiKey: string, prompt: string): Promise<Anthropic.Me
   const timeoutId = setTimeout(() => controller.abort(), config.llm.timeoutMs);
 
   try {
-    const response = await client.messages.create({
-      model: 'claude-3-5-haiku-20241022',
-      max_tokens: 300,
-      messages: [{ role: 'user', content: prompt }],
-    });
+    const response = await client.messages.create(
+      {
+        model: 'claude-3-5-haiku-20241022',
+        max_tokens: 300,
+        messages: [{ role: 'user', content: prompt }],
+      },
+      { signal: controller.signal }
+    );
     clearTimeout(timeoutId);
     return response;
   } catch (error) {

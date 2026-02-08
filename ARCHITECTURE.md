@@ -63,7 +63,7 @@
 
 **Pipeline**:
 
-```
+```text
 Email → Header Validation → Content Analysis → Attachment Analysis →
 [Threat Intel Enrichment] → Risk Scoring → [LLM Explanation] → Result
 ```
@@ -105,7 +105,7 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 - `validateDmarcRecord(dmarcHeader)` - Check DMARC policy
 - `extractAuthenticationResults(headers)` - Parse auth headers
 
-### 4. Content Analyzer
+### 5. Content Analyzer
 
 **Files**:
 
@@ -123,7 +123,7 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 - Detect social engineering (urgency, credential harvesting, financial lures)
 - Detect brand impersonation and typosquatting
 
-### 5. Risk Scorer
+### 6. Risk Scorer
 
 **File**: `src/analysis/risk-scorer.ts`
 
@@ -140,7 +140,7 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 - With attachments: Header (40%) + Content (30%) + Attachment (30%)
 - Without attachments: Header (60%) + Content (40%)
 
-### 6. Attachment Analyzer
+### 7. Attachment Analyzer
 
 **File**: `src/analysis/attachment-analyzer.ts`
 
@@ -158,7 +158,7 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 - HIGH: Macro-enabled documents
 - MEDIUM: Archives, suspicious sizes
 
-### 7. LLM Analyzer
+### 8. LLM Analyzer
 
 **File**: `src/services/llm-analyzer.ts`
 
@@ -172,13 +172,13 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 
 **Configuration**:
 
-```typescript
-ANTHROPIC_API_KEY = your - key; // Optional - enables LLM explanations
-LLM_MODEL = claude - sonnet - 4 - 20250514; // Model to use
-LLM_MAX_TOKENS = 500; // Response length limit
+```bash
+ANTHROPIC_API_KEY=your-key           # Optional - enables LLM explanations
+LLM_MODEL=claude-sonnet-4-20250514   # Model to use
+LLM_MAX_TOKENS=500                   # Response length limit
 ```
 
-### 8. Reporting Dashboard
+### 9. Reporting Dashboard
 
 **File**: `src/services/reporting-dashboard.ts`
 
@@ -196,7 +196,7 @@ LLM_MAX_TOKENS = 500; // Response length limit
 - `getTopSenders(limit)` - Get top phishing senders
 - `getSeverityTrend(days)` - Get severity over time
 
-### 9. Graph Email Parser
+### 10. Graph Email Parser
 
 **File**: `src/services/graph-email-parser.ts`
 
@@ -211,7 +211,7 @@ LLM_MAX_TOKENS = 500; // Response length limit
 
 ## Data Flow
 
-```
+```text
 ┌──────────────────┐
 │ User forwards    │
 │ suspicious email │
@@ -267,14 +267,14 @@ LLM_MAX_TOKENS = 500; // Response length limit
 
 ### Health Check
 
-```
+```text
 GET /health
 Response: { "status": "healthy", "timestamp": "..." }
 ```
 
 ### Readiness Check
 
-```
+```text
 GET /ready
 Response: {
   "status": "ready",
@@ -444,7 +444,7 @@ This section provides an example of deploying to Azure Container Apps. Adapt to 
 
 **Example Resource Topology**:
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │ Azure Container Apps Environment                        │
 │                                                          │
@@ -567,7 +567,7 @@ On October 20, 2025, the phishing agent entered an email loop, sending **10,000 
 
 **Defense in Depth Philosophy**: Never rely on a single safeguard. Email loop prevention requires 5+ layers:
 
-```
+```text
 ┌────────────────────────────────────────────────────┐
 │ Layer 1: Email Loop Detection (CRITICAL)          │
 │ File: src/services/mailbox-monitor.ts:148-156     │
@@ -816,7 +816,7 @@ SENDER_COOLDOWN_MS=86400000  # 24 hours
 
 ### Complete Email Processing Pipeline
 
-```
+```text
 ┌─────────────────────────────────┐
 │ Mailbox Monitor (60s polling)  │
 └────────────┬────────────────────┘
@@ -1003,7 +1003,7 @@ interface EmailLoopMetrics {
 
 **Self-Reply Detected** (CRITICAL):
 
-```
+```text
 Trigger: selfRepliesDetected > 0
 Action: Immediate investigation required
 Message: "Email loop detected! Agent is replying to itself."
@@ -1011,7 +1011,7 @@ Message: "Email loop detected! Agent is replying to itself."
 
 **Circuit Breaker Tripped** (CRITICAL):
 
-```
+```text
 Trigger: circuitBreakerTrips > 0
 Action: Immediate investigation required
 Message: "Circuit breaker tripped! Burst sending detected."
@@ -1019,7 +1019,7 @@ Message: "Circuit breaker tripped! Burst sending detected."
 
 **Rate Limit Approaching** (WARNING):
 
-```
+```text
 Trigger: rateLimitHits > 90
 Action: Monitor for email loop
 Message: "Rate limit almost exceeded (90/100)"

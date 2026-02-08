@@ -110,7 +110,8 @@ npm run dev
 az containerapp update \
   --name phishing-agent \
   --resource-group rg-security \
-  --set-env-vars AZURE_CLIENT_SECRET=<new-secret>
+  --secrets azure-client-secret=<new-secret> \
+  --set-env-vars AZURE_CLIENT_SECRET=secretref:azure-client-secret
 
 # Docker:
 # Update .env file on production server and restart container
@@ -282,5 +283,5 @@ For security issues or questions:
 
 **For Public Vulnerability Reports**:
 
-- Use GitHub Security Advisories (https://github.com/YOUR-REPO/security/advisories)
+- Use GitHub Security Advisories (`https://github.com/<OWNER>/<REPO>/security/advisories`)
 - Or email security contact listed in repository

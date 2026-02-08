@@ -5,6 +5,7 @@
 import winston from 'winston';
 import { PerformanceMetrics } from './types.js';
 import { getErrorMessage } from './errors.js';
+import { piiRedactor } from './pii-redactor.js';
 
 // Winston logger instance
 export const logger = winston.createLogger({
@@ -29,29 +30,29 @@ export class SecurityLogger {
   private maxMetrics = 1000;
 
   info(message: string, meta?: Record<string, unknown>): void {
-    logger.info(message, meta);
+    logger.info(message, meta ? piiRedactor.redactObject(meta) : undefined);
   }
 
   warn(message: string, meta?: Record<string, unknown>): void {
-    logger.warn(message, meta);
+    logger.warn(message, meta ? piiRedactor.redactObject(meta) : undefined);
   }
 
   error(message: string, error?: unknown): void {
     if (error instanceof Error) {
-      logger.error(message, { error: error.message, stack: error.stack });
+      logger.error(message, piiRedactor.redactObject({ error: error.message, stack: error.stack }));
     } else if (error != null && typeof error === 'object') {
-      logger.error(message, error as Record<string, unknown>);
+      logger.error(message, piiRedactor.redactObject(error as Record<string, unknown>));
     } else {
       logger.error(message, error !== undefined ? { error: getErrorMessage(error) } : undefined);
     }
   }
 
   debug(message: string, meta?: Record<string, unknown>): void {
-    logger.debug(message, meta);
+    logger.debug(message, meta ? piiRedactor.redactObject(meta) : undefined);
   }
 
   security(message: string, meta?: Record<string, unknown>): void {
-    logger.info(`[SECURITY] ${message}`, meta);
+    logger.info(`[SECURITY] ${message}`, meta ? piiRedactor.redactObject(meta) : undefined);
   }
 
   addPerformanceMetric(metric: PerformanceMetrics): void {

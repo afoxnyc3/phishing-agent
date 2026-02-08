@@ -97,7 +97,7 @@ export class VirusTotalClient {
       maliciousCount: stats.malicious,
       totalScans: total,
       detectedBy: Object.keys(validated.data.data.attributes.last_analysis_results || {}),
-      confidenceScore: stats.malicious / total,
+      confidenceScore: total > 0 ? stats.malicious / total : 0,
     };
     this.cache.set(cacheKey, result);
     return result;

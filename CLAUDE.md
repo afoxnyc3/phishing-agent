@@ -117,6 +117,25 @@ src/
 └── index.ts        # Entry point
 ```
 
+## NPM Scripts
+
+| Script                      | Description                                        |
+| --------------------------- | -------------------------------------------------- |
+| `dev`                       | Start dev server with hot reload                   |
+| `build`                     | Compile TypeScript to dist/                        |
+| `start`                     | Run compiled app                                   |
+| `test`                      | Run all tests                                      |
+| `test:unit`                 | Run unit tests only                                |
+| `test:integration`          | Run integration tests only                         |
+| `test:watch`                | Run tests in watch mode                            |
+| `test:coverage`             | Run tests with coverage report                     |
+| `lint` / `lint:fix`         | ESLint check / auto-fix                            |
+| `format` / `format:check`   | Prettier write / check                             |
+| `type-check`                | TypeScript compiler check                          |
+| `validate`                  | Run all checks (type-check + lint + format + test) |
+| `docker:up` / `docker:down` | Start/stop Docker Compose                          |
+| `status`                    | Check running service health                       |
+
 ## ESLint Rules
 
 Key enforced rules:
