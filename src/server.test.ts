@@ -1,10 +1,9 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { HttpServer } from './server.js';
-import { PhishingAgent } from './agents/phishing-agent.js';
-import { MailboxMonitor } from './services/mailbox-monitor.js';
+import type { PhishingAgent } from './agents/phishing-agent.js';
+import type { MailboxMonitor } from './services/mailbox-monitor.js';
 
-// Mock dependencies
-jest.mock('./lib/logger.js', () => ({
+// Mock dependencies using unstable_mockModule for ESM compatibility
+jest.unstable_mockModule('./lib/logger.js', () => ({
   securityLogger: {
     info: jest.fn(),
     warn: jest.fn(),
@@ -14,16 +13,31 @@ jest.mock('./lib/logger.js', () => ({
   },
 }));
 
-jest.mock('./lib/config.js', () => ({
+jest.unstable_mockModule('./lib/config.js', () => ({
   config: {
-    server: {
-      port: 3000,
-    },
+    server: { port: 3000, environment: 'test' },
+    http: { helmetEnabled: false, bodyLimit: '4mb', healthCacheTtlMs: 30000 },
+    llm: { apiKey: undefined, demoMode: false, timeoutMs: 10000,
+      retryAttempts: 3, circuitBreakerThreshold: 5, circuitBreakerResetMs: 60000 },
+    threatIntel: { enabled: false, timeoutMs: 5000, cacheTtlMs: 300000 },
   },
+  isProduction: jest.fn().mockReturnValue(false),
 }));
 
+jest.unstable_mockModule('./services/llm-analyzer.js', () => ({
+  shouldRunLlmAnalysis: jest.fn<any>().mockReturnValue(false),
+  generateThreatExplanation: jest.fn<any>().mockResolvedValue(null),
+  getLlmServiceStatus: jest.fn<any>().mockReturnValue({
+    enabled: false, circuitBreakerState: 'not-initialized', consecutiveFailures: 0,
+  }),
+  healthCheck: jest.fn<any>().mockResolvedValue(true),
+}));
+
+// Import after mocks are set up
+const { HttpServer } = await import('./server.js');
+
 describe('HttpServer', () => {
-  let server: HttpServer;
+  let server: InstanceType<typeof HttpServer>;
   let mockPhishingAgent: any;
   let mockMailboxMonitor: any;
 

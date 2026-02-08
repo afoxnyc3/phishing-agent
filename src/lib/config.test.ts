@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { getEnv, getEnvNumber, getEnvBoolean, isProduction } from './config.js';
+
+// Set minimum required env vars before config module loads
+process.env.AZURE_TENANT_ID = process.env.AZURE_TENANT_ID || 'test-tenant-id';
+process.env.AZURE_CLIENT_ID = process.env.AZURE_CLIENT_ID || 'test-client-id';
+process.env.PHISHING_MAILBOX_ADDRESS = process.env.PHISHING_MAILBOX_ADDRESS || 'test@example.com';
+
+// Dynamic import after env vars are set (ESM requires this pattern)
+const { getEnv, getEnvNumber, getEnvBoolean, isProduction } = await import('./config.js');
 
 // Helper to dynamically import config with fresh env values
 async function importConfig() {

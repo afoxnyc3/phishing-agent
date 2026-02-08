@@ -1,12 +1,36 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { HealthChecker } from './health-checker.js';
-import { PhishingAgent } from '../agents/phishing-agent.js';
-import { MailboxMonitor } from './mailbox-monitor.js';
-import { IRateLimiter } from './rate-limiter.js';
-import { IEmailDeduplication } from './email-deduplication.js';
+import type { PhishingAgent } from '../agents/phishing-agent.js';
+import type { MailboxMonitor } from './mailbox-monitor.js';
+import type { IRateLimiter } from './rate-limiter.js';
+import type { IEmailDeduplication } from './email-deduplication.js';
+
+// Mock dependencies using unstable_mockModule for ESM compatibility
+jest.unstable_mockModule('../lib/config.js', () => ({
+  config: {
+    llm: { apiKey: undefined, demoMode: false, timeoutMs: 10000,
+      retryAttempts: 3, circuitBreakerThreshold: 5, circuitBreakerResetMs: 60000 },
+    threatIntel: { enabled: false, timeoutMs: 5000, cacheTtlMs: 300000 },
+  },
+}));
+
+jest.unstable_mockModule('../lib/logger.js', () => ({
+  securityLogger: {
+    info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn(),
+  },
+}));
+
+jest.unstable_mockModule('./llm-analyzer.js', () => ({
+  getLlmServiceStatus: jest.fn<any>().mockReturnValue({
+    enabled: false, circuitBreakerState: 'not-initialized', consecutiveFailures: 0,
+  }),
+  healthCheck: jest.fn<any>().mockResolvedValue(true),
+}));
+
+// Import after mocks are set up
+const { HealthChecker } = await import('./health-checker.js');
 
 describe('HealthChecker', () => {
-  let checker: HealthChecker;
+  let checker: InstanceType<typeof HealthChecker>;
   let mockAgent: jest.Mocked<PhishingAgent>;
   let mockMonitor: jest.Mocked<MailboxMonitor>;
   let mockRateLimiter: jest.Mocked<IRateLimiter>;

@@ -1,11 +1,9 @@
- 
 // Test file uses `as any` to access private members for testing
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { PhishingAgent } from './phishing-agent.js';
-import { EmailAnalysisRequest } from '../lib/types.js';
+import type { EmailAnalysisRequest } from '../lib/types.js';
 
-// Mock all dependencies
-jest.mock('../lib/logger.js', () => ({
+// Mock all dependencies using unstable_mockModule for ESM compatibility
+jest.unstable_mockModule('../lib/logger.js', () => ({
   securityLogger: {
     info: jest.fn(),
     warn: jest.fn(),
@@ -14,7 +12,25 @@ jest.mock('../lib/logger.js', () => ({
   },
 }));
 
-jest.mock('../services/threat-intel.js', () => ({
+jest.unstable_mockModule('../lib/config.js', () => ({
+  config: {
+    llm: {
+      apiKey: undefined,
+      demoMode: false,
+      timeoutMs: 10000,
+      retryAttempts: 3,
+      circuitBreakerThreshold: 5,
+      circuitBreakerResetMs: 60000,
+    },
+    threatIntel: {
+      enabled: true,
+      timeoutMs: 5000,
+      cacheTtlMs: 300000,
+    },
+  },
+}));
+
+jest.unstable_mockModule('../services/threat-intel.js', () => ({
   ThreatIntelService: jest.fn<any>().mockImplementation(() => ({
     healthCheck: jest.fn<any>().mockResolvedValue(true),
     enrichEmail: jest.fn<any>().mockResolvedValue({
@@ -24,8 +40,16 @@ jest.mock('../services/threat-intel.js', () => ({
   })),
 }));
 
+jest.unstable_mockModule('../services/llm-analyzer.js', () => ({
+  shouldRunLlmAnalysis: jest.fn<any>().mockReturnValue(false),
+  generateThreatExplanation: jest.fn<any>().mockResolvedValue(null),
+}));
+
+// Import after mocks are set up (ESM requirement)
+const { PhishingAgent } = await import('./phishing-agent.js');
+
 describe('PhishingAgent', () => {
-  let agent: PhishingAgent;
+  let agent: InstanceType<typeof PhishingAgent>;
 
   beforeEach(async () => {
     jest.clearAllMocks();
