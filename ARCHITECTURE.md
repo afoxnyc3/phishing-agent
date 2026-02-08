@@ -172,10 +172,10 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 
 **Configuration**:
 
-```typescript
-ANTHROPIC_API_KEY = your - key; // Optional - enables LLM explanations
-LLM_MODEL = claude - sonnet - 4 - 20250514; // Model to use
-LLM_MAX_TOKENS = 500; // Response length limit
+```bash
+ANTHROPIC_API_KEY=your-key  # Optional - enables LLM explanations
+LLM_MODEL=claude-sonnet-4-20250514  # Model to use
+LLM_MAX_TOKENS=500  # Response length limit
 ```
 
 ### 8. Reporting Dashboard
