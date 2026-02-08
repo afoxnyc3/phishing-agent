@@ -77,6 +77,18 @@ describe('buildSubscriptionConfig', () => {
 
     expect(config.resource).toBe('users/phishing@company.com/messages');
   });
+
+  it('should throw when notificationUrl is missing', () => {
+    expect(() => buildSubscriptionConfig(createWebhookConfig({ notificationUrl: undefined }), 'a@b.com')).toThrow(
+      'notificationUrl and clientState are required'
+    );
+  });
+
+  it('should throw when clientState is missing', () => {
+    expect(() => buildSubscriptionConfig(createWebhookConfig({ clientState: undefined }), 'a@b.com')).toThrow(
+      'notificationUrl and clientState are required'
+    );
+  });
 });
 
 describe('createSubscriptionManager', () => {

@@ -25,7 +25,7 @@ describe('handleLifecycleEvent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     manager = createMockManager();
-    setCatchUpPollCallback(null as any);
+    setCatchUpPollCallback(null);
   });
 
   describe('subscriptionRemoved', () => {
@@ -61,7 +61,7 @@ describe('handleLifecycleEvent', () => {
     });
 
     it('should log warning when no callback is registered', async () => {
-      setCatchUpPollCallback(null as any);
+      setCatchUpPollCallback(null);
 
       await handleLifecycleEvent('missed', manager);
 
@@ -126,7 +126,7 @@ describe('handleLifecycleEvent', () => {
 
 describe('setCatchUpPollCallback', () => {
   beforeEach(() => {
-    setCatchUpPollCallback(null as any);
+    setCatchUpPollCallback(null);
   });
 
   it('should register a callback', () => {

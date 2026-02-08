@@ -24,9 +24,12 @@ export function isSubscriptionConfigured(ws: WebhookSubscriptionConfig): boolean
 
 /** Build subscription config from app settings */
 export function buildSubscriptionConfig(ws: WebhookSubscriptionConfig, mailboxAddress: string): SubscriptionConfig {
+  if (!ws.notificationUrl || !ws.clientState) {
+    throw new Error('notificationUrl and clientState are required — call isSubscriptionConfigured() first');
+  }
   return {
-    notificationUrl: ws.notificationUrl!,
-    clientState: ws.clientState!,
+    notificationUrl: ws.notificationUrl,
+    clientState: ws.clientState,
     resource: ws.resource || `users/${mailboxAddress}/messages`,
     renewalMarginMs: ws.renewalMarginMs,
   };

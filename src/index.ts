@@ -133,13 +133,19 @@ class Application {
   }
 
   private async initializeSubscriptionManager(): Promise<void> {
-    const { config, createSubscriptionManager } = this.modules;
-    this.subscriptionManager = await createSubscriptionManager(
-      this.mailboxMonitor.getGraphClient(),
-      config.webhookSubscription,
-      config.mailbox.address,
-      () => this.mailMonitor.poll().then(() => {})
-    );
+    const { securityLogger, config, createSubscriptionManager } = this.modules;
+    try {
+      this.subscriptionManager = await createSubscriptionManager(
+        this.mailboxMonitor.getGraphClient(),
+        config.webhookSubscription,
+        config.mailbox.address,
+        () => this.mailMonitor.poll().then(() => {})
+      );
+    } catch (error: unknown) {
+      securityLogger.error('Subscription manager initialization failed, continuing without push notifications', {
+        error: getErrorMessage(error),
+      });
+    }
   }
 
   private async initializeHttpServer(): Promise<void> {

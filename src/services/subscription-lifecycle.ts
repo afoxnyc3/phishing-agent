@@ -22,7 +22,7 @@ export type CatchUpPollCallback = () => Promise<void>;
 let catchUpPollCallback: CatchUpPollCallback | null = null;
 
 /** Register a callback for catch-up polling when missed notifications occur */
-export function setCatchUpPollCallback(callback: CatchUpPollCallback): void {
+export function setCatchUpPollCallback(callback: CatchUpPollCallback | null): void {
   catchUpPollCallback = callback;
 }
 

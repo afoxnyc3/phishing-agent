@@ -60,7 +60,7 @@ export const EnvConfigSchema = z
 
     // Webhook subscription configuration
     WEBHOOK_NOTIFICATION_URL: z.string().url().optional(),
-    WEBHOOK_CLIENT_STATE: z.string().optional(),
+    WEBHOOK_CLIENT_STATE: z.string().min(1).optional(),
     WEBHOOK_SUBSCRIPTION_RESOURCE: z.string().optional(),
     WEBHOOK_SUBSCRIPTION_ENABLED: z.coerce.boolean().default(true),
     WEBHOOK_RENEWAL_MARGIN_MS: z.coerce.number().int().positive().default(7200000), // 2 hours
