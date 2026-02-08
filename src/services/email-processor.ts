@@ -16,6 +16,10 @@ import { buildReplyHtml, buildErrorReplyHtml, createReplyMessage } from './email
 import { metrics } from './metrics.js';
 import { evaluateEmailGuards, __testResetMessageIdCache } from './email-guards.js';
 import { getErrorMessage } from '../lib/errors.js';
+import { generateCorrelationId, runWithCorrelation, setProcessingStage } from '../lib/correlation.js';
+import { correlationMetrics } from '../lib/correlation-metrics.js';
+import type { GuardType } from '../lib/correlation-metrics.js';
+import { webhookArrivalTimes } from './webhook-arrival-times.js';
 
 // Re-export guards for backwards compatibility
 export { evaluateEmailGuards, __testResetMessageIdCache };
@@ -49,9 +53,12 @@ async function checkPreConditions(
   ctx: EmailContext,
   config: EmailProcessorConfig
 ): Promise<boolean> {
+  setProcessingStage('guard-check');
   const guardResult = evaluateEmailGuards(graphEmail, config.mailboxAddress);
   if (!guardResult.allowed) {
     metrics.recordDeduplicationHit();
+    correlationMetrics.recordGuardHit(guardResult.reason as GuardType);
+    setProcessingStage('rejected');
     securityLogger.warn('Email blocked by guardrail', {
       processingId: ctx.processingId,
       emailId: graphEmail.id,
@@ -62,12 +69,15 @@ async function checkPreConditions(
   const dedupeCheck = await config.deduplication.shouldProcess(ctx.senderEmail, ctx.subject, ctx.body);
   if (!dedupeCheck.allowed) {
     metrics.recordDeduplicationHit();
+    correlationMetrics.recordGuardHit('deduplication');
+    setProcessingStage('rejected');
     securityLogger.info('Email skipped due to deduplication', {
       processingId: ctx.processingId,
       reason: dedupeCheck.reason,
     });
     return false;
   }
+  correlationMetrics.recordGuardPass();
   return true;
 }
 
@@ -75,7 +85,14 @@ async function checkPreConditions(
  * Process single email with full analysis pipeline
  */
 export async function processEmail(graphEmail: GraphEmail, config: EmailProcessorConfig): Promise<void> {
+  const correlationId = generateCorrelationId();
+  return runWithCorrelation(correlationId, () => executeProcessing(graphEmail, config));
+}
+
+async function executeProcessing(graphEmail: GraphEmail, config: EmailProcessorConfig): Promise<void> {
   const ctx = extractEmailContext(graphEmail);
+  const arrival = webhookArrivalTimes.consume(graphEmail.id);
+  if (arrival !== undefined) correlationMetrics.recordWebhookLatency(Date.now() - arrival);
   securityLogger.info('Processing email from mailbox', {
     processingId: ctx.processingId,
     emailId: graphEmail.id,
@@ -87,8 +104,10 @@ export async function processEmail(graphEmail: GraphEmail, config: EmailProcesso
 
   try {
     const analysisResult = await executeAnalysis(graphEmail, ctx.processingId, config);
+    setProcessingStage('reply-send');
     await sendAnalysisReply(graphEmail, analysisResult, ctx.processingId, config);
     await config.deduplication.recordProcessed(ctx.senderEmail, ctx.subject, ctx.body);
+    setProcessingStage('completed');
     securityLogger.info('Email processing completed successfully', {
       processingId: ctx.processingId,
     });
@@ -102,11 +121,15 @@ async function executeAnalysis(
   processingId: string,
   config: EmailProcessorConfig
 ): Promise<PhishingAnalysisResult> {
+  setProcessingStage('risk-scoring');
   const analysisStart = Date.now();
   const analysisRequest = parseGraphEmail(graphEmail);
   const analysisResult = await config.phishingAgent.analyzeEmail(analysisRequest);
-  metrics.recordAnalysisLatency(Date.now() - analysisStart);
+  const analysisDuration = Date.now() - analysisStart;
+  metrics.recordAnalysisLatency(analysisDuration);
   metrics.recordEmailProcessed(analysisResult.isPhishing);
+  correlationMetrics.recordAnalysisDuration(analysisDuration);
+  correlationMetrics.recordRiskScore(analysisResult.riskScore);
   securityLogger.security('Email analyzed via mailbox monitor', {
     processingId,
     messageId: analysisResult.messageId,
@@ -165,13 +188,8 @@ async function sendAnalysisReply(
   try {
     const replyStart = Date.now();
     await config.graphClient.api(`/users/${config.mailboxAddress}/sendMail`).post(replyMessage);
-    const replyLatency = Date.now() - replyStart;
-
-    // Record metrics
-    metrics.recordReplyLatency(replyLatency);
+    metrics.recordReplyLatency(Date.now() - replyStart);
     metrics.recordReplySent();
-
-    // Record email sent after successful send
     await config.rateLimiter.recordEmailSent();
 
     securityLogger.info('Analysis reply sent', {
