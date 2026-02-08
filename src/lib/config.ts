@@ -141,6 +141,15 @@ export const config = {
     keyPrefix: env.REDIS_KEY_PREFIX,
   },
 
+  // Webhook subscription (optional - enables Graph API push notifications)
+  webhookSubscription: {
+    enabled: env.WEBHOOK_SUBSCRIPTION_ENABLED,
+    notificationUrl: env.WEBHOOK_NOTIFICATION_URL,
+    clientState: env.WEBHOOK_CLIENT_STATE,
+    resource: env.WEBHOOK_SUBSCRIPTION_RESOURCE,
+    renewalMarginMs: env.WEBHOOK_RENEWAL_MARGIN_MS,
+  },
+
   // HTTP server
   http: {
     bodyLimit: env.HTTP_BODY_LIMIT,
