@@ -2,10 +2,10 @@
  * Webhook Route Tests
  */
 
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-jest.unstable_mockModule('../lib/logger.js', () => ({
-  securityLogger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
+vi.mock('../lib/logger.js', () => ({
+  securityLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
 const { createWebhookRouter } = await import('./webhook-route.js');
@@ -16,10 +16,10 @@ function mockReq(overrides: Record<string, unknown> = {}) {
 
 function mockRes() {
   const res = {
-    status: jest.fn<any>().mockReturnThis(),
-    type: jest.fn<any>().mockReturnThis(),
-    send: jest.fn<any>().mockReturnThis(),
-    json: jest.fn<any>().mockReturnThis(),
+    status: vi.fn<any>().mockReturnThis(),
+    type: vi.fn<any>().mockReturnThis(),
+    send: vi.fn<any>().mockReturnThis(),
+    json: vi.fn<any>().mockReturnThis(),
   };
   return res;
 }
@@ -51,7 +51,7 @@ describe('Webhook Route', () => {
   let handler: any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     handler = getRouteHandler(CLIENT_STATE);
   });
 

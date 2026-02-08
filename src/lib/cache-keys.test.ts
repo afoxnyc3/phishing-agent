@@ -2,7 +2,7 @@
  * Cache Key Versioning Tests
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import { versionedKey, CacheKeys } from './cache-keys.js';
 
 describe('versionedKey', () => {
