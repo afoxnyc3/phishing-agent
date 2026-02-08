@@ -5,13 +5,14 @@
  */
 
 import { CacheProvider } from '../lib/cache-provider.js';
+import { CacheKeys } from '../lib/cache-keys.js';
 import { securityLogger } from '../lib/logger.js';
 import { RateLimiterConfig } from './rate-limiter.js';
 
-/** Redis key suffixes */
+/** Versioned Redis key builders */
 const KEYS = {
-  timestamps: 'ratelimit:timestamps',
-  circuit: 'ratelimit:circuit',
+  timestamps: CacheKeys.rateLimit.timestamps('global'),
+  circuit: CacheKeys.rateLimit.circuit('global'),
 };
 
 /** Stats returned by getStats() */
