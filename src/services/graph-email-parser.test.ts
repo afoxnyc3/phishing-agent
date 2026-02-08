@@ -1,14 +1,14 @@
-import { describe, it, expect, jest } from '@jest/globals';
+import { describe, it, expect, vi } from 'vitest';
 import { parseGraphEmail, validateAnalysisRequest } from './graph-email-parser.js';
 
 // Mock logger
-jest.mock('../lib/logger.js', () => ({
+vi.mock('../lib/logger.js', () => ({
   securityLogger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
-    security: jest.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    security: vi.fn(),
   },
 }));
 

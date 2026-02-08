@@ -3,30 +3,32 @@
  * Tests for secret loading from Azure Key Vault
  */
 
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Mock the logger
-jest.unstable_mockModule('./logger.js', () => ({
+vi.mock('./logger.js', () => ({
   securityLogger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
   },
 }));
 
-// Create mock functions that we can control
-const mockGetSecret = jest.fn<() => Promise<{ value: string | undefined }>>();
-
-// Mock Azure SDK
-jest.unstable_mockModule('@azure/identity', () => ({
-  DefaultAzureCredential: jest.fn().mockImplementation(() => ({})),
+// Create hoisted mock functions for use inside vi.mock factories
+const { mockGetSecret } = vi.hoisted(() => ({
+  mockGetSecret: vi.fn<() => Promise<{ value: string | undefined }>>(),
 }));
 
-jest.unstable_mockModule('@azure/keyvault-secrets', () => ({
-  SecretClient: jest.fn().mockImplementation(() => ({
-    getSecret: mockGetSecret,
-  })),
+// Mock Azure SDK
+vi.mock('@azure/identity', () => ({
+  DefaultAzureCredential: class MockCredential {},
+}));
+
+vi.mock('@azure/keyvault-secrets', () => ({
+  SecretClient: class MockSecretClient {
+    getSecret = mockGetSecret;
+  },
 }));
 
 const { loadSecretsFromKeyVault, isKeyVaultConfigured } = await import('./keyvault.js');
@@ -35,7 +37,7 @@ describe('Azure Key Vault', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     process.env = { ...originalEnv };
     // Clear relevant env vars
     delete process.env.AZURE_KEY_VAULT_NAME;

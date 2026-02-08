@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { PiiRedactor } from './pii-redactor.js';
 
 describe('PiiRedactor', () => {

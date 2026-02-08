@@ -1,23 +1,23 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock modules using unstable_mockModule for ESM compatibility
-jest.unstable_mockModule('axios', () => ({
+vi.mock('axios', () => ({
   default: {
-    create: jest.fn(() => ({
-      get: jest.fn(),
-      post: jest.fn(),
+    create: vi.fn(() => ({
+      get: vi.fn(),
+      post: vi.fn(),
     })),
   },
 }));
 
-jest.unstable_mockModule('node-cache', () => ({
-  default: jest.fn().mockImplementation(() => ({
-    get: jest.fn().mockReturnValue(null),
-    set: jest.fn(),
-  })),
+vi.mock('node-cache', () => ({
+  default: class MockNodeCache {
+    get = vi.fn().mockReturnValue(null);
+    set = vi.fn();
+  },
 }));
 
-jest.unstable_mockModule('../lib/config.js', () => ({
+vi.mock('../lib/config.js', () => ({
   config: {
     threatIntel: {
       enabled: true,
@@ -30,12 +30,12 @@ jest.unstable_mockModule('../lib/config.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../lib/logger.js', () => ({
+vi.mock('../lib/logger.js', () => ({
   securityLogger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
   },
 }));
 
@@ -46,7 +46,7 @@ describe('ThreatIntelService', () => {
   let service: InstanceType<typeof ThreatIntelService>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     service = new ThreatIntelService();
   });
 
@@ -110,7 +110,7 @@ describe('ThreatIntelService', () => {
 
       // Mock client to return cached result
       (service as any).virusTotalClient = {
-        checkUrl: jest.fn<any>().mockResolvedValue(cachedResult),
+        checkUrl: vi.fn<any>().mockResolvedValue(cachedResult),
       };
 
       const result = await service.checkUrlReputation('https://example.com');
@@ -138,7 +138,7 @@ describe('ThreatIntelService', () => {
 
       // Mock client to return cached result
       (service as any).abuseIpDbClient = {
-        checkIp: jest.fn<any>().mockResolvedValue(cachedResult),
+        checkIp: vi.fn<any>().mockResolvedValue(cachedResult),
       };
 
       const result = await service.checkIpReputation('1.2.3.4');
@@ -158,7 +158,7 @@ describe('ThreatIntelService', () => {
     });
 
     it('should cache domain age results', async () => {
-      const setCacheMock = jest.fn();
+      const setCacheMock = vi.fn();
       (service as any).cache.set = setCacheMock;
 
       await service.checkDomainAge('example.com');
@@ -175,7 +175,7 @@ describe('ThreatIntelService', () => {
         suspicionReasons: ['Too new'],
       };
 
-      (service as any).cache.get = jest.fn().mockReturnValue(cachedResult);
+      (service as any).cache.get = vi.fn().mockReturnValue(cachedResult);
 
       const result = await service.checkDomainAge('example.com');
 
@@ -185,9 +185,9 @@ describe('ThreatIntelService', () => {
 
   describe('Parallel Lookups', () => {
     it('should perform parallel lookups for URLs, IP, and domain', async () => {
-      const checkUrlReputationSpy = jest.spyOn(service, 'checkUrlReputation').mockResolvedValue(null);
-      const checkIpReputationSpy = jest.spyOn(service, 'checkIpReputation').mockResolvedValue(null);
-      const checkDomainAgeSpy = jest.spyOn(service, 'checkDomainAge').mockResolvedValue(null);
+      const checkUrlReputationSpy = vi.spyOn(service, 'checkUrlReputation').mockResolvedValue(null);
+      const checkIpReputationSpy = vi.spyOn(service, 'checkIpReputation').mockResolvedValue(null);
+      const checkDomainAgeSpy = vi.spyOn(service, 'checkDomainAge').mockResolvedValue(null);
 
       await service.enrichEmail('test@example.com', '1.2.3.4', ['https://test.com', 'https://test2.com']);
 
@@ -197,7 +197,7 @@ describe('ThreatIntelService', () => {
     });
 
     it('should limit URL checks to first 3 URLs', async () => {
-      const checkUrlReputationSpy = jest.spyOn(service, 'checkUrlReputation').mockResolvedValue(null);
+      const checkUrlReputationSpy = vi.spyOn(service, 'checkUrlReputation').mockResolvedValue(null);
 
       const urls = Array(10).fill('https://test.com');
       await service.enrichEmail('test@example.com', null, urls);
@@ -206,7 +206,7 @@ describe('ThreatIntelService', () => {
     });
 
     it('should skip IP lookup if no IP provided', async () => {
-      const checkIpReputationSpy = jest.spyOn(service, 'checkIpReputation').mockResolvedValue(null);
+      const checkIpReputationSpy = vi.spyOn(service, 'checkIpReputation').mockResolvedValue(null);
 
       await service.enrichEmail('test@example.com', null, []);
 
@@ -216,7 +216,7 @@ describe('ThreatIntelService', () => {
 
   describe('Result Processing', () => {
     it('should process malicious URL result', async () => {
-      jest.spyOn(service, 'checkUrlReputation').mockResolvedValue({
+      vi.spyOn(service, 'checkUrlReputation').mockResolvedValue({
         url: 'https://evil.com',
         malicious: true,
         maliciousCount: 10,
@@ -234,7 +234,7 @@ describe('ThreatIntelService', () => {
     });
 
     it('should process malicious IP result', async () => {
-      jest.spyOn(service, 'checkIpReputation').mockResolvedValue({
+      vi.spyOn(service, 'checkIpReputation').mockResolvedValue({
         ip: '1.2.3.4',
         malicious: true,
         abuseConfidenceScore: 85,
@@ -250,7 +250,7 @@ describe('ThreatIntelService', () => {
     });
 
     it('should process new domain result', async () => {
-      jest.spyOn(service, 'checkDomainAge').mockResolvedValue({
+      vi.spyOn(service, 'checkDomainAge').mockResolvedValue({
         domain: 'newdomain.com',
         ageDays: 5,
         createdDate: '2024-01-01',
@@ -267,7 +267,7 @@ describe('ThreatIntelService', () => {
     });
 
     it('should not flag old domains', async () => {
-      jest.spyOn(service, 'checkDomainAge').mockResolvedValue({
+      vi.spyOn(service, 'checkDomainAge').mockResolvedValue({
         domain: 'olddomain.com',
         ageDays: 365,
         createdDate: '2023-01-01',
@@ -284,7 +284,7 @@ describe('ThreatIntelService', () => {
 
   describe('Risk Contribution', () => {
     it('should increase risk for malicious URL with high confidence', async () => {
-      jest.spyOn(service, 'checkUrlReputation').mockResolvedValue({
+      vi.spyOn(service, 'checkUrlReputation').mockResolvedValue({
         url: 'https://evil.com',
         malicious: true,
         maliciousCount: 15,
@@ -299,7 +299,7 @@ describe('ThreatIntelService', () => {
     });
 
     it('should increase risk for high abuse confidence IP', async () => {
-      jest.spyOn(service, 'checkIpReputation').mockResolvedValue({
+      vi.spyOn(service, 'checkIpReputation').mockResolvedValue({
         ip: '1.2.3.4',
         malicious: true,
         abuseConfidenceScore: 95,
@@ -312,7 +312,7 @@ describe('ThreatIntelService', () => {
     });
 
     it('should increase risk more for very new domains', async () => {
-      jest.spyOn(service, 'checkDomainAge').mockResolvedValue({
+      vi.spyOn(service, 'checkDomainAge').mockResolvedValue({
         domain: 'newdomain.com',
         ageDays: 3,
         createdDate: '2024-01-01',
@@ -328,7 +328,7 @@ describe('ThreatIntelService', () => {
 
   describe('Error Handling', () => {
     it('should handle API errors gracefully', async () => {
-      jest.spyOn(service, 'checkUrlReputation').mockRejectedValue(new Error('API Error'));
+      vi.spyOn(service, 'checkUrlReputation').mockRejectedValue(new Error('API Error'));
 
       const result = await service.enrichEmail('test@example.com', null, ['https://test.com']);
 
@@ -338,8 +338,8 @@ describe('ThreatIntelService', () => {
     });
 
     it('should continue processing other lookups if one fails', async () => {
-      jest.spyOn(service, 'checkUrlReputation').mockRejectedValue(new Error('URL API Error'));
-      jest.spyOn(service, 'checkIpReputation').mockResolvedValue({
+      vi.spyOn(service, 'checkUrlReputation').mockRejectedValue(new Error('URL API Error'));
+      vi.spyOn(service, 'checkIpReputation').mockResolvedValue({
         ip: '1.2.3.4',
         malicious: true,
         abuseConfidenceScore: 75,
@@ -395,7 +395,7 @@ describe('ThreatIntelService', () => {
       };
       // Mock the client's checkUrl method to return cached result
       (service as any).virusTotalClient = {
-        checkUrl: jest.fn<any>().mockResolvedValue(cachedResult),
+        checkUrl: vi.fn<any>().mockResolvedValue(cachedResult),
       };
 
       const result = await service.checkUrlReputation('https://cached.com');
@@ -412,7 +412,7 @@ describe('ThreatIntelService', () => {
       };
       // Mock the client's checkIp method to return cached result
       (service as any).abuseIpDbClient = {
-        checkIp: jest.fn<any>().mockResolvedValue(cachedResult),
+        checkIp: vi.fn<any>().mockResolvedValue(cachedResult),
       };
 
       const result = await service.checkIpReputation('1.2.3.4');
@@ -421,7 +421,7 @@ describe('ThreatIntelService', () => {
     });
 
     it('should use cache for domain age', async () => {
-      const getCacheMock = jest.fn().mockReturnValue({
+      const getCacheMock = vi.fn().mockReturnValue({
         domain: 'example.com',
         ageDays: 100,
         createdDate: '2023-01-01',
@@ -457,7 +457,7 @@ describe('ThreatIntelService', () => {
   describe('Validation Failures', () => {
     it('should return null when VirusTotal client returns null for invalid response', async () => {
       // Mock client to return null (simulating invalid response handling)
-      (service as any).virusTotalClient = { checkUrl: jest.fn<any>().mockResolvedValue(null) };
+      (service as any).virusTotalClient = { checkUrl: vi.fn<any>().mockResolvedValue(null) };
 
       const result = await service.checkUrlReputation('https://test.com');
 
@@ -466,7 +466,7 @@ describe('ThreatIntelService', () => {
 
     it('should return null when AbuseIPDB client returns null for invalid response', async () => {
       // Mock client to return null (simulating invalid response handling)
-      (service as any).abuseIpDbClient = { checkIp: jest.fn<any>().mockResolvedValue(null) };
+      (service as any).abuseIpDbClient = { checkIp: vi.fn<any>().mockResolvedValue(null) };
 
       const result = await service.checkIpReputation('1.2.3.4');
 
@@ -476,7 +476,7 @@ describe('ThreatIntelService', () => {
 
   describe('Medium Risk Scenarios', () => {
     it('should assign medium severity for domains aged 7-30 days', async () => {
-      jest.spyOn(service, 'checkDomainAge').mockResolvedValue({
+      vi.spyOn(service, 'checkDomainAge').mockResolvedValue({
         domain: 'newerdomain.com',
         ageDays: 15, // Between 7 and 30 days
         createdDate: '2024-01-15',
@@ -493,7 +493,7 @@ describe('ThreatIntelService', () => {
     });
 
     it('should assign high severity for URL with low confidence score', async () => {
-      jest.spyOn(service, 'checkUrlReputation').mockResolvedValue({
+      vi.spyOn(service, 'checkUrlReputation').mockResolvedValue({
         url: 'https://suspicious.com',
         malicious: true,
         maliciousCount: 2,
@@ -510,7 +510,7 @@ describe('ThreatIntelService', () => {
     });
 
     it('should assign medium severity for IP with abuse confidence 50-74', async () => {
-      jest.spyOn(service, 'checkIpReputation').mockResolvedValue({
+      vi.spyOn(service, 'checkIpReputation').mockResolvedValue({
         ip: '5.6.7.8',
         malicious: true,
         abuseConfidenceScore: 60,
@@ -525,7 +525,7 @@ describe('ThreatIntelService', () => {
     });
 
     it('should not add IP indicator when abuse confidence is below 50', async () => {
-      jest.spyOn(service, 'checkIpReputation').mockResolvedValue({
+      vi.spyOn(service, 'checkIpReputation').mockResolvedValue({
         ip: '5.6.7.8',
         malicious: false, // Below threshold, but also marked not malicious
         abuseConfidenceScore: 30,
@@ -541,9 +541,9 @@ describe('ThreatIntelService', () => {
 
   describe('Empty Results', () => {
     it('should handle null results from all lookups', async () => {
-      jest.spyOn(service, 'checkUrlReputation').mockResolvedValue(null);
-      jest.spyOn(service, 'checkIpReputation').mockResolvedValue(null);
-      jest.spyOn(service, 'checkDomainAge').mockResolvedValue(null);
+      vi.spyOn(service, 'checkUrlReputation').mockResolvedValue(null);
+      vi.spyOn(service, 'checkIpReputation').mockResolvedValue(null);
+      vi.spyOn(service, 'checkDomainAge').mockResolvedValue(null);
 
       const result = await service.enrichEmail('test@example.com', '1.2.3.4', ['https://test.com']);
 
@@ -552,9 +552,9 @@ describe('ThreatIntelService', () => {
     });
 
     it('should handle rejected lookups gracefully', async () => {
-      jest.spyOn(service, 'checkUrlReputation').mockRejectedValue(new Error('Network error'));
-      jest.spyOn(service, 'checkIpReputation').mockRejectedValue(new Error('Timeout'));
-      jest.spyOn(service, 'checkDomainAge').mockRejectedValue(new Error('WHOIS error'));
+      vi.spyOn(service, 'checkUrlReputation').mockRejectedValue(new Error('Network error'));
+      vi.spyOn(service, 'checkIpReputation').mockRejectedValue(new Error('Timeout'));
+      vi.spyOn(service, 'checkDomainAge').mockRejectedValue(new Error('WHOIS error'));
 
       const result = await service.enrichEmail('test@example.com', '1.2.3.4', ['https://test.com']);
 
@@ -567,7 +567,7 @@ describe('ThreatIntelService', () => {
 
   describe('URL Processing Edge Cases', () => {
     it('should handle non-malicious URL results', async () => {
-      jest.spyOn(service, 'checkUrlReputation').mockResolvedValue({
+      vi.spyOn(service, 'checkUrlReputation').mockResolvedValue({
         url: 'https://safe.com',
         malicious: false,
         maliciousCount: 0,
@@ -583,7 +583,7 @@ describe('ThreatIntelService', () => {
     });
 
     it('should process multiple malicious URLs', async () => {
-      jest.spyOn(service, 'checkUrlReputation').mockResolvedValue({
+      vi.spyOn(service, 'checkUrlReputation').mockResolvedValue({
         url: 'https://evil.com',
         malicious: true,
         maliciousCount: 5,
@@ -605,7 +605,7 @@ describe('ThreatIntelService', () => {
 
   describe('Domain Extraction Edge Cases', () => {
     it('should skip domain lookup when domain extraction fails', async () => {
-      const checkDomainAgeSpy = jest.spyOn(service, 'checkDomainAge');
+      const checkDomainAgeSpy = vi.spyOn(service, 'checkDomainAge');
 
       await service.enrichEmail('invalid-email', null, []);
 
@@ -615,7 +615,7 @@ describe('ThreatIntelService', () => {
 
   describe('Parallel Lookup Combinations', () => {
     it('should handle all lookups with mixed results', async () => {
-      jest.spyOn(service, 'checkUrlReputation').mockResolvedValue({
+      vi.spyOn(service, 'checkUrlReputation').mockResolvedValue({
         url: 'https://evil.com',
         malicious: true,
         maliciousCount: 8,
@@ -623,13 +623,13 @@ describe('ThreatIntelService', () => {
         detectedBy: ['Scanner1'],
         confidenceScore: 0.8,
       });
-      jest.spyOn(service, 'checkIpReputation').mockResolvedValue({
+      vi.spyOn(service, 'checkIpReputation').mockResolvedValue({
         ip: '1.2.3.4',
         malicious: true,
         abuseConfidenceScore: 80,
         totalReports: 50,
       });
-      jest.spyOn(service, 'checkDomainAge').mockResolvedValue({
+      vi.spyOn(service, 'checkDomainAge').mockResolvedValue({
         domain: 'newsite.com',
         ageDays: 5,
         createdDate: '2024-01-20',

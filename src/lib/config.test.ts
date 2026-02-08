@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Set minimum required env vars before config module loads
 process.env.AZURE_TENANT_ID = process.env.AZURE_TENANT_ID || 'test-tenant-id';
@@ -10,7 +10,7 @@ const { getEnv, getEnvNumber, getEnvBoolean, isProduction } = await import('./co
 
 // Helper to dynamically import config with fresh env values
 async function importConfig() {
-  jest.resetModules();
+  vi.resetModules();
   const module = await import('./config.js');
   return module.config;
 }

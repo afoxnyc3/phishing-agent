@@ -1,51 +1,53 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PhishingAnalysisResult } from '../lib/types.js';
 
-// Mock setup - must be before imports
-const mockGraphGet = jest.fn<() => Promise<unknown>>();
-const mockGraphPost = jest.fn<() => Promise<unknown>>();
-const mockGraphApi = jest.fn(() => ({
-  get: mockGraphGet,
-  post: mockGraphPost,
-  filter: jest.fn().mockReturnThis(),
-  orderby: jest.fn().mockReturnThis(),
-  top: jest.fn().mockReturnThis(),
-  select: jest.fn().mockReturnThis(),
-  expand: jest.fn().mockReturnThis(),
-}));
+// Create hoisted mock functions for use inside vi.mock factories
+const { mockGraphGet, mockGraphPost, mockGraphApi, mockGetToken } = vi.hoisted(() => {
+  const mockGraphGet = vi.fn<any>();
+  const mockGraphPost = vi.fn<any>();
+  const mockGraphApi = vi.fn(() => ({
+    get: mockGraphGet,
+    post: mockGraphPost,
+    filter: vi.fn().mockReturnThis(),
+    orderby: vi.fn().mockReturnThis(),
+    top: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    expand: vi.fn().mockReturnThis(),
+  }));
+  const mockGetToken = vi.fn(() => Promise.resolve({ token: 'mock-token', expiresOnTimestamp: Date.now() + 3600000 }));
+  return { mockGraphGet, mockGraphPost, mockGraphApi, mockGetToken };
+});
 
-const mockGetToken = jest.fn(() => Promise.resolve({ token: 'mock-token', expiresOnTimestamp: Date.now() + 3600000 }));
-
-// Mock modules using unstable_mockModule for ESM
-jest.unstable_mockModule('@microsoft/microsoft-graph-client', () => ({
+// Mock modules
+vi.mock('@microsoft/microsoft-graph-client', () => ({
   Client: {
-    initWithMiddleware: jest.fn(() => ({
+    initWithMiddleware: vi.fn(() => ({
       api: mockGraphApi,
     })),
   },
 }));
 
-jest.unstable_mockModule('@azure/identity', () => ({
-  ClientSecretCredential: jest.fn().mockImplementation(() => ({
-    getToken: mockGetToken,
-  })),
-  DefaultAzureCredential: jest.fn().mockImplementation(() => ({
-    getToken: mockGetToken,
-  })),
-}));
-
-jest.unstable_mockModule('../lib/logger.js', () => ({
-  securityLogger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
-    security: jest.fn(),
+vi.mock('@azure/identity', () => ({
+  ClientSecretCredential: class MockClientSecretCredential {
+    getToken = mockGetToken;
+  },
+  DefaultAzureCredential: class MockDefaultAzureCredential {
+    getToken = mockGetToken;
   },
 }));
 
-jest.unstable_mockModule('./graph-email-parser.js', () => ({
-  parseGraphEmail: jest.fn((email: unknown) => {
+vi.mock('../lib/logger.js', () => ({
+  securityLogger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    security: vi.fn(),
+  },
+}));
+
+vi.mock('./graph-email-parser.js', () => ({
+  parseGraphEmail: vi.fn((email: unknown) => {
     const e = email as {
       internetMessageId?: string;
       id?: string;
@@ -65,7 +67,7 @@ jest.unstable_mockModule('./graph-email-parser.js', () => ({
       attachments: [],
     };
   }),
-  validateGraphEmailListResponse: jest.fn((response: unknown) => (response as { value?: unknown[] }).value || []),
+  validateGraphEmailListResponse: vi.fn((response: unknown) => (response as { value?: unknown[] }).value || []),
 }));
 
 // Import after mocks are set up
@@ -78,18 +80,18 @@ import type { PhishingAgent } from '../agents/phishing-agent.js';
 
 describe('MailboxMonitor', () => {
   let monitor: InstanceType<typeof MailboxMonitor>;
-  let mockPhishingAgent: jest.Mocked<PhishingAgent>;
+  let mockPhishingAgent: vi.Mocked<PhishingAgent>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     __testResetMessageIdCache();
 
     // Create mock phishing agent
     mockPhishingAgent = {
-      analyzeEmail: jest.fn(),
-      healthCheck: jest.fn(),
-      initialize: jest.fn(),
-      shutdown: jest.fn(),
+      analyzeEmail: vi.fn(),
+      healthCheck: vi.fn(),
+      initialize: vi.fn(),
+      shutdown: vi.fn(),
     } as any;
 
     const config = {

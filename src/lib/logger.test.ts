@@ -1,27 +1,27 @@
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Create mock logger before importing modules
 const mockLogger = {
-  info: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
-  debug: jest.fn(),
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
 };
 
 // Mock winston using unstable_mockModule for ESM
-jest.unstable_mockModule('winston', () => ({
+vi.mock('winston', () => ({
   default: {
-    createLogger: jest.fn(() => mockLogger),
+    createLogger: vi.fn(() => mockLogger),
     format: {
-      combine: jest.fn((...args: unknown[]) => args),
-      timestamp: jest.fn(),
-      errors: jest.fn(),
-      json: jest.fn(),
-      colorize: jest.fn(),
-      simple: jest.fn(),
+      combine: vi.fn((...args: unknown[]) => args),
+      timestamp: vi.fn(),
+      errors: vi.fn(),
+      json: vi.fn(),
+      colorize: vi.fn(),
+      simple: vi.fn(),
     },
     transports: {
-      Console: jest.fn(),
+      Console: vi.fn(),
     },
   },
 }));
@@ -34,7 +34,7 @@ describe('Logger Module', () => {
   let mockWinstonLogger: typeof mockLogger;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockWinstonLogger = mockLogger;
     testLogger = new SecurityLogger();
   });
@@ -262,17 +262,17 @@ describe('Logger Module', () => {
 
   describe('PerformanceTimer', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should track operation duration for successful operation', () => {
       const timer = new PerformanceTimer('timer-test-op');
 
-      jest.advanceTimersByTime(150);
+      vi.advanceTimersByTime(150);
 
       timer.end(true);
 
@@ -287,7 +287,7 @@ describe('Logger Module', () => {
     it('should track operation duration for failed operation', () => {
       const timer = new PerformanceTimer('timer-failing-op');
 
-      jest.advanceTimersByTime(300);
+      vi.advanceTimersByTime(300);
 
       timer.end(false, 'Operation timeout');
 
@@ -309,7 +309,7 @@ describe('Logger Module', () => {
     it('should log debug message on successful completion', () => {
       const timer = new PerformanceTimer('successful-op');
 
-      jest.advanceTimersByTime(200);
+      vi.advanceTimersByTime(200);
 
       timer.end(true);
 
@@ -319,7 +319,7 @@ describe('Logger Module', () => {
     it('should log warn message on failed completion', () => {
       const timer = new PerformanceTimer('failed-op');
 
-      jest.advanceTimersByTime(250);
+      vi.advanceTimersByTime(250);
 
       timer.end(false, 'Error occurred');
 
@@ -330,13 +330,13 @@ describe('Logger Module', () => {
 
     it('should track multiple concurrent operations', () => {
       const timer1 = new PerformanceTimer('timer-concurrent-1');
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
 
       const timer2 = new PerformanceTimer('timer-concurrent-2');
-      jest.advanceTimersByTime(50);
+      vi.advanceTimersByTime(50);
 
       timer1.end(true);
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
 
       timer2.end(true);
 

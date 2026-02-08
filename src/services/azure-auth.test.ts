@@ -3,38 +3,46 @@
  * Tests for Azure credential creation and Graph client initialization
  */
 
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Mock the logger
-jest.unstable_mockModule('../lib/logger.js', () => ({
+vi.mock('../lib/logger.js', () => ({
   securityLogger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
   },
 }));
 
-// Mock Azure Identity
-const mockDefaultAzureCredential = jest.fn<() => object>();
-const mockClientSecretCredential = jest.fn<() => object>();
+// Create hoisted mock functions for use inside vi.mock factories
+const { mockDefaultAzureCredential, mockClientSecretCredential, mockInitWithMiddleware } = vi.hoisted(() => ({
+  mockDefaultAzureCredential: vi.fn<any>(),
+  mockClientSecretCredential: vi.fn<any>(),
+  mockInitWithMiddleware: vi.fn<any>().mockReturnValue({
+    api: vi.fn().mockReturnThis(),
+    get: vi.fn<any>().mockResolvedValue({}),
+  }),
+}));
 
-jest.unstable_mockModule('@azure/identity', () => ({
-  DefaultAzureCredential: mockDefaultAzureCredential.mockImplementation(() => ({
-    getToken: jest.fn<() => Promise<{ token: string }>>().mockResolvedValue({ token: 'mock-managed-identity-token' }),
-  })),
-  ClientSecretCredential: mockClientSecretCredential.mockImplementation(() => ({
-    getToken: jest.fn<() => Promise<{ token: string }>>().mockResolvedValue({ token: 'mock-client-secret-token' }),
-  })),
+// Mock Azure Identity
+vi.mock('@azure/identity', () => ({
+  DefaultAzureCredential: class MockDefaultAzureCredential {
+    getToken = vi.fn<any>().mockResolvedValue({ token: 'mock-managed-identity-token' });
+    constructor(...args: any[]) {
+      mockDefaultAzureCredential(...args);
+    }
+  },
+  ClientSecretCredential: class MockClientSecretCredential {
+    getToken = vi.fn<any>().mockResolvedValue({ token: 'mock-client-secret-token' });
+    constructor(...args: any[]) {
+      mockClientSecretCredential(...args);
+    }
+  },
 }));
 
 // Mock Microsoft Graph Client
-const mockInitWithMiddleware = jest.fn<() => object>().mockReturnValue({
-  api: jest.fn().mockReturnThis(),
-  get: jest.fn<() => Promise<object>>().mockResolvedValue({}),
-});
-
-jest.unstable_mockModule('@microsoft/microsoft-graph-client', () => ({
+vi.mock('@microsoft/microsoft-graph-client', () => ({
   Client: {
     initWithMiddleware: mockInitWithMiddleware,
   },
@@ -46,7 +54,7 @@ describe('Azure Authentication', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     process.env = { ...originalEnv };
   });
 

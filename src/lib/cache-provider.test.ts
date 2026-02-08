@@ -3,20 +3,20 @@
  * Tests for MemoryCacheProvider and cache factory functions
  */
 
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Mock the logger before imports
-jest.unstable_mockModule('./logger.js', () => ({
+vi.mock('./logger.js', () => ({
   securityLogger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
   },
 }));
 
 // Mock config
-jest.unstable_mockModule('./config.js', () => ({
+vi.mock('./config.js', () => ({
   config: {
     redis: {
       url: undefined,
