@@ -2,7 +2,7 @@
 
 Email-triggered phishing analysis agent with automated risk assessment replies.
 
-**Version**: v0.3.1
+**Version**: v0.3.2
 **Status**: Production-Ready with Managed Identity Authentication
 
 ## Overview
@@ -368,9 +368,12 @@ For detailed architecture, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 ### Testing
 
 ```bash
-npm test              # Run all tests
-npm test -- --watch   # Watch mode
-npm test -- --coverage # Coverage report
+npm test                  # Run all tests
+npm run test:unit         # Run unit tests only
+npm run test:integration  # Run integration tests only
+npm run test:coverage     # Coverage report
+npm run test:watch        # Watch mode
+npm run validate          # Full check pipeline (type-check + lint + format + test)
 ```
 
 **Target**: 90%+ test coverage for all code.
