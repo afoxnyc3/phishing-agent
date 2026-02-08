@@ -1,18 +1,18 @@
 // Test file uses `as any` to access private members for testing
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { EmailAnalysisRequest } from '../lib/types.js';
 
 // Mock all dependencies using unstable_mockModule for ESM compatibility
-jest.unstable_mockModule('../lib/logger.js', () => ({
+vi.mock('../lib/logger.js', () => ({
   securityLogger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
   },
 }));
 
-jest.unstable_mockModule('../lib/config.js', () => ({
+vi.mock('../lib/config.js', () => ({
   config: {
     llm: {
       apiKey: undefined,
@@ -30,19 +30,19 @@ jest.unstable_mockModule('../lib/config.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../services/threat-intel.js', () => ({
-  ThreatIntelService: jest.fn<any>().mockImplementation(() => ({
-    healthCheck: jest.fn<any>().mockResolvedValue(true),
-    enrichEmail: jest.fn<any>().mockResolvedValue({
+vi.mock('../services/threat-intel.js', () => ({
+  ThreatIntelService: class MockThreatIntelService {
+    healthCheck = vi.fn<any>().mockResolvedValue(true);
+    enrichEmail = vi.fn<any>().mockResolvedValue({
       indicators: [],
       riskContribution: 0,
-    }),
-  })),
+    });
+  },
 }));
 
-jest.unstable_mockModule('../services/llm-analyzer.js', () => ({
-  shouldRunLlmAnalysis: jest.fn<any>().mockReturnValue(false),
-  generateThreatExplanation: jest.fn<any>().mockResolvedValue(null),
+vi.mock('../services/llm-analyzer.js', () => ({
+  shouldRunLlmAnalysis: vi.fn<any>().mockReturnValue(false),
+  generateThreatExplanation: vi.fn<any>().mockResolvedValue(null),
 }));
 
 // Import after mocks are set up (ESM requirement)
@@ -52,7 +52,7 @@ describe('PhishingAgent', () => {
   let agent: InstanceType<typeof PhishingAgent>;
 
   beforeEach(async () => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     agent = new PhishingAgent();
     await agent.initialize();
   });
@@ -234,8 +234,8 @@ describe('PhishingAgent', () => {
   describe('Threat Intel Integration', () => {
     it('should enrich analysis with threat intel data', async () => {
       const mockThreatIntel = {
-        healthCheck: jest.fn<any>().mockResolvedValue(true),
-        enrichEmail: jest.fn<any>().mockResolvedValue({
+        healthCheck: vi.fn<any>().mockResolvedValue(true),
+        enrichEmail: vi.fn<any>().mockResolvedValue({
           indicators: [
             {
               type: 'url',
@@ -276,8 +276,8 @@ describe('PhishingAgent', () => {
 
     it('should continue analysis if threat intel fails', async () => {
       const mockThreatIntel = {
-        healthCheck: jest.fn<any>().mockResolvedValue(true),
-        enrichEmail: jest.fn<any>().mockRejectedValue(new Error('API Error')),
+        healthCheck: vi.fn<any>().mockResolvedValue(true),
+        enrichEmail: vi.fn<any>().mockRejectedValue(new Error('API Error')),
       };
 
       (agent as any).threatIntel = mockThreatIntel;
@@ -307,8 +307,8 @@ describe('PhishingAgent', () => {
   describe('Severity Determination', () => {
     it('should boost severity with high threat intel contribution', async () => {
       const mockThreatIntel = {
-        healthCheck: jest.fn<any>().mockResolvedValue(true),
-        enrichEmail: jest.fn<any>().mockResolvedValue({
+        healthCheck: vi.fn<any>().mockResolvedValue(true),
+        enrichEmail: vi.fn<any>().mockResolvedValue({
           indicators: [
             {
               type: 'url',
@@ -451,7 +451,7 @@ describe('PhishingAgent', () => {
 
     it('should handle health check errors', async () => {
       const mockThreatIntel = {
-        healthCheck: jest.fn<any>().mockRejectedValue(new Error('Health check failed')),
+        healthCheck: vi.fn<any>().mockRejectedValue(new Error('Health check failed')),
       };
 
       (agent as any).threatIntel = mockThreatIntel;

@@ -1,4 +1,4 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import { RiskScorer } from './risk-scorer.js';
 import { HeaderValidationResult } from './header-validator.js';
 import { ContentAnalysisResult } from './content-analyzer.js';

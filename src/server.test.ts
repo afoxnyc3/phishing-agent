@@ -1,19 +1,19 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PhishingAgent } from './agents/phishing-agent.js';
 import type { MailboxMonitor } from './services/mailbox-monitor.js';
 
 // Mock dependencies using unstable_mockModule for ESM compatibility
-jest.unstable_mockModule('./lib/logger.js', () => ({
+vi.mock('./lib/logger.js', () => ({
   securityLogger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
-    security: jest.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    security: vi.fn(),
   },
 }));
 
-jest.unstable_mockModule('./lib/config.js', () => ({
+vi.mock('./lib/config.js', () => ({
   config: {
     server: { port: 3000, environment: 'test' },
     http: { helmetEnabled: false, bodyLimit: '4mb', healthCacheTtlMs: 30000 },
@@ -27,18 +27,18 @@ jest.unstable_mockModule('./lib/config.js', () => ({
     },
     threatIntel: { enabled: false, timeoutMs: 5000, cacheTtlMs: 300000 },
   },
-  isProduction: jest.fn().mockReturnValue(false),
+  isProduction: vi.fn().mockReturnValue(false),
 }));
 
-jest.unstable_mockModule('./services/llm-analyzer.js', () => ({
-  shouldRunLlmAnalysis: jest.fn<any>().mockReturnValue(false),
-  generateThreatExplanation: jest.fn<any>().mockResolvedValue(null),
-  getLlmServiceStatus: jest.fn<any>().mockReturnValue({
+vi.mock('./services/llm-analyzer.js', () => ({
+  shouldRunLlmAnalysis: vi.fn<any>().mockReturnValue(false),
+  generateThreatExplanation: vi.fn<any>().mockResolvedValue(null),
+  getLlmServiceStatus: vi.fn<any>().mockReturnValue({
     enabled: false,
     circuitBreakerState: 'not-initialized',
     consecutiveFailures: 0,
   }),
-  healthCheck: jest.fn<any>().mockResolvedValue(true),
+  healthCheck: vi.fn<any>().mockResolvedValue(true),
 }));
 
 // Import after mocks are set up
@@ -50,18 +50,18 @@ describe('HttpServer', () => {
   let mockMailboxMonitor: any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     server = new HttpServer();
 
     mockPhishingAgent = {
-      healthCheck: jest.fn(),
+      healthCheck: vi.fn(),
     };
 
     mockMailboxMonitor = {
-      healthCheck: jest.fn(),
-      getRateLimiter: jest.fn().mockReturnValue({ getStats: jest.fn() }),
-      getDeduplication: jest.fn().mockReturnValue({ getStats: jest.fn() }),
+      healthCheck: vi.fn(),
+      getRateLimiter: vi.fn().mockReturnValue({ getStats: vi.fn() }),
+      getDeduplication: vi.fn().mockReturnValue({ getStats: vi.fn() }),
     };
   });
 
@@ -75,7 +75,7 @@ describe('HttpServer', () => {
     it('should return healthy status', async () => {
       const mockReq: any = {};
       const mockRes: any = {
-        json: jest.fn(),
+        json: vi.fn(),
       };
 
       await (server as any).handleHealth(mockReq, mockRes);
@@ -90,7 +90,7 @@ describe('HttpServer', () => {
     it('should include uptime in health check', async () => {
       const mockReq: any = {};
       const mockRes: any = {
-        json: jest.fn(),
+        json: vi.fn(),
       };
 
       await (server as any).handleHealth(mockReq, mockRes);
@@ -110,8 +110,8 @@ describe('HttpServer', () => {
 
       const mockReq: any = {};
       const mockRes: any = {
-        json: jest.fn(),
-        status: jest.fn().mockReturnThis(),
+        json: vi.fn(),
+        status: vi.fn().mockReturnThis(),
       };
 
       await (server as any).handleReady(mockReq, mockRes);
@@ -133,8 +133,8 @@ describe('HttpServer', () => {
 
       const mockReq: any = {};
       const mockRes: any = {
-        json: jest.fn(),
-        status: jest.fn().mockReturnThis(),
+        json: vi.fn(),
+        status: vi.fn().mockReturnThis(),
       };
 
       await (server as any).handleReady(mockReq, mockRes);
@@ -155,8 +155,8 @@ describe('HttpServer', () => {
 
       const mockReq: any = {};
       const mockRes: any = {
-        json: jest.fn(),
-        status: jest.fn().mockReturnThis(),
+        json: vi.fn(),
+        status: vi.fn().mockReturnThis(),
       };
 
       await (server as any).handleReady(mockReq, mockRes);
@@ -169,8 +169,8 @@ describe('HttpServer', () => {
     it('should return not ready when components are not set', async () => {
       const mockReq: any = {};
       const mockRes: any = {
-        json: jest.fn(),
-        status: jest.fn().mockReturnThis(),
+        json: vi.fn(),
+        status: vi.fn().mockReturnThis(),
       };
 
       await (server as any).handleReady(mockReq, mockRes);
@@ -191,9 +191,9 @@ describe('HttpServer', () => {
         },
       };
       const mockRes: any = {
-        json: jest.fn(),
-        type: jest.fn().mockReturnThis(),
-        send: jest.fn(),
+        json: vi.fn(),
+        type: vi.fn().mockReturnThis(),
+        send: vi.fn(),
       };
 
       (server as any).handleMetrics(mockReq, mockRes);
@@ -212,9 +212,9 @@ describe('HttpServer', () => {
         },
       };
       const mockRes: any = {
-        json: jest.fn(),
-        type: jest.fn().mockReturnThis(),
-        send: jest.fn(),
+        json: vi.fn(),
+        type: vi.fn().mockReturnThis(),
+        send: vi.fn(),
       };
 
       (server as any).handleMetrics(mockReq, mockRes);
@@ -232,7 +232,7 @@ describe('HttpServer', () => {
     it('should return service information', () => {
       const mockReq: any = {};
       const mockRes: any = {
-        json: jest.fn(),
+        json: vi.fn(),
       };
 
       (server as any).handleRoot(mockReq, mockRes);
@@ -257,11 +257,11 @@ describe('HttpServer', () => {
     });
 
     it('should wire rate limiter and deduplication when setting mailbox monitor', () => {
-      const mockRateLimiter = { getStats: jest.fn() };
-      const mockDeduplication = { getStats: jest.fn() };
+      const mockRateLimiter = { getStats: vi.fn() };
+      const mockDeduplication = { getStats: vi.fn() };
 
-      mockMailboxMonitor.getRateLimiter = jest.fn().mockReturnValue(mockRateLimiter);
-      mockMailboxMonitor.getDeduplication = jest.fn().mockReturnValue(mockDeduplication);
+      mockMailboxMonitor.getRateLimiter = vi.fn().mockReturnValue(mockRateLimiter);
+      mockMailboxMonitor.getDeduplication = vi.fn().mockReturnValue(mockDeduplication);
 
       server.setMailboxMonitor(mockMailboxMonitor as any);
 
@@ -272,9 +272,9 @@ describe('HttpServer', () => {
 
   describe('Server Startup', () => {
     it('should start server on configured port', async () => {
-      const mockListen = jest.fn((port: number, callback: any) => {
+      const mockListen = vi.fn((port: number, callback: any) => {
         callback();
-        return { close: jest.fn() };
+        return { close: vi.fn() };
       });
 
       (server as any).app.listen = mockListen;

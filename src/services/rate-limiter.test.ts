@@ -2,7 +2,7 @@
  * Rate Limiter Tests
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { RateLimiter } from './rate-limiter.js';
 
 describe('RateLimiter', () => {

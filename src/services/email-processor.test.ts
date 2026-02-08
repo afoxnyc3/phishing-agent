@@ -3,40 +3,40 @@
  * Tests for email processing pipeline with rate limiting and deduplication
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock dependencies
-jest.unstable_mockModule('../lib/logger.js', () => ({
+vi.mock('../lib/logger.js', () => ({
   securityLogger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
-    security: jest.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    security: vi.fn(),
   },
 }));
 
-jest.unstable_mockModule('./metrics.js', () => ({
+vi.mock('./metrics.js', () => ({
   metrics: {
-    recordEmailProcessed: jest.fn(),
-    recordAnalysisLatency: jest.fn(),
-    recordReplyLatency: jest.fn(),
-    recordReplySent: jest.fn(),
-    recordReplyFailed: jest.fn(),
-    recordDeduplicationHit: jest.fn(),
-    recordRateLimitHit: jest.fn(),
-    recordAnalysisError: jest.fn(),
+    recordEmailProcessed: vi.fn(),
+    recordAnalysisLatency: vi.fn(),
+    recordReplyLatency: vi.fn(),
+    recordReplySent: vi.fn(),
+    recordReplyFailed: vi.fn(),
+    recordDeduplicationHit: vi.fn(),
+    recordRateLimitHit: vi.fn(),
+    recordAnalysisError: vi.fn(),
   },
 }));
 
-const mockEvaluateEmailGuards = jest.fn();
-jest.unstable_mockModule('./email-guards.js', () => ({
+const mockEvaluateEmailGuards = vi.fn();
+vi.mock('./email-guards.js', () => ({
   evaluateEmailGuards: mockEvaluateEmailGuards,
-  __testResetMessageIdCache: jest.fn(),
+  __testResetMessageIdCache: vi.fn(),
 }));
 
-jest.unstable_mockModule('./graph-email-parser.js', () => ({
-  parseGraphEmail: jest.fn().mockReturnValue({
+vi.mock('./graph-email-parser.js', () => ({
+  parseGraphEmail: vi.fn().mockReturnValue({
     messageId: 'test-msg-id',
     subject: 'Test Subject',
     from: 'sender@example.com',
@@ -46,10 +46,10 @@ jest.unstable_mockModule('./graph-email-parser.js', () => ({
   }),
 }));
 
-jest.unstable_mockModule('./email-reply-builder.js', () => ({
-  buildReplyHtml: jest.fn().mockReturnValue('<html>Reply</html>'),
-  buildErrorReplyHtml: jest.fn().mockReturnValue('<html>Error</html>'),
-  createReplyMessage: jest.fn().mockReturnValue({ message: {} }),
+vi.mock('./email-reply-builder.js', () => ({
+  buildReplyHtml: vi.fn().mockReturnValue('<html>Reply</html>'),
+  buildErrorReplyHtml: vi.fn().mockReturnValue('<html>Error</html>'),
+  createReplyMessage: vi.fn().mockReturnValue({ message: {} }),
 }));
 
 const { processEmail } = await import('./email-processor.js');
@@ -57,28 +57,28 @@ const { metrics } = await import('./metrics.js');
 
 describe('Email Processor', () => {
   // Mock objects with proper typing - declare outside, reset in beforeEach
-  let mockPost: jest.Mock<() => Promise<object>>;
-  let mockGraphClient: { api: jest.Mock; post: jest.Mock };
-  let mockAnalyzeEmail: jest.Mock<() => Promise<object>>;
-  let mockPhishingAgent: { analyzeEmail: jest.Mock };
+  let mockPost: vi.Mock<() => Promise<object>>;
+  let mockGraphClient: { api: vi.Mock; post: vi.Mock };
+  let mockAnalyzeEmail: vi.Mock<() => Promise<object>>;
+  let mockPhishingAgent: { analyzeEmail: vi.Mock };
   let mockRateLimiter: {
-    canSendEmail: jest.Mock;
-    recordEmailSent: jest.Mock;
-    getStats: jest.Mock;
+    canSendEmail: vi.Mock;
+    recordEmailSent: vi.Mock;
+    getStats: vi.Mock;
   };
   let mockDeduplication: {
-    shouldProcess: jest.Mock;
-    recordProcessed: jest.Mock;
+    shouldProcess: vi.Mock;
+    recordProcessed: vi.Mock;
   };
 
   beforeEach(() => {
-    mockPost = jest.fn<() => Promise<object>>().mockResolvedValue({});
+    mockPost = vi.fn<() => Promise<object>>().mockResolvedValue({});
     mockGraphClient = {
-      api: jest.fn().mockReturnThis(),
+      api: vi.fn().mockReturnThis(),
       post: mockPost,
     };
 
-    mockAnalyzeEmail = jest.fn<() => Promise<object>>().mockResolvedValue({
+    mockAnalyzeEmail = vi.fn<() => Promise<object>>().mockResolvedValue({
       messageId: 'test-msg-id',
       isPhishing: true,
       confidence: 0.9,
@@ -95,14 +95,14 @@ describe('Email Processor', () => {
     };
 
     mockRateLimiter = {
-      canSendEmail: jest.fn().mockReturnValue({ allowed: true }),
-      recordEmailSent: jest.fn(),
-      getStats: jest.fn().mockReturnValue({ lastHour: 1 }),
+      canSendEmail: vi.fn().mockReturnValue({ allowed: true }),
+      recordEmailSent: vi.fn(),
+      getStats: vi.fn().mockReturnValue({ lastHour: 1 }),
     };
 
     mockDeduplication = {
-      shouldProcess: jest.fn().mockReturnValue({ allowed: true }),
-      recordProcessed: jest.fn(),
+      shouldProcess: vi.fn().mockReturnValue({ allowed: true }),
+      recordProcessed: vi.fn(),
     };
 
     mockEvaluateEmailGuards.mockReturnValue({ allowed: true });

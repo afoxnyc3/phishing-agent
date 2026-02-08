@@ -2,7 +2,7 @@
  * Email Deduplication Tests
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { EmailDeduplication } from './email-deduplication.js';
 
 describe('EmailDeduplication', () => {
@@ -361,11 +361,11 @@ describe('EmailDeduplication', () => {
   describe('distributed mode', () => {
     it('should detect distributed mode when cacheProvider is ready', () => {
       const mockCacheProvider = {
-        get: jest.fn(),
-        set: jest.fn(),
-        delete: jest.fn(),
-        isReady: jest.fn().mockReturnValue(true),
-        increment: jest.fn(),
+        get: vi.fn(),
+        set: vi.fn(),
+        delete: vi.fn(),
+        isReady: vi.fn().mockReturnValue(true),
+        increment: vi.fn(),
       };
 
       // This should log "distributed (Redis)" mode
@@ -381,11 +381,11 @@ describe('EmailDeduplication', () => {
 
     it('should fall back to in-memory when cacheProvider is not ready', () => {
       const mockCacheProvider = {
-        get: jest.fn(),
-        set: jest.fn(),
-        delete: jest.fn(),
-        isReady: jest.fn().mockReturnValue(false),
-        increment: jest.fn(),
+        get: vi.fn(),
+        set: vi.fn(),
+        delete: vi.fn(),
+        isReady: vi.fn().mockReturnValue(false),
+        increment: vi.fn(),
       };
 
       // This should log "in-memory (single instance)" mode

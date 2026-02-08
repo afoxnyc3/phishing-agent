@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { PhishingAgent } from '../agents/phishing-agent.js';
 import type { MailboxMonitor } from './mailbox-monitor.js';
 import type { IRateLimiter } from './rate-limiter.js';
 import type { IEmailDeduplication } from './email-deduplication.js';
 
 // Mock dependencies using unstable_mockModule for ESM compatibility
-jest.unstable_mockModule('../lib/config.js', () => ({
+vi.mock('../lib/config.js', () => ({
   config: {
     llm: {
       apiKey: undefined,
@@ -19,22 +19,22 @@ jest.unstable_mockModule('../lib/config.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../lib/logger.js', () => ({
+vi.mock('../lib/logger.js', () => ({
   securityLogger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
   },
 }));
 
-jest.unstable_mockModule('./llm-analyzer.js', () => ({
-  getLlmServiceStatus: jest.fn<any>().mockReturnValue({
+vi.mock('./llm-analyzer.js', () => ({
+  getLlmServiceStatus: vi.fn<any>().mockReturnValue({
     enabled: false,
     circuitBreakerState: 'not-initialized',
     consecutiveFailures: 0,
   }),
-  healthCheck: jest.fn<any>().mockResolvedValue(true),
+  healthCheck: vi.fn<any>().mockResolvedValue(true),
 }));
 
 // Import after mocks are set up
@@ -42,16 +42,16 @@ const { HealthChecker } = await import('./health-checker.js');
 
 describe('HealthChecker', () => {
   let checker: InstanceType<typeof HealthChecker>;
-  let mockAgent: jest.Mocked<PhishingAgent>;
-  let mockMonitor: jest.Mocked<MailboxMonitor>;
-  let mockRateLimiter: jest.Mocked<IRateLimiter>;
-  let mockDeduplication: jest.Mocked<IEmailDeduplication>;
+  let mockAgent: vi.Mocked<PhishingAgent>;
+  let mockMonitor: vi.Mocked<MailboxMonitor>;
+  let mockRateLimiter: vi.Mocked<IRateLimiter>;
+  let mockDeduplication: vi.Mocked<IEmailDeduplication>;
 
   beforeEach(() => {
     checker = new HealthChecker();
 
     // Mock process.memoryUsage to return predictable, healthy values
-    jest.spyOn(process, 'memoryUsage').mockReturnValue({
+    vi.spyOn(process, 'memoryUsage').mockReturnValue({
       rss: 100 * 1024 * 1024, // 100 MB
       heapTotal: 50 * 1024 * 1024, // 50 MB
       heapUsed: 30 * 1024 * 1024, // 30 MB (60% of heap - healthy)
@@ -60,12 +60,12 @@ describe('HealthChecker', () => {
     });
 
     mockAgent = {
-      healthCheck: jest.fn(),
-    } as unknown as jest.Mocked<PhishingAgent>;
+      healthCheck: vi.fn(),
+    } as unknown as vi.Mocked<PhishingAgent>;
 
     mockMonitor = {
-      healthCheck: jest.fn<() => Promise<boolean>>(),
-      getStatus: jest.fn<
+      healthCheck: vi.fn<() => Promise<boolean>>(),
+      getStatus: vi.fn<
         () => Promise<{
           isRunning: boolean;
           mailbox: string;
@@ -75,13 +75,13 @@ describe('HealthChecker', () => {
           deduplicationStats: unknown;
         }>
       >(),
-    } as unknown as jest.Mocked<MailboxMonitor>;
+    } as unknown as vi.Mocked<MailboxMonitor>;
 
     // Mock rate limiter with async methods (interfaces are async)
     mockRateLimiter = {
-      canSendEmail: jest.fn<() => Promise<{ allowed: boolean; reason?: string }>>(),
-      recordEmailSent: jest.fn<() => Promise<void>>(),
-      getStats: jest.fn<
+      canSendEmail: vi.fn<() => Promise<{ allowed: boolean; reason?: string }>>(),
+      recordEmailSent: vi.fn<() => Promise<void>>(),
+      getStats: vi.fn<
         () => Promise<{
           lastHour: number;
           lastDay: number;
@@ -91,22 +91,22 @@ describe('HealthChecker', () => {
           dailyLimit: number;
         }>
       >(),
-      reset: jest.fn<() => Promise<void>>(),
-    } as jest.Mocked<IRateLimiter>;
+      reset: vi.fn<() => Promise<void>>(),
+    } as vi.Mocked<IRateLimiter>;
 
     // Mock deduplication with async methods (interfaces are async)
     mockDeduplication = {
-      shouldProcess: jest.fn<() => Promise<{ allowed: boolean; reason?: string }>>(),
-      recordProcessed: jest.fn<() => Promise<void>>(),
-      getStats: jest.fn<
+      shouldProcess: vi.fn<() => Promise<{ allowed: boolean; reason?: string }>>(),
+      recordProcessed: vi.fn<() => Promise<void>>(),
+      getStats: vi.fn<
         () => Promise<{
           processedEmailsCount: number;
           uniqueSendersCount: number;
           enabled: boolean;
         }>
       >(),
-      reset: jest.fn<() => Promise<void>>(),
-    } as jest.Mocked<IEmailDeduplication>;
+      reset: vi.fn<() => Promise<void>>(),
+    } as vi.Mocked<IEmailDeduplication>;
   });
 
   describe('checkHealth', () => {

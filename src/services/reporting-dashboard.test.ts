@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { PhishingAnalysisResult } from '../lib/types.js';
 
-jest.unstable_mockModule('../lib/logger.js', () => ({
-  securityLogger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
+vi.mock('../lib/logger.js', () => ({
+  securityLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
 const { ReportingDashboardService } = await import('./reporting-dashboard.js');

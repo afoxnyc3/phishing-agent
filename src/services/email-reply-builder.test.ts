@@ -1,4 +1,4 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import { buildReplyHtml, buildErrorReplyHtml, createReplyMessage, __testEscapeHtml } from './email-reply-builder.js';
 
 describe('email reply builder', () => {

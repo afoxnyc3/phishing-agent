@@ -1,4 +1,4 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import { HeaderValidator } from './header-validator.js';
 import { EmailHeaders } from '../lib/types.js';
 

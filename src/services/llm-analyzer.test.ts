@@ -1,55 +1,57 @@
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Store mock functions for test manipulation
-const mockMessagesCreate = jest.fn<() => Promise<unknown>>();
-
-// Mock modules using unstable_mockModule for ESM compatibility
-jest.unstable_mockModule('@anthropic-ai/sdk', () => ({
-  default: jest.fn<() => object>().mockImplementation(() => ({
-    messages: {
-      create: mockMessagesCreate,
-    },
-  })),
+// Create hoisted mock functions for use inside vi.mock factories
+const { mockMessagesCreate, circuitState } = vi.hoisted(() => ({
+  mockMessagesCreate: vi.fn<any>(),
+  circuitState: { opened: false },
 }));
 
-// Mock p-retry to just call the function directly (bypass retry logic in tests)
-jest.unstable_mockModule('p-retry', () => ({
-  default: jest
-    .fn<(fn: () => Promise<unknown>) => Promise<unknown>>()
-    .mockImplementation(async (fn: () => Promise<unknown>) => fn()),
-}));
-
-// Track circuit breaker state for testing
-let mockCircuitBreakerOpened = false;
-
-// Mock opossum circuit breaker to pass through to actual function
-type CircuitFn = (...args: unknown[]) => Promise<unknown>;
-jest.unstable_mockModule('opossum', () => ({
-  default: jest.fn<(fn: CircuitFn) => object>().mockImplementation((fn: CircuitFn) => ({
-    fire: async (...args: unknown[]) => {
-      if (mockCircuitBreakerOpened) {
-        throw new Error('Breaker is open');
-      }
-      return fn(...args);
-    },
-    on: jest.fn(),
-    opened: mockCircuitBreakerOpened,
-    closed: !mockCircuitBreakerOpened,
-    halfOpen: false,
-    close: jest.fn(),
-  })),
-}));
-
-jest.unstable_mockModule('../lib/logger.js', () => ({
-  securityLogger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
+// Mock Anthropic SDK
+vi.mock('@anthropic-ai/sdk', () => ({
+  default: class MockAnthropic {
+    messages = { create: mockMessagesCreate };
   },
 }));
 
-jest.unstable_mockModule('../lib/config.js', () => ({
+// Mock p-retry to just call the function directly (bypass retry logic in tests)
+vi.mock('p-retry', () => ({
+  default: vi.fn<any>().mockImplementation(async (fn: () => Promise<unknown>) => fn()),
+}));
+
+// Mock opossum circuit breaker to pass through to actual function
+vi.mock('opossum', () => ({
+  default: class MockCircuitBreaker {
+    on = vi.fn();
+    halfOpen = false;
+    close = vi.fn();
+    fire: (...args: any[]) => Promise<any>;
+
+    constructor(fn: (...args: any[]) => Promise<any>) {
+      this.fire = async (...args: any[]) => {
+        if (circuitState.opened) throw new Error('Breaker is open');
+        return fn(...args);
+      };
+    }
+
+    get opened() {
+      return circuitState.opened;
+    }
+    get closed() {
+      return !circuitState.opened;
+    }
+  },
+}));
+
+vi.mock('../lib/logger.js', () => ({
+  securityLogger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+
+vi.mock('../lib/config.js', () => ({
   config: {
     server: {
       environment: 'test',
@@ -73,9 +75,9 @@ describe('LlmAnalyzer', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     process.env = { ...originalEnv };
-    mockCircuitBreakerOpened = false;
+    circuitState.opened = false;
   });
 
   afterEach(() => {
@@ -345,7 +347,7 @@ describe('LlmAnalyzer', () => {
 
     it('should return null when circuit breaker is open', async () => {
       process.env.ANTHROPIC_API_KEY = 'test-api-key';
-      mockCircuitBreakerOpened = true;
+      circuitState.opened = true;
 
       mockMessagesCreate.mockResolvedValue({
         content: [{ type: 'text', text: 'Analysis result' }],
@@ -398,7 +400,7 @@ describe('LlmAnalyzer', () => {
 
     it('should return true when API key is configured and circuit is closed', async () => {
       process.env.ANTHROPIC_API_KEY = 'test-key';
-      mockCircuitBreakerOpened = false;
+      circuitState.opened = false;
 
       const healthy = await healthCheck();
 
