@@ -283,5 +283,5 @@ For security issues or questions:
 
 **For Public Vulnerability Reports**:
 
-- Use GitHub Security Advisories (https://github.com/YOUR-REPO/security/advisories)
+- Use GitHub Security Advisories (`https://github.com/<OWNER>/<REPO>/security/advisories`)
 - Or email security contact listed in repository

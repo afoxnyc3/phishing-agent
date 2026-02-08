@@ -173,9 +173,9 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 **Configuration**:
 
 ```bash
-ANTHROPIC_API_KEY=your-key              # Optional - enables LLM explanations
-LLM_MODEL=claude-sonnet-4-20250514     # Model to use
-LLM_MAX_TOKENS=500                      # Response length limit
+ANTHROPIC_API_KEY=your-key           # Optional - enables LLM explanations
+LLM_MODEL=claude-sonnet-4-20250514   # Model to use
+LLM_MAX_TOKENS=500                   # Response length limit
 ```
 
 ### 9. Reporting Dashboard

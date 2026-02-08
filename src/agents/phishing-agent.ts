@@ -75,6 +75,7 @@ export class PhishingAgent {
       attachmentRisk: attachmentResult.riskLevel,
       hasExplanation: !!explanation,
     });
+
     return {
       messageId: request.messageId,
       isPhishing: enhancedScore >= 5.0,
@@ -157,18 +158,26 @@ export class PhishingAgent {
     error: unknown
   ): PhishingAnalysisResult {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    securityLogger.error('Email analysis failed', { analysisId, messageId: request.messageId, error: errorMsg });
-    return {
+    securityLogger.error('Email analysis failed', {
+      analysisId,
       messageId: request.messageId,
+      error: errorMsg,
+    });
+    return this.buildErrorResult(request.messageId, analysisId, errorMsg);
+  }
+
+  private buildErrorResult(messageId: string, analysisId: string, errorMsg: string): PhishingAnalysisResult {
+    return {
+      messageId,
       isPhishing: false,
       confidence: 0,
       riskScore: 0,
       severity: 'medium',
       indicators: [
         {
-          type: 'behavioral',
+          type: 'behavioral' as const,
+          severity: 'medium' as const,
           description: 'Analysis error - unable to complete security scan',
-          severity: 'medium',
           evidence: errorMsg,
           confidence: 1.0,
         },

@@ -1,0 +1,25 @@
+# Gitleaks configuration for phishing-agent
+# https://github.com/gitleaks/gitleaks
+
+title = "phishing-agent secret scanning"
+
+[extend]
+# Use the default gitleaks rules as a base
+useDefault = true
+
+# Allowlist paths that contain test fixtures or false positives
+[allowlist]
+paths = [
+  '''\.env\.example$''',
+  '''\.env\.template$''',
+]
+
+# Allow test UUIDs and placeholder values
+regexes = [
+  '''test-tenant-id''',
+  '''test-client-id''',
+  '''test-secret''',
+  '''test-key-vault''',
+  '''fake[-_]?(api[-_]?key|token|secret)''',
+  '''example\.com''',
+]
