@@ -81,10 +81,7 @@ describe('Logger Module', () => {
       it('should log error messages without error object', () => {
         testLogger.error('Generic error');
 
-        expect(mockWinstonLogger.error).toHaveBeenCalledWith('Generic error', {
-          error: undefined,
-          stack: undefined,
-        });
+        expect(mockWinstonLogger.error).toHaveBeenCalledWith('Generic error', undefined);
       });
 
       it('should log error with string instead of Error object', () => {
@@ -92,7 +89,6 @@ describe('Logger Module', () => {
 
         expect(mockWinstonLogger.error).toHaveBeenCalledWith('Error occurred', {
           error: 'String error',
-          stack: undefined,
         });
       });
 
