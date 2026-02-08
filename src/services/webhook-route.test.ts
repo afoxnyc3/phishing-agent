@@ -1,0 +1,129 @@
+/**
+ * Webhook Route Tests
+ */
+
+import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+
+jest.unstable_mockModule('../lib/logger.js', () => ({
+  securityLogger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
+}));
+
+const { createWebhookRouter } = await import('./webhook-route.js');
+
+function mockReq(overrides: Record<string, unknown> = {}) {
+  return { query: {}, body: {}, ...overrides } as any;
+}
+
+function mockRes() {
+  const res = {
+    status: jest.fn<any>().mockReturnThis(),
+    type: jest.fn<any>().mockReturnThis(),
+    send: jest.fn<any>().mockReturnThis(),
+    json: jest.fn<any>().mockReturnThis(),
+  };
+  return res;
+}
+
+function getRouteHandler(clientState: string) {
+  const router = createWebhookRouter(clientState);
+  // Extract the POST /webhooks/mail handler from the router stack
+  const layer = router.stack.find((l: any) => l.route?.path === '/webhooks/mail' && l.route?.methods?.post);
+  return layer?.route?.stack?.[0]?.handle;
+}
+
+const CLIENT_STATE = 'test-webhook-secret';
+
+function validPayload(clientState = CLIENT_STATE) {
+  return {
+    value: [
+      {
+        subscriptionId: 'sub-1',
+        clientState,
+        changeType: 'created',
+        resource: 'users/mailbox/messages/msg-1',
+        resourceData: { '@odata.id': 'odata-1', id: 'msg-1' },
+      },
+    ],
+  };
+}
+
+describe('Webhook Route', () => {
+  let handler: any;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    handler = getRouteHandler(CLIENT_STATE);
+  });
+
+  it('should create a router with POST /webhooks/mail', () => {
+    expect(handler).toBeDefined();
+  });
+
+  it('should handle validation handshake', () => {
+    const req = mockReq({ query: { validationToken: 'my-token' } });
+    const res = mockRes();
+
+    handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.type).toHaveBeenCalledWith('text/plain');
+    expect(res.send).toHaveBeenCalledWith('my-token');
+  });
+
+  it('should return 400 for invalid payload', () => {
+    const req = mockReq({ body: { invalid: true } });
+    const res = mockRes();
+
+    handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Invalid payload' });
+  });
+
+  it('should return 403 for wrong clientState', () => {
+    const req = mockReq({ body: validPayload('wrong-state') });
+    const res = mockRes();
+
+    handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Forbidden' });
+  });
+
+  it('should return 202 for valid notification', () => {
+    const req = mockReq({ body: validPayload() });
+    const res = mockRes();
+
+    handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(202);
+    expect(res.json).toHaveBeenCalledWith({ status: 'accepted' });
+  });
+
+  it('should accept multiple notifications', () => {
+    const payload = {
+      value: [
+        {
+          subscriptionId: 's1',
+          clientState: CLIENT_STATE,
+          changeType: 'created',
+          resource: 'r1',
+          resourceData: { '@odata.id': 'o1', id: 'msg-1' },
+        },
+        {
+          subscriptionId: 's1',
+          clientState: CLIENT_STATE,
+          changeType: 'created',
+          resource: 'r2',
+          resourceData: { '@odata.id': 'o2', id: 'msg-2' },
+        },
+      ],
+    };
+    const req = mockReq({ body: payload });
+    const res = mockRes();
+
+    handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(202);
+  });
+});
