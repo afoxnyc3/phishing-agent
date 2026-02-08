@@ -141,6 +141,16 @@ export const config = {
     keyPrefix: env.REDIS_KEY_PREFIX,
   },
 
+  // Notification queue (async webhook-to-processing decoupling)
+  notificationQueue: {
+    enabled: env.NOTIFICATION_QUEUE_ENABLED,
+    maxRetries: env.NOTIFICATION_QUEUE_MAX_RETRIES,
+    backoffMs: env.NOTIFICATION_QUEUE_BACKOFF_MS,
+    maxBackoffMs: env.NOTIFICATION_QUEUE_MAX_BACKOFF_MS,
+    concurrency: env.NOTIFICATION_QUEUE_CONCURRENCY,
+    drainIntervalMs: env.NOTIFICATION_QUEUE_DRAIN_INTERVAL_MS,
+  },
+
   // Webhook subscription (optional - enables Graph API push notifications)
   webhookSubscription: {
     enabled: env.WEBHOOK_SUBSCRIPTION_ENABLED,

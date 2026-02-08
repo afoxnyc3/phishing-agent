@@ -16,6 +16,7 @@ import { healthChecker, SystemHealth } from './services/health-checker.js';
 import { NextFunction } from 'express';
 import { ResilientCacheProvider } from './lib/resilient-cache-provider.js';
 import { createWebhookRouter } from './services/webhook-route.js';
+import type { NotificationQueue } from './services/notification-queue.js';
 
 // Health check cache for /health/deep to avoid Graph API rate limiting
 let deepHealthCache: { result: SystemHealth; timestamp: number } | null = null;
@@ -24,6 +25,7 @@ export class HttpServer {
   private app: express.Application;
   private phishingAgent?: PhishingAgent;
   private mailboxMonitor?: MailboxMonitor;
+  private notificationQueue?: NotificationQueue;
 
   constructor() {
     this.app = express();
@@ -105,7 +107,10 @@ export class HttpServer {
   private setupWebhookRoute(): void {
     const clientState = process.env.WEBHOOK_CLIENT_STATE || '';
     if (clientState) {
-      this.app.use(createWebhookRouter(clientState));
+      const onNotification = (ids: string[]): void => {
+        this.notificationQueue?.enqueue(ids);
+      };
+      this.app.use(createWebhookRouter(clientState, onNotification));
       securityLogger.info('Webhook route registered at POST /webhooks/mail');
     }
   }
@@ -208,6 +213,13 @@ export class HttpServer {
     healthChecker.setMailboxMonitor(monitor);
     healthChecker.setRateLimiter(monitor.getRateLimiter());
     healthChecker.setDeduplication(monitor.getDeduplication());
+  }
+
+  /**
+   * Set notification queue for async webhook processing
+   */
+  setNotificationQueue(queue: NotificationQueue): void {
+    this.notificationQueue = queue;
   }
 
   /**

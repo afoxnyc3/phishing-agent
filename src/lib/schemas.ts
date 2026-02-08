@@ -61,6 +61,14 @@ export const EnvConfigSchema = z
     REDIS_URL: z.string().url().optional(),
     REDIS_KEY_PREFIX: z.string().default('phishing-agent:'),
 
+    // Notification queue configuration (async webhook processing)
+    NOTIFICATION_QUEUE_ENABLED: z.coerce.boolean().default(true),
+    NOTIFICATION_QUEUE_MAX_RETRIES: z.coerce.number().int().min(0).default(3),
+    NOTIFICATION_QUEUE_BACKOFF_MS: z.coerce.number().int().positive().default(5000),
+    NOTIFICATION_QUEUE_MAX_BACKOFF_MS: z.coerce.number().int().positive().default(60000),
+    NOTIFICATION_QUEUE_CONCURRENCY: z.coerce.number().int().positive().default(3),
+    NOTIFICATION_QUEUE_DRAIN_INTERVAL_MS: z.coerce.number().int().positive().default(1000),
+
     // Webhook subscription configuration
     WEBHOOK_NOTIFICATION_URL: z.string().url().optional(),
     WEBHOOK_CLIENT_STATE: z.string().min(1).optional(),
