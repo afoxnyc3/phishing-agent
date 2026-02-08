@@ -15,10 +15,7 @@ export const logger = winston.createLogger({
   ),
   transports: [
     new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple()
-      ),
+      format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
     }),
   ],
 });
@@ -60,12 +57,12 @@ export class SecurityLogger {
 
   getPerformanceMetrics(hours: number = 1): PerformanceMetrics[] {
     const since = new Date(Date.now() - hours * 60 * 60 * 1000);
-    return this.performanceMetrics.filter(m => m.timestamp >= since);
+    return this.performanceMetrics.filter((m) => m.timestamp >= since);
   }
 
   cleanup(): void {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    this.performanceMetrics = this.performanceMetrics.filter(m => m.timestamp >= oneHourAgo);
+    this.performanceMetrics = this.performanceMetrics.filter((m) => m.timestamp >= oneHourAgo);
   }
 }
 

@@ -11,12 +11,14 @@ This document tracks significant technical and architectural decisions made duri
 **Context**: `content-analyzer.ts` exceeded 200-line ESLint limit (400 lines), requiring an `eslint-disable` workaround.
 
 **Decision**: Split into 4 focused modules following single-responsibility principle:
+
 - `content-analyzer.ts` (164 lines) - Orchestration layer
 - `url-analyzer.ts` (147 lines) - URL extraction, validation, link mismatch detection
 - `social-engineering-detector.ts` (83 lines) - Urgency, credential, financial lure detection
 - `brand-detector.ts` (51 lines) - Brand impersonation and typosquatting
 
 **Rationale**:
+
 - Each module has clear single responsibility
 - All files now comply with 200-line limit
 - Maintains backward-compatible public API
@@ -25,6 +27,7 @@ This document tracks significant technical and architectural decisions made duri
 - Brand detection uses existing config file
 
 **Consequences**:
+
 - ✅ All 661 tests pass unchanged
 - ✅ No API changes for consumers
 - ✅ ESLint now passes without disable comments
@@ -32,6 +35,7 @@ This document tracks significant technical and architectural decisions made duri
 - ⚠️ 3 additional files to maintain
 
 **Alternatives Considered**:
+
 - 4-file split per issue suggestion (rejected: link-mismatch too small for own file)
 - 2-file split (rejected: content-analyzer.ts would still be ~180 lines)
 
@@ -46,6 +50,7 @@ This document tracks significant technical and architectural decisions made duri
 **Decision**: Use Microsoft Graph API with app-only authentication instead of IMAP/SMTP.
 
 **Rationale**:
+
 - Native Azure AD integration (no additional credentials)
 - Better security (app-only auth with Managed Identity)
 - Rich email metadata (headers, attachments, body)
@@ -53,6 +58,7 @@ This document tracks significant technical and architectural decisions made duri
 - Same API used for sending replies
 
 **Consequences**:
+
 - ✅ More secure than IMAP credentials
 - ✅ Easier deployment in Azure
 - ✅ Better structured email data
@@ -60,6 +66,7 @@ This document tracks significant technical and architectural decisions made duri
 - ⚠️ Limited to Microsoft 365 mailboxes
 
 **Alternatives Considered**:
+
 - IMAP/SMTP (rejected: less secure, more complex auth)
 - POP3 (rejected: no header access, destructive polling)
 - SendGrid/Mailgun (rejected: requires external service)
@@ -75,6 +82,7 @@ This document tracks significant technical and architectural decisions made duri
 **Decision**: Use deterministic rule-based phishing detection without LLM.
 
 **Rationale**:
+
 - Faster analysis (<5s vs 10-30s with LLM)
 - Lower operational costs (no API fees)
 - More predictable and auditable results
@@ -82,6 +90,7 @@ This document tracks significant technical and architectural decisions made duri
 - Can add LLM enrichment later as optional feature
 
 **Consequences**:
+
 - ✅ Faster response times
 - ✅ Lower infrastructure costs
 - ✅ Deterministic behavior
@@ -89,6 +98,7 @@ This document tracks significant technical and architectural decisions made duri
 - ⚠️ Requires manual rule updates
 
 **Alternatives Considered**:
+
 - Claude API integration (rejected: slow, expensive for MVP)
 - GPT-4 integration (rejected: same issues as Claude)
 - Hybrid approach (deferred: add in v2 if needed)
@@ -104,6 +114,7 @@ This document tracks significant technical and architectural decisions made duri
 **Decision**: Enforce max 25 lines per function, max 150 lines per file.
 
 **Rationale**:
+
 - Easier to test (one function = one test)
 - Easier to understand (single responsibility)
 - Easier to debug (small surface area)
@@ -111,6 +122,7 @@ This document tracks significant technical and architectural decisions made duri
 - Forces thoughtful decomposition
 
 **Consequences**:
+
 - ✅ Highly testable codebase
 - ✅ Easy code reviews
 - ✅ Low cognitive load
@@ -128,12 +140,14 @@ This document tracks significant technical and architectural decisions made duri
 **Decision**: Make threat intel APIs optional (VirusTotal, AbuseIPDB, URLScan).
 
 **Rationale**:
+
 - Not all users have API keys
 - Basic analysis works without external services
 - Graceful degradation if APIs unavailable
 - Can add more providers easily
 
 **Consequences**:
+
 - ✅ Works without API keys
 - ✅ No external dependencies for MVP
 - ✅ Easy to add new providers
@@ -151,6 +165,7 @@ This document tracks significant technical and architectural decisions made duri
 **Decision**: Send HTML-formatted email replies instead of Teams Adaptive Cards.
 
 **Rationale**:
+
 - Email-triggered workflow (not Teams-based)
 - Users expect email replies to email queries
 - HTML allows rich formatting (tables, colors, badges)
@@ -158,6 +173,7 @@ This document tracks significant technical and architectural decisions made duri
 - No additional infrastructure needed
 
 **Consequences**:
+
 - ✅ Native email experience
 - ✅ Works everywhere (desktop, mobile, webmail)
 - ✅ No Teams dependency
@@ -175,6 +191,7 @@ This document tracks significant technical and architectural decisions made duri
 **Decision**: Use custom async orchestration with `Promise.allSettled()` and timeout wrappers instead of agent orchestration framework.
 
 **Rationale**:
+
 - No LLM needed → No orchestration framework needed
 - Parallel API calls handled perfectly by `Promise.allSettled()`
 - Timeout protection with `Promise.race()` prevents hanging
@@ -183,6 +200,7 @@ This document tracks significant technical and architectural decisions made duri
 - Graceful degradation (analysis continues even if APIs fail)
 
 **Consequences**:
+
 - ✅ Fast parallel execution (2-3s for 3 APIs)
 - ✅ No framework complexity or learning curve
 - ✅ Full control over timeouts and retries
@@ -191,6 +209,7 @@ This document tracks significant technical and architectural decisions made duri
 - ⚠️ Need to manage caching manually (but `node-cache` is trivial)
 
 **Alternatives Considered**:
+
 - LangChain (rejected: massive overkill, no LLM needed)
 - Anthropic/OpenAI SDK (rejected: no LLM needed)
 - AI SDK (rejected: UI-focused, not server-side)
@@ -210,17 +229,20 @@ This document tracks significant technical and architectural decisions made duri
 **Decision**: What was decided.
 
 **Rationale**:
+
 - Reason 1
 - Reason 2
 - Reason 3
 
 **Consequences**:
+
 - ✅ Positive outcome 1
 - ✅ Positive outcome 2
 - ⚠️ Trade-off 1
 - ❌ Negative consequence (if any)
 
 **Alternatives Considered**:
+
 - Option A (rejected: reason)
 - Option B (rejected: reason)
 ```

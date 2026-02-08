@@ -7,21 +7,32 @@ import type { IEmailDeduplication } from './email-deduplication.js';
 // Mock dependencies using unstable_mockModule for ESM compatibility
 jest.unstable_mockModule('../lib/config.js', () => ({
   config: {
-    llm: { apiKey: undefined, demoMode: false, timeoutMs: 10000,
-      retryAttempts: 3, circuitBreakerThreshold: 5, circuitBreakerResetMs: 60000 },
+    llm: {
+      apiKey: undefined,
+      demoMode: false,
+      timeoutMs: 10000,
+      retryAttempts: 3,
+      circuitBreakerThreshold: 5,
+      circuitBreakerResetMs: 60000,
+    },
     threatIntel: { enabled: false, timeoutMs: 5000, cacheTtlMs: 300000 },
   },
 }));
 
 jest.unstable_mockModule('../lib/logger.js', () => ({
   securityLogger: {
-    info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
   },
 }));
 
 jest.unstable_mockModule('./llm-analyzer.js', () => ({
   getLlmServiceStatus: jest.fn<any>().mockReturnValue({
-    enabled: false, circuitBreakerState: 'not-initialized', consecutiveFailures: 0,
+    enabled: false,
+    circuitBreakerState: 'not-initialized',
+    consecutiveFailures: 0,
   }),
   healthCheck: jest.fn<any>().mockResolvedValue(true),
 }));
@@ -54,28 +65,32 @@ describe('HealthChecker', () => {
 
     mockMonitor = {
       healthCheck: jest.fn<() => Promise<boolean>>(),
-      getStatus: jest.fn<() => Promise<{
-        isRunning: boolean;
-        mailbox: string;
-        lastCheckTime: Date;
-        checkInterval: number;
-        rateLimitStats: unknown;
-        deduplicationStats: unknown;
-      }>>(),
+      getStatus: jest.fn<
+        () => Promise<{
+          isRunning: boolean;
+          mailbox: string;
+          lastCheckTime: Date;
+          checkInterval: number;
+          rateLimitStats: unknown;
+          deduplicationStats: unknown;
+        }>
+      >(),
     } as unknown as jest.Mocked<MailboxMonitor>;
 
     // Mock rate limiter with async methods (interfaces are async)
     mockRateLimiter = {
       canSendEmail: jest.fn<() => Promise<{ allowed: boolean; reason?: string }>>(),
       recordEmailSent: jest.fn<() => Promise<void>>(),
-      getStats: jest.fn<() => Promise<{
-        lastHour: number;
-        lastDay: number;
-        last10Min: number;
-        circuitBreakerTripped: boolean;
-        hourlyLimit: number;
-        dailyLimit: number;
-      }>>(),
+      getStats: jest.fn<
+        () => Promise<{
+          lastHour: number;
+          lastDay: number;
+          last10Min: number;
+          circuitBreakerTripped: boolean;
+          hourlyLimit: number;
+          dailyLimit: number;
+        }>
+      >(),
       reset: jest.fn<() => Promise<void>>(),
     } as jest.Mocked<IRateLimiter>;
 
@@ -83,11 +98,13 @@ describe('HealthChecker', () => {
     mockDeduplication = {
       shouldProcess: jest.fn<() => Promise<{ allowed: boolean; reason?: string }>>(),
       recordProcessed: jest.fn<() => Promise<void>>(),
-      getStats: jest.fn<() => Promise<{
-        processedEmailsCount: number;
-        uniqueSendersCount: number;
-        enabled: boolean;
-      }>>(),
+      getStats: jest.fn<
+        () => Promise<{
+          processedEmailsCount: number;
+          uniqueSendersCount: number;
+          enabled: boolean;
+        }>
+      >(),
       reset: jest.fn<() => Promise<void>>(),
     } as jest.Mocked<IEmailDeduplication>;
   });

@@ -23,14 +23,14 @@ describe('ContentAnalyzer', () => {
 
       expect(result.hasPhishingPatterns).toBe(true);
       expect(result.socialEngineeringTactics).toContain('urgency');
-      expect(result.indicators.some(i => i.description.includes('Urgency'))).toBe(true);
+      expect(result.indicators.some((i) => i.description.includes('Urgency'))).toBe(true);
     });
 
     it('should increase severity with multiple urgency keywords', () => {
       const body = 'URGENT! Immediate action required! Act now! Limited time! Expires today!';
       const result = ContentAnalyzer.analyze(body);
 
-      const urgencyIndicator = result.indicators.find(i => i.description.includes('Urgency'));
+      const urgencyIndicator = result.indicators.find((i) => i.description.includes('Urgency'));
       expect(urgencyIndicator?.severity).toBe('high');
       expect(urgencyIndicator?.confidence).toBeGreaterThan(0.7);
     });
@@ -51,7 +51,7 @@ describe('ContentAnalyzer', () => {
       expect(result.hasPhishingPatterns).toBe(true);
       expect(result.socialEngineeringTactics).toContain('credential_harvesting');
 
-      const credIndicator = result.indicators.find(i => i.description.includes('Credential harvesting'));
+      const credIndicator = result.indicators.find((i) => i.description.includes('Credential harvesting'));
       expect(credIndicator?.severity).toBe('critical');
       expect(credIndicator?.confidence).toBe(0.9);
     });
@@ -60,7 +60,7 @@ describe('ContentAnalyzer', () => {
       const body = 'Please provide your credit card, CVV, and PIN number';
       const result = ContentAnalyzer.analyze(body);
 
-      const credIndicator = result.indicators.find(i => i.description.includes('Credential harvesting'));
+      const credIndicator = result.indicators.find((i) => i.description.includes('Credential harvesting'));
       expect(credIndicator).not.toBeNull();
       expect(credIndicator?.evidence).toContain('credit card');
     });
@@ -81,7 +81,7 @@ describe('ContentAnalyzer', () => {
       expect(result.hasPhishingPatterns).toBe(true);
       expect(result.socialEngineeringTactics).toContain('financial_lure');
 
-      const finIndicator = result.indicators.find(i => i.description.includes('Financial lure'));
+      const finIndicator = result.indicators.find((i) => i.description.includes('Financial lure'));
       expect(finIndicator?.severity).toBe('high');
       expect(finIndicator?.confidence).toBe(0.85);
     });
@@ -114,22 +114,22 @@ describe('ContentAnalyzer', () => {
       const body = 'Visit our site at https://192.168.1.100/login';
       const result = ContentAnalyzer.analyze(body);
 
-      expect(result.suspiciousUrls.some(u => u.reason.includes('IP address'))).toBe(true);
-      expect(result.indicators.some(i => i.type === 'url' && i.severity === 'high')).toBe(true);
+      expect(result.suspiciousUrls.some((u) => u.reason.includes('IP address'))).toBe(true);
+      expect(result.indicators.some((i) => i.type === 'url' && i.severity === 'high')).toBe(true);
     });
 
     it('should detect URL shorteners', () => {
       const body = 'Click this link: https://bit.ly/abc123';
       const result = ContentAnalyzer.analyze(body);
 
-      expect(result.suspiciousUrls.some(u => u.reason.includes('shortener'))).toBe(true);
+      expect(result.suspiciousUrls.some((u) => u.reason.includes('shortener'))).toBe(true);
     });
 
     it('should detect @ symbol in URLs', () => {
       const body = 'Login at https://paypal.com@evil.com/login';
       const result = ContentAnalyzer.analyze(body);
 
-      const atSymbolUrl = result.suspiciousUrls.find(u => u.reason.includes('@'));
+      const atSymbolUrl = result.suspiciousUrls.find((u) => u.reason.includes('@'));
       expect(atSymbolUrl?.severity).toBe('critical');
     });
 
@@ -137,7 +137,7 @@ describe('ContentAnalyzer', () => {
       const body = 'Visit https://free-paypal.tk for your refund';
       const result = ContentAnalyzer.analyze(body);
 
-      expect(result.suspiciousUrls.some(u => u.reason.includes('Suspicious TLD'))).toBe(true);
+      expect(result.suspiciousUrls.some((u) => u.reason.includes('Suspicious TLD'))).toBe(true);
     });
 
     it('should handle malformed URLs', () => {
@@ -155,7 +155,7 @@ describe('ContentAnalyzer', () => {
       const result = ContentAnalyzer.analyze(body);
 
       expect(result.socialEngineeringTactics).toContain('link_obfuscation');
-      expect(result.indicators.some(i => i.description.includes('Mismatched link'))).toBe(true);
+      expect(result.indicators.some((i) => i.description.includes('Mismatched link'))).toBe(true);
     });
 
     it('should handle multiple mismatched links', () => {
@@ -165,7 +165,7 @@ describe('ContentAnalyzer', () => {
       `;
       const result = ContentAnalyzer.analyze(body);
 
-      const mismatchIndicator = result.indicators.find(i => i.description.includes('Mismatched link'));
+      const mismatchIndicator = result.indicators.find((i) => i.description.includes('Mismatched link'));
       expect(mismatchIndicator?.evidence).toContain('2');
       expect(mismatchIndicator?.severity).toBe('high');
     });

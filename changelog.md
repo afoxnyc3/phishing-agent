@@ -5,6 +5,7 @@ All notable changes to the phishing-agent project will be documented in this fil
 ## [0.3.2] - 2025-11-29
 
 ### Changed
+
 - **Content Analyzer Refactoring** (Issue #26): Split into focused modules for 200-line compliance
   - `content-analyzer.ts` (164 lines) - Orchestration layer
   - `url-analyzer.ts` (147 lines) - URL and link mismatch detection
@@ -13,12 +14,14 @@ All notable changes to the phishing-agent project will be documented in this fil
 - Updated documentation (ARCHITECTURE.md, README.md, CLAUDE.md)
 
 ### Fixed
+
 - Removed `eslint-disable max-lines` workaround from content-analyzer.ts
 - All analysis files now comply with 200-line ESLint limit
 
 ## [0.3.1] - 2025-11-28
 
 ### Added
+
 - **Managed Identity Authentication** (Issue #21): Passwordless Azure authentication
   - `DefaultAzureCredential` support for production deployments
   - Automatic fallback to client secret for local development
@@ -32,12 +35,14 @@ All notable changes to the phishing-agent project will be documented in this fil
   - Total: 661 tests (+81 from v0.3.0)
 
 ### Changed
+
 - Updated `DEPLOY_MANUAL.md` with Managed Identity as recommended auth method
 - Updated `DEPLOYMENT_PLAN.md` with authentication options table
 - Updated `STATUS.md` to v0.3.1 with Phase 4 features
 - Test count increased from 580 to 661 tests
 
 ### Security
+
 - Removed requirement for `AZURE_CLIENT_SECRET` in production
 - Reduced attack surface with passwordless authentication
 - Added security guards test coverage for critical email validation
@@ -45,6 +50,7 @@ All notable changes to the phishing-agent project will be documented in this fil
 ## [0.3.0] - 2025-11-28
 
 ### Added
+
 - **Attachment Analysis** (Issue #2): Detect dangerous file attachments
   - Dangerous executable detection (.exe, .bat, .vbs, .scr, .ps1, .cmd)
   - Macro-enabled document flagging (.docm, .xlsm, .pptm)
@@ -69,17 +75,20 @@ All notable changes to the phishing-agent project will be documented in this fil
 - Updated documentation (README, ARCHITECTURE, AGENT.md, CLAUDE.md)
 
 ### Changed
+
 - Risk scoring now includes attachment analysis (40/30/30 weighting when attachments present)
 - Test count increased from 387 to 502 tests
 - Documentation updated to v0.3.0
 
 ### Fixed
+
 - ESM-compatible mocking for all test files
 - Jest configuration for p-retry and other ESM packages
 
 ## [0.2.2] - 2025-10-20
 
 ### Added
+
 - **Rate Limiter Service**: Prevents email sending abuse with configurable limits
   - Hourly and daily email sending limits (default: 100/hour, 1000/day)
   - Circuit breaker that trips on burst sending (default: 50 emails in 10 minutes)
@@ -94,11 +103,13 @@ All notable changes to the phishing-agent project will be documented in this fil
 - Updated documentation (README.md, .env.example)
 
 ### Changed
+
 - Mailbox monitor now integrates rate limiting and deduplication checks
 - Email processing skips duplicate content and rate-limited sends
 - Health check endpoints now include rate limit and deduplication statistics
 
 ### Fixed
+
 - **Critical**: Mass email sending incident prevention (10,000+ emails/day)
 - Email reply loops from duplicate processing
 - Microsoft 365 sending limit violations
@@ -106,6 +117,7 @@ All notable changes to the phishing-agent project will be documented in this fil
 ## [0.2.1] - 2025-10-19
 
 ### Added
+
 - Docker multi-stage build for production deployment
 - Azure Container Apps production environment
 - Azure Container Registry integration
@@ -115,11 +127,13 @@ All notable changes to the phishing-agent project will be documented in this fil
 - End-to-end production testing with real phishing email
 
 ### Changed
+
 - Updated README.md with Docker deployment instructions
 - Updated all project documentation with production status
 - Configured Azure AD permissions for production mailbox access
 
 ### Validated
+
 - Production deployment to Azure Container Apps (East US)
 - Analysis performance <1 second in production
 - Risk assessment accuracy (7.65/10 score with 9 threat indicators)
@@ -128,6 +142,7 @@ All notable changes to the phishing-agent project will be documented in this fil
 ## [0.2.0] - 2025-10-16
 
 ### Added
+
 - Core analysis engine (header-validator, content-analyzer, risk-scorer)
 - Threat intel integration (VirusTotal, AbuseIPDB, URLScan) with parallel execution
 - Mailbox monitoring via Microsoft Graph API (60s polling)
@@ -139,12 +154,14 @@ All notable changes to the phishing-agent project will be documented in this fil
 - GitHub repository and issues created
 
 ### Changed
+
 - Updated architecture to use custom async orchestration with `Promise.allSettled()`
 - Moved threat intel from Phase 2 to MVP (Phase 1)
 
 ## [0.1.0] - 2025-10-16
 
 ### Added
+
 - Project initialization
 - Documentation templates (README, ARCHITECTURE, roadmap, decision-log)
 - TypeScript configuration with strict mode

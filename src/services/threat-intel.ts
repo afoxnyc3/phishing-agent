@@ -53,7 +53,11 @@ export class ThreatIntelService {
   }
 
   /** Enrich email with threat intelligence */
-  async enrichEmail(senderEmail: string, senderIp: string | null, suspiciousUrls: string[]): Promise<ThreatIntelResult> {
+  async enrichEmail(
+    senderEmail: string,
+    senderIp: string | null,
+    suspiciousUrls: string[]
+  ): Promise<ThreatIntelResult> {
     if (!this.enabled) return { indicators: [], riskContribution: 0 };
 
     const lookups = await this.performParallelLookups(senderEmail, senderIp, suspiciousUrls);

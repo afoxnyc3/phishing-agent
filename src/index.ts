@@ -29,7 +29,14 @@ async function bootstrap(): Promise<{
   const { HttpServer } = await import('./server.js');
   const { createResilientCacheProvider } = await import('./lib/cache-provider.js');
 
-  return { securityLogger, config, PhishingAgent, MailboxMonitor, HttpServer, createResilientCacheProvider };
+  return {
+    securityLogger,
+    config,
+    PhishingAgent,
+    MailboxMonitor,
+    HttpServer,
+    createResilientCacheProvider,
+  };
 }
 
 // Type definitions for bootstrapped modules
@@ -60,7 +67,9 @@ class Application {
 
     // Initialize cache provider if Redis URL is configured
     if (config.redis.url) {
-      securityLogger.info('Initializing Redis cache provider...', { keyPrefix: config.redis.keyPrefix });
+      securityLogger.info('Initializing Redis cache provider...', {
+        keyPrefix: config.redis.keyPrefix,
+      });
       this.cacheProvider = await createResilientCacheProvider(config.redis.url, config.redis.keyPrefix);
     }
 

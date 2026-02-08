@@ -51,10 +51,7 @@ export class VirusTotalClient {
       headers: { 'x-apikey': apiKey },
       timeout: config.threatIntel.timeoutMs,
     });
-    this.breaker = new CircuitBreaker(
-      (urlId: string) => this.client.get(`/urls/${urlId}`),
-      CIRCUIT_BREAKER_OPTIONS
-    );
+    this.breaker = new CircuitBreaker((urlId: string) => this.client.get(`/urls/${urlId}`), CIRCUIT_BREAKER_OPTIONS);
     this.setupBreakerEvents('VirusTotal');
   }
 
@@ -71,13 +68,16 @@ export class VirusTotalClient {
 
     try {
       const urlId = Buffer.from(url).toString('base64').replace(/=/g, '');
-      const response = await pRetry(
-        () => this.breaker.fire(urlId) as Promise<{ data: unknown }>,
-        { ...RETRY_OPTIONS, onFailedAttempt: (e) => securityLogger.warn('VT retry', { attempt: e.attemptNumber, url }) }
-      );
+      const response = await pRetry(() => this.breaker.fire(urlId) as Promise<{ data: unknown }>, {
+        ...RETRY_OPTIONS,
+        onFailedAttempt: (e) => securityLogger.warn('VT retry', { attempt: e.attemptNumber, url }),
+      });
       return this.parseResponse(url, response, cacheKey);
     } catch (error: unknown) {
-      securityLogger.warn('VirusTotal failed', { error: error instanceof Error ? error.message : String(error), url });
+      securityLogger.warn('VirusTotal failed', {
+        error: error instanceof Error ? error.message : String(error),
+        url,
+      });
       return null;
     }
   }
@@ -135,13 +135,16 @@ export class AbuseIPDBClient {
     if (cached) return cached;
 
     try {
-      const response = await pRetry(
-        () => this.breaker.fire(ip) as Promise<{ data: unknown }>,
-        { ...RETRY_OPTIONS, onFailedAttempt: (e) => securityLogger.warn('AbuseIPDB retry', { attempt: e.attemptNumber, ip }) }
-      );
+      const response = await pRetry(() => this.breaker.fire(ip) as Promise<{ data: unknown }>, {
+        ...RETRY_OPTIONS,
+        onFailedAttempt: (e) => securityLogger.warn('AbuseIPDB retry', { attempt: e.attemptNumber, ip }),
+      });
       return this.parseResponse(ip, response, cacheKey);
     } catch (error: unknown) {
-      securityLogger.warn('AbuseIPDB failed', { error: error instanceof Error ? error.message : String(error), ip });
+      securityLogger.warn('AbuseIPDB failed', {
+        error: error instanceof Error ? error.message : String(error),
+        ip,
+      });
       return null;
     }
   }

@@ -35,7 +35,10 @@ export class EmailParser {
   }
 
   /** Parse header section and separate body */
-  private static parseHeaderSection(lines: string[]): { rawHeaders: Map<string, string[]>; body: string } {
+  private static parseHeaderSection(lines: string[]): {
+    rawHeaders: Map<string, string[]>;
+    body: string;
+  } {
     const rawHeaders = new Map<string, string[]>();
     let body = '';
     let inHeaders = true;
@@ -59,14 +62,19 @@ export class EmailParser {
 
   /** Process a single header line */
   private static processHeaderLine(
-    line: string, currentName: string, currentValue: string, rawHeaders: Map<string, string[]>
+    line: string,
+    currentName: string,
+    currentValue: string,
+    rawHeaders: Map<string, string[]>
   ): { currentName: string; currentValue: string } {
     if (line.match(/^\s/) && currentName) {
       return { currentName, currentValue: currentValue + ' ' + line.trim() };
     }
     if (currentName) this.addHeader(rawHeaders, currentName, currentValue.trim());
     const match = line.match(/^([^:]+):\s*(.*)$/);
-    return match ? { currentName: match[1].toLowerCase(), currentValue: match[2] } : { currentName: '', currentValue: '' };
+    return match
+      ? { currentName: match[1].toLowerCase(), currentValue: match[2] }
+      : { currentName: '', currentValue: '' };
   }
 
   /** Extract standard email headers from raw headers map */

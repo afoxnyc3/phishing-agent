@@ -109,7 +109,9 @@ describe('ThreatIntelService', () => {
       };
 
       // Mock client to return cached result
-      (service as any).virusTotalClient = { checkUrl: jest.fn<any>().mockResolvedValue(cachedResult) };
+      (service as any).virusTotalClient = {
+        checkUrl: jest.fn<any>().mockResolvedValue(cachedResult),
+      };
 
       const result = await service.checkUrlReputation('https://example.com');
 
@@ -135,7 +137,9 @@ describe('ThreatIntelService', () => {
       };
 
       // Mock client to return cached result
-      (service as any).abuseIpDbClient = { checkIp: jest.fn<any>().mockResolvedValue(cachedResult) };
+      (service as any).abuseIpDbClient = {
+        checkIp: jest.fn<any>().mockResolvedValue(cachedResult),
+      };
 
       const result = await service.checkIpReputation('1.2.3.4');
 
@@ -181,15 +185,9 @@ describe('ThreatIntelService', () => {
 
   describe('Parallel Lookups', () => {
     it('should perform parallel lookups for URLs, IP, and domain', async () => {
-      const checkUrlReputationSpy = jest
-        .spyOn(service, 'checkUrlReputation')
-        .mockResolvedValue(null);
-      const checkIpReputationSpy = jest
-        .spyOn(service, 'checkIpReputation')
-        .mockResolvedValue(null);
-      const checkDomainAgeSpy = jest
-        .spyOn(service, 'checkDomainAge')
-        .mockResolvedValue(null);
+      const checkUrlReputationSpy = jest.spyOn(service, 'checkUrlReputation').mockResolvedValue(null);
+      const checkIpReputationSpy = jest.spyOn(service, 'checkIpReputation').mockResolvedValue(null);
+      const checkDomainAgeSpy = jest.spyOn(service, 'checkDomainAge').mockResolvedValue(null);
 
       await service.enrichEmail('test@example.com', '1.2.3.4', ['https://test.com', 'https://test2.com']);
 
@@ -199,9 +197,7 @@ describe('ThreatIntelService', () => {
     });
 
     it('should limit URL checks to first 3 URLs', async () => {
-      const checkUrlReputationSpy = jest
-        .spyOn(service, 'checkUrlReputation')
-        .mockResolvedValue(null);
+      const checkUrlReputationSpy = jest.spyOn(service, 'checkUrlReputation').mockResolvedValue(null);
 
       const urls = Array(10).fill('https://test.com');
       await service.enrichEmail('test@example.com', null, urls);
@@ -210,9 +206,7 @@ describe('ThreatIntelService', () => {
     });
 
     it('should skip IP lookup if no IP provided', async () => {
-      const checkIpReputationSpy = jest
-        .spyOn(service, 'checkIpReputation')
-        .mockResolvedValue(null);
+      const checkIpReputationSpy = jest.spyOn(service, 'checkIpReputation').mockResolvedValue(null);
 
       await service.enrichEmail('test@example.com', null, []);
 
@@ -249,7 +243,7 @@ describe('ThreatIntelService', () => {
 
       const result = await service.enrichEmail('test@example.com', '1.2.3.4', []);
 
-      const ipIndicator = result.indicators.find(i => i.type === 'sender' && i.description.includes('IP'));
+      const ipIndicator = result.indicators.find((i) => i.type === 'sender' && i.description.includes('IP'));
       expect(ipIndicator).toBeDefined();
       expect(ipIndicator?.severity).toBe('high');
       expect(result.riskContribution).toBeGreaterThan(0);
@@ -266,7 +260,7 @@ describe('ThreatIntelService', () => {
 
       const result = await service.enrichEmail('test@newdomain.com', null, []);
 
-      const domainIndicator = result.indicators.find(i => i.description.includes('Domain registered'));
+      const domainIndicator = result.indicators.find((i) => i.description.includes('Domain registered'));
       expect(domainIndicator).toBeDefined();
       expect(domainIndicator?.severity).toBe('high');
       expect(result.riskContribution).toBeGreaterThan(0);
@@ -283,7 +277,7 @@ describe('ThreatIntelService', () => {
 
       const result = await service.enrichEmail('test@olddomain.com', null, []);
 
-      const domainIndicator = result.indicators.find(i => i.description.includes('Domain registered'));
+      const domainIndicator = result.indicators.find((i) => i.description.includes('Domain registered'));
       expect(domainIndicator).toBeUndefined();
     });
   });
@@ -355,7 +349,7 @@ describe('ThreatIntelService', () => {
       const result = await service.enrichEmail('test@example.com', '1.2.3.4', ['https://test.com']);
 
       // IP result should still be processed
-      expect(result.indicators.some(i => i.type === 'sender')).toBe(true);
+      expect(result.indicators.some((i) => i.type === 'sender')).toBe(true);
     });
   });
 
@@ -400,7 +394,9 @@ describe('ThreatIntelService', () => {
         confidenceScore: 0,
       };
       // Mock the client's checkUrl method to return cached result
-      (service as any).virusTotalClient = { checkUrl: jest.fn<any>().mockResolvedValue(cachedResult) };
+      (service as any).virusTotalClient = {
+        checkUrl: jest.fn<any>().mockResolvedValue(cachedResult),
+      };
 
       const result = await service.checkUrlReputation('https://cached.com');
 
@@ -415,7 +411,9 @@ describe('ThreatIntelService', () => {
         totalReports: 0,
       };
       // Mock the client's checkIp method to return cached result
-      (service as any).abuseIpDbClient = { checkIp: jest.fn<any>().mockResolvedValue(cachedResult) };
+      (service as any).abuseIpDbClient = {
+        checkIp: jest.fn<any>().mockResolvedValue(cachedResult),
+      };
 
       const result = await service.checkIpReputation('1.2.3.4');
 
@@ -488,7 +486,7 @@ describe('ThreatIntelService', () => {
 
       const result = await service.enrichEmail('test@newerdomain.com', null, []);
 
-      const domainIndicator = result.indicators.find(i => i.description.includes('Domain registered'));
+      const domainIndicator = result.indicators.find((i) => i.description.includes('Domain registered'));
       expect(domainIndicator).toBeDefined();
       expect(domainIndicator?.severity).toBe('medium');
       expect(result.riskContribution).toBe(1.0);
@@ -506,7 +504,7 @@ describe('ThreatIntelService', () => {
 
       const result = await service.enrichEmail('test@example.com', null, ['https://suspicious.com']);
 
-      const urlIndicator = result.indicators.find(i => i.type === 'url');
+      const urlIndicator = result.indicators.find((i) => i.type === 'url');
       expect(urlIndicator).toBeDefined();
       expect(urlIndicator?.severity).toBe('high'); // Not critical due to low confidence
     });
@@ -521,7 +519,7 @@ describe('ThreatIntelService', () => {
 
       const result = await service.enrichEmail('test@example.com', '5.6.7.8', []);
 
-      const ipIndicator = result.indicators.find(i => i.type === 'sender' && i.description.includes('IP'));
+      const ipIndicator = result.indicators.find((i) => i.type === 'sender' && i.description.includes('IP'));
       expect(ipIndicator).toBeDefined();
       expect(ipIndicator?.severity).toBe('medium');
     });
@@ -536,7 +534,7 @@ describe('ThreatIntelService', () => {
 
       const result = await service.enrichEmail('test@example.com', '5.6.7.8', []);
 
-      const ipIndicator = result.indicators.find(i => i.type === 'sender' && i.description.includes('IP'));
+      const ipIndicator = result.indicators.find((i) => i.type === 'sender' && i.description.includes('IP'));
       expect(ipIndicator).toBeUndefined();
     });
   });
@@ -580,7 +578,7 @@ describe('ThreatIntelService', () => {
 
       const result = await service.enrichEmail('test@example.com', null, ['https://safe.com']);
 
-      expect(result.indicators.filter(i => i.type === 'url')).toHaveLength(0);
+      expect(result.indicators.filter((i) => i.type === 'url')).toHaveLength(0);
       expect(result.riskContribution).toBe(0);
     });
 
@@ -600,7 +598,7 @@ describe('ThreatIntelService', () => {
         'https://evil3.com',
       ]);
 
-      expect(result.indicators.filter(i => i.type === 'url')).toHaveLength(3);
+      expect(result.indicators.filter((i) => i.type === 'url')).toHaveLength(3);
       expect(result.riskContribution).toBeGreaterThan(6.0); // 3 URLs * ~2.6 each
     });
   });
@@ -642,9 +640,9 @@ describe('ThreatIntelService', () => {
       const result = await service.enrichEmail('test@newsite.com', '1.2.3.4', ['https://evil.com']);
 
       // Should have indicators from all three sources
-      expect(result.indicators.some(i => i.type === 'url')).toBe(true);
-      expect(result.indicators.some(i => i.description.includes('IP'))).toBe(true);
-      expect(result.indicators.some(i => i.description.includes('Domain registered'))).toBe(true);
+      expect(result.indicators.some((i) => i.type === 'url')).toBe(true);
+      expect(result.indicators.some((i) => i.description.includes('IP'))).toBe(true);
+      expect(result.indicators.some((i) => i.description.includes('Domain registered'))).toBe(true);
       expect(result.riskContribution).toBeGreaterThan(5.0);
     });
   });

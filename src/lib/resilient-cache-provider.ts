@@ -74,11 +74,7 @@ export class ResilientCacheProvider implements CacheProvider {
   }
 
   /** Execute operation via circuit breaker with memory fallback */
-  private async execute<T>(
-    redisOp: () => Promise<T>,
-    memoryOp: () => Promise<T>,
-    operationName: string
-  ): Promise<T> {
+  private async execute<T>(redisOp: () => Promise<T>, memoryOp: () => Promise<T>, operationName: string): Promise<T> {
     // If Redis not ready, use memory directly
     if (!this.redis.isReady()) {
       return memoryOp();
@@ -97,7 +93,11 @@ export class ResilientCacheProvider implements CacheProvider {
 
   // Basic operations with fallback
   async get(key: string): Promise<string | null> {
-    return this.execute(() => this.redis.get(key), () => this.memory.get(key), 'get');
+    return this.execute(
+      () => this.redis.get(key),
+      () => this.memory.get(key),
+      'get'
+    );
   }
 
   async set(key: string, value: string, ttlMs?: number): Promise<void> {
@@ -111,12 +111,20 @@ export class ResilientCacheProvider implements CacheProvider {
   }
 
   async exists(key: string): Promise<boolean> {
-    return this.execute(() => this.redis.exists(key), () => this.memory.exists(key), 'exists');
+    return this.execute(
+      () => this.redis.exists(key),
+      () => this.memory.exists(key),
+      'exists'
+    );
   }
 
   async delete(key: string): Promise<void> {
     await this.memory.delete(key);
-    await this.execute(() => this.redis.delete(key), async () => {}, 'delete');
+    await this.execute(
+      () => this.redis.delete(key),
+      async () => {},
+      'delete'
+    );
   }
 
   async increment(key: string, ttlMs?: number): Promise<number> {
@@ -131,7 +139,11 @@ export class ResilientCacheProvider implements CacheProvider {
   // Sorted set operations with fallback
   async zadd(key: string, score: number, member: string): Promise<number> {
     await this.memory.zadd(key, score, member);
-    return this.execute(() => this.redis.zadd(key, score, member), async () => 1, 'zadd');
+    return this.execute(
+      () => this.redis.zadd(key, score, member),
+      async () => 1,
+      'zadd'
+    );
   }
 
   async zcount(key: string, min: number | '-inf', max: number | '+inf'): Promise<number> {

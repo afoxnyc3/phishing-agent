@@ -169,7 +169,11 @@ export class HealthChecker {
 
   private checkCache(): HealthStatus {
     if (!this.cacheProvider) {
-      return { healthy: true, component: 'cache', message: 'Cache not configured (using in-memory)' };
+      return {
+        healthy: true,
+        component: 'cache',
+        message: 'Cache not configured (using in-memory)',
+      };
     }
     const status: CacheStatus = this.cacheProvider.getStatus();
     const healthy = !status.degraded || status.mode === 'fallback';

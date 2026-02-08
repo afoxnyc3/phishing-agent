@@ -59,28 +59,33 @@ Verdict Generation & Email Reply
 The agent calculates a risk score (0-10) by aggregating findings from multiple analysis layers:
 
 **Authentication Failures** (+2.0 points each):
+
 - SPF (Sender Policy Framework) failure
 - DKIM (DomainKeys Identified Mail) failure
 - DMARC (Domain-based Message Authentication) failure
 
 **Suspicious URLs** (+1.5 points each):
+
 - IP addresses in links
 - Shortened URLs (bit.ly, tinyurl, etc.)
 - Typosquatting domains (paypa1.com)
 - Uncommon TLDs (.xyz, .top, .loan)
 
 **Content Patterns** (variable points):
+
 - Brand impersonation (+2.0)
 - Urgency keywords (+1.0)
 - Credential harvesting language (+1.5)
 - Wire transfer requests (+2.0)
 
 **Threat Intelligence** (up to +3.0):
+
 - Known malicious URL/domain (+2.0)
 - Suspicious sender IP (+1.5)
 - Recent phishing campaign match (+2.5)
 
 **Attachment Risks** (variable points):
+
 - Dangerous executables (.exe, .bat, .vbs, .scr) - CRITICAL (+2.5)
 - Macro-enabled documents (.docm, .xlsm) - HIGH (+1.5)
 - Double extension tricks (invoice.pdf.exe) - CRITICAL (+2.5)
@@ -90,6 +95,7 @@ The agent calculates a risk score (0-10) by aggregating findings from multiple a
 ### Score Weighting
 
 When attachments are present, scores are weighted:
+
 - **With attachments**: Header (40%) + Content (30%) + Attachment (30%)
 - **Without attachments**: Header (60%) + Content (40%)
 
@@ -97,12 +103,12 @@ When attachments are present, scores are weighted:
 
 Risk scores map to severity levels:
 
-| Score Range | Severity | User Impact |
-|-------------|----------|-------------|
-| 0.0 - 4.9 | **LOW** | Email likely legitimate |
-| 5.0 - 6.9 | **MEDIUM** | Caution advised, user training opportunity |
-| 7.0 - 8.9 | **HIGH** | Strong phishing indicators, recommend quarantine |
-| 9.0 - 10.0 | **CRITICAL** | High-confidence phishing, immediate action required |
+| Score Range | Severity     | User Impact                                         |
+| ----------- | ------------ | --------------------------------------------------- |
+| 0.0 - 4.9   | **LOW**      | Email likely legitimate                             |
+| 5.0 - 6.9   | **MEDIUM**   | Caution advised, user training opportunity          |
+| 7.0 - 8.9   | **HIGH**     | Strong phishing indicators, recommend quarantine    |
+| 9.0 - 10.0  | **CRITICAL** | High-confidence phishing, immediate action required |
 
 ---
 
@@ -111,12 +117,14 @@ Risk scores map to severity levels:
 ### HIGH RISK (Score ≥ 7.0)
 
 **Indicators**:
+
 - Multiple authentication failures
 - Known malicious URLs or sender IPs
 - Credential harvesting patterns
 - Brand impersonation with urgency tactics
 
 **Recommended Actions**:
+
 - Quarantine email immediately
 - Block sender domain if persistent
 - Report to security team
@@ -125,12 +133,14 @@ Risk scores map to severity levels:
 ### MEDIUM RISK (Score 5.0-6.9)
 
 **Indicators**:
+
 - Some authentication failures
 - Suspicious but unconfirmed patterns
 - Generic urgency language
 - Unusual sender behavior
 
 **Recommended Actions**:
+
 - Flag for user caution
 - Provide educational context
 - Monitor sender for patterns
@@ -139,12 +149,14 @@ Risk scores map to severity levels:
 ### LOW RISK (Score < 5.0)
 
 **Indicators**:
+
 - Passes all authentication checks
 - No suspicious content patterns
 - Known legitimate sender
 - Normal email characteristics
 
 **Recommended Actions**:
+
 - Mark as likely legitimate
 - Educate on what makes it safe
 - Reinforce security awareness
@@ -198,6 +210,7 @@ Recommended Actions:
 Every function adheres to strict simplicity rules:
 
 **Maximum 25 Lines**:
+
 ```typescript
 // Good: Single responsibility, clear logic
 export function validateSpfRecord(spfHeader: string | undefined): Result<string, Error> {
@@ -224,12 +237,11 @@ export function validateSpfRecord(spfHeader: string | undefined): Result<string,
 All functions return `Result<T, E>` types for type-safe error handling:
 
 ```typescript
-type Result<T, E> =
-  | { success: true; value: T }
-  | { success: false; error: E };
+type Result<T, E> = { success: true; value: T } | { success: false; error: E };
 ```
 
 This approach:
+
 - Makes errors explicit in function signatures
 - Prevents silent failures
 - Enables graceful degradation
@@ -261,7 +273,7 @@ External threat intelligence is optional and runs in parallel:
 const results = await Promise.allSettled([
   Promise.race([checkVirusTotal(url), timeout(5000)]),
   Promise.race([checkAbuseIPDB(ip), timeout(5000)]),
-  Promise.race([checkURLScan(url), timeout(5000)])
+  Promise.race([checkURLScan(url), timeout(5000)]),
 ]);
 
 // Continue analysis even if all APIs fail
@@ -270,6 +282,7 @@ const finalScore = baseScore + threatIntelRisk;
 ```
 
 ### Benefits
+
 - Analysis never blocked by slow APIs
 - System works without API keys
 - Caching reduces redundant calls
@@ -288,16 +301,19 @@ For borderline cases (risk score 4.0-6.0), the agent can generate natural langua
 The LLM integration includes production-grade reliability:
 
 **Retry Logic**:
+
 - 3 retry attempts with exponential backoff
 - Initial delay: 1 second, max delay: 10 seconds
 - Only retries on transient errors (rate limits, timeouts)
 
 **Circuit Breaker**:
+
 - Opens after 5 consecutive failures
 - Half-open state after 60 seconds
 - Prevents cascade failures during API outages
 
 **Graceful Degradation**:
+
 - Analysis continues without explanation if LLM unavailable
 - Risk scoring unaffected by LLM failures
 - Users still receive core threat indicators
@@ -317,13 +333,13 @@ if (riskScore >= 4.0 && riskScore <= 6.0) {
 
 ### Target vs. Actual
 
-| Component | Target | Typical |
-|-----------|--------|---------|
-| Header Validation | < 100ms | ~50ms |
-| Content Analysis | < 500ms | ~200ms |
-| Threat Intel (parallel) | 2-3s | 1-2s |
-| Risk Scoring | < 100ms | ~30ms |
-| **Total Analysis** | **< 5s** | **< 1s** |
+| Component               | Target   | Typical  |
+| ----------------------- | -------- | -------- |
+| Header Validation       | < 100ms  | ~50ms    |
+| Content Analysis        | < 500ms  | ~200ms   |
+| Threat Intel (parallel) | 2-3s     | 1-2s     |
+| Risk Scoring            | < 100ms  | ~30ms    |
+| **Total Analysis**      | **< 5s** | **< 1s** |
 
 ### Optimization Techniques
 
@@ -432,16 +448,19 @@ MAX_EMAILS_PER_HOUR=100
 ### Potential Improvements
 
 **Advanced Content Analysis**:
+
 - Logo/image analysis for visual spoofing
 - Attachment deep scanning with hash reputation
 - Archive file inspection (nested files)
 
 **User Feedback Loop**:
+
 - Learn from user corrections
 - Adjust scoring weights dynamically
 - Track false positive/negative rates
 
 **Enterprise Features**:
+
 - Multi-tenant support
 - SIEM integration
 - Custom risk policies
@@ -449,6 +468,7 @@ MAX_EMAILS_PER_HOUR=100
 ### Maintaining Philosophy
 
 Future enhancements must preserve core principles:
+
 - ✅ Explainable decisions (no "black box")
 - ✅ Fast analysis (< 5 seconds)
 - ✅ Low false positives
@@ -460,12 +480,14 @@ Future enhancements must preserve core principles:
 ## References
 
 For implementation details, see:
+
 - **ARCHITECTURE.md** - System design and data flow
 - **TECH_STACK.md** - Technology choices and rationale
 - **README.md** - Quick start and usage guide
 - **CLAUDE.md** - Claude Code project instructions
 
 For operational procedures, see:
+
 - **SECURITY.md** - Credential management
 - **roadmap.md** - Feature planning
 

@@ -10,15 +10,15 @@
 
 ## At a Glance
 
-| Metric | Value |
-|--------|-------|
-| **Project Status** | Production deployed and validated |
-| **Development Time** | 3 days (Oct 16-19, 2025) |
-| **Time to Production** | 35 minutes (manual deployment) |
-| **Monthly Operating Cost** | $30-35 (Azure infrastructure) |
-| **Analysis Performance** | <1 second per email |
-| **Test Coverage** | 95.82% (277 passing tests) |
-| **Production URL** | https://phishing-agent.blackisland-7c0080bf.eastus.azurecontainerapps.io/ |
+| Metric                     | Value                                                                     |
+| -------------------------- | ------------------------------------------------------------------------- |
+| **Project Status**         | Production deployed and validated                                         |
+| **Development Time**       | 3 days (Oct 16-19, 2025)                                                  |
+| **Time to Production**     | 35 minutes (manual deployment)                                            |
+| **Monthly Operating Cost** | $30-35 (Azure infrastructure)                                             |
+| **Analysis Performance**   | <1 second per email                                                       |
+| **Test Coverage**          | 95.82% (277 passing tests)                                                |
+| **Production URL**         | https://phishing-agent.blackisland-7c0080bf.eastus.azurecontainerapps.io/ |
 
 ---
 
@@ -27,6 +27,7 @@
 ### The Business Challenge
 
 Phishing emails are the #1 cyber threat vector for organizations:
+
 - **91% of cyberattacks** start with a phishing email (Proofpoint, 2023)
 - **Average cost per breach**: $4.45 million (IBM Security, 2023)
 - **User uncertainty**: Employees receive suspicious emails but lack tools to validate them
@@ -45,6 +46,7 @@ Phishing emails are the #1 cyber threat vector for organizations:
 ### Product Overview
 
 **Phishing Agent** is an automated email analysis system that:
+
 1. Monitors a designated mailbox (e.g., phishing@company.com)
 2. Analyzes forwarded suspicious emails for phishing indicators
 3. Sends HTML-formatted risk assessments back to the user within seconds
@@ -60,22 +62,26 @@ User receives verdict and recommended actions
 ### What It Analyzes
 
 **Email Authentication**:
+
 - SPF (Sender Policy Framework) validation
 - DKIM (DomainKeys Identified Mail) signature verification
 - DMARC (Domain-based Message Authentication) policy checks
 
 **Content Analysis**:
+
 - Suspicious URLs (IP addresses, typosquatting, shortened links)
 - Urgency keywords ("urgent", "verify now", "account suspended")
 - Brand impersonation patterns (PayPal, Amazon, Microsoft, etc.)
 - Attachment risk assessment (dangerous file types)
 
 **External Threat Intelligence** (optional):
+
 - VirusTotal: URL/domain/IP reputation
 - AbuseIPDB: IP abuse confidence scoring
 - URLScan.io: URL scanning and screenshot capture
 
 **Risk Scoring**:
+
 - 0-10 scale with severity mapping (LOW, MEDIUM, HIGH, CRITICAL)
 - Evidence-based threat indicators
 - Actionable recommendations
@@ -87,11 +93,13 @@ User receives verdict and recommended actions
 ### Time Savings
 
 **IT Security Team**:
+
 - **Before**: 10-15 minutes per manual email analysis
 - **After**: 0 minutes (fully automated)
 - **Estimated savings**: 5-10 hours/week for typical organization
 
 **End Users**:
+
 - **Before**: Hours/days waiting for IT response
 - **After**: 60 seconds average response time
 - **Benefit**: Immediate decision-making, reduced anxiety
@@ -99,22 +107,26 @@ User receives verdict and recommended actions
 ### Risk Reduction
 
 **Phishing Prevention**:
+
 - Faster response time reduces window of vulnerability
 - Educational replies help users recognize future threats
 - Reduces likelihood of successful phishing attacks
 
 **Cost Avoidance**:
+
 - Average phishing attack cost: $14,000 (Proofpoint)
 - Preventing 1-2 attacks/year pays for system 400x over
 
 ### Scalability
 
 **Current Capacity**:
+
 - Processes up to 1,440 emails/day (1 per minute)
 - Auto-scales from 1-3 containers based on load
 - Can handle spikes up to 4,320 emails/day (3 per minute)
 
 **Cost Efficiency**:
+
 - $30-35/month base cost (unlimited analyses)
 - ~$0.01 per analysis (assuming 3,000 emails/month)
 - No per-user licensing fees
@@ -159,6 +171,7 @@ User receives verdict and recommended actions
 **Test Email**: Real phishing email forwarded to production system
 
 **Results**:
+
 - **Detection Time**: 60 seconds (one polling cycle)
 - **Analysis Time**: <1 second
 - **Risk Score**: 7.65/10 (HIGH severity)
@@ -166,6 +179,7 @@ User receives verdict and recommended actions
 - **User Feedback**: "Received clear, actionable analysis email"
 
 **Threat Indicators Detected**:
+
 1. SPF authentication failed
 2. DKIM signature failed
 3. DMARC policy failed
@@ -184,29 +198,32 @@ User receives verdict and recommended actions
 
 ### Total Cost of Ownership (Monthly)
 
-| Item | Cost |
-|------|------|
-| Azure Container Apps | $25-30 |
-| Azure Container Registry | $5 |
-| Azure AD | $0 (free tier) |
-| Microsoft Graph API | $0 (included with M365) |
-| Threat Intel APIs | $0 (using free tiers) |
-| **Total** | **$30-35/month** |
+| Item                     | Cost                    |
+| ------------------------ | ----------------------- |
+| Azure Container Apps     | $25-30                  |
+| Azure Container Registry | $5                      |
+| Azure AD                 | $0 (free tier)          |
+| Microsoft Graph API      | $0 (included with M365) |
+| Threat Intel APIs        | $0 (using free tiers)   |
+| **Total**                | **$30-35/month**        |
 
 ### Return on Investment (ROI)
 
 **Scenario 1: Time Savings Only**
+
 - IT analyst hourly rate: $50/hour
 - Time saved per week: 5-10 hours
 - Monthly savings: $1,000-2,000
 - **ROI**: 2,857% - 5,714%
 
 **Scenario 2: Prevented Phishing Attack**
+
 - Average phishing attack cost: $14,000
 - Preventing 1 attack every 2 years: $7,000/year = $583/month avoided cost
 - **ROI**: 1,566%
 
 **Scenario 3: Conservative Estimate**
+
 - Assume 50% reduction in phishing-related incidents
 - Average organization: 3-4 incidents/year
 - Cost avoidance: $21,000-28,000/year
@@ -221,16 +238,19 @@ User receives verdict and recommended actions
 ### Lean Startup Approach
 
 **Why Manual Deployment First?**
+
 - Validate user value before investing in automation
 - 35 minutes to production vs. 3-4 hours for full CI/CD pipeline
 - Immediate user feedback to guide future development
 
 **What We Learned**:
+
 - Real users confirmed value within 2 hours of deployment
 - Analysis performance exceeded expectations (<1s vs. 3-5s target)
 - Free tier APIs sufficient for MVP traffic
 
 **Next Steps**:
+
 1. Monitor production for 1 week
 2. Collect usage metrics and accuracy data
 3. Gather user feedback
@@ -242,22 +262,22 @@ User receives verdict and recommended actions
 
 ### Technical Risks
 
-| Risk | Mitigation | Status |
-|------|------------|--------|
-| Service downtime | Azure Container Apps auto-restart, health checks | ✅ Mitigated |
-| Data breach | No email content logging, secure credential storage | ✅ Mitigated |
-| API rate limits | Caching, graceful degradation, free tier headroom | ✅ Mitigated |
-| False positives | Conservative risk scoring, educational context in replies | 🟡 Monitor |
-| Scalability | Auto-scaling 1-3 replicas, Graph API rate limits allow 10x growth | ✅ Mitigated |
+| Risk             | Mitigation                                                        | Status       |
+| ---------------- | ----------------------------------------------------------------- | ------------ |
+| Service downtime | Azure Container Apps auto-restart, health checks                  | ✅ Mitigated |
+| Data breach      | No email content logging, secure credential storage               | ✅ Mitigated |
+| API rate limits  | Caching, graceful degradation, free tier headroom                 | ✅ Mitigated |
+| False positives  | Conservative risk scoring, educational context in replies         | 🟡 Monitor   |
+| Scalability      | Auto-scaling 1-3 replicas, Graph API rate limits allow 10x growth | ✅ Mitigated |
 
 ### Operational Risks
 
-| Risk | Mitigation | Status |
-|------|------------|--------|
-| User adoption | Clear instructions, HTML-formatted replies, fast response | 🟡 Monitor |
-| Maintenance burden | Comprehensive documentation, atomic code design, high test coverage | ✅ Mitigated |
-| Cost overruns | Predictable $30-35/month cost, no per-user licensing | ✅ Mitigated |
-| Security vulnerabilities | Monthly dependency audits, minimal attack surface | ✅ Mitigated |
+| Risk                     | Mitigation                                                          | Status       |
+| ------------------------ | ------------------------------------------------------------------- | ------------ |
+| User adoption            | Clear instructions, HTML-formatted replies, fast response           | 🟡 Monitor   |
+| Maintenance burden       | Comprehensive documentation, atomic code design, high test coverage | ✅ Mitigated |
+| Cost overruns            | Predictable $30-35/month cost, no per-user licensing                | ✅ Mitigated |
+| Security vulnerabilities | Monthly dependency audits, minimal attack surface                   | ✅ Mitigated |
 
 ---
 
@@ -266,21 +286,25 @@ User receives verdict and recommended actions
 ### Key Performance Indicators (KPIs)
 
 **User Engagement**:
+
 - Emails forwarded per week
 - User retention (repeat usage)
 - User feedback scores (planned survey)
 
 **System Performance**:
+
 - Analysis time (target: <5s, actual: <1s ✅)
 - Uptime (target: 99.5%, actual: 100% ✅)
 - Error rate (target: <1%, actual: 0% ✅)
 
 **Accuracy Metrics** (to be collected):
+
 - True positive rate (phishing correctly identified)
 - False positive rate (legitimate emails incorrectly flagged)
 - User satisfaction with analysis quality
 
 **Business Impact** (to be measured):
+
 - Phishing incidents before vs. after deployment
 - Time saved by IT security team
 - Cost avoidance from prevented attacks
@@ -290,22 +314,26 @@ User receives verdict and recommended actions
 ## Roadmap & Future Enhancements
 
 ### Phase 1: MVP ✅ Complete (2025-10-19)
+
 - Core analysis engine
 - Mailbox monitoring
 - HTML email replies
 - Production deployment
 
 ### Phase 2: Enhanced Detection (Future)
+
 - Brand impersonation detection (top 20 brands)
 - Attachment analysis (dangerous file types, macros)
 - Improved URL analysis (typosquatting patterns)
 
 ### Phase 3: Advanced Features (In Progress)
+
 - LLM-enhanced analysis (implemented, needs hardening)
 - Attachment analysis (dangerous file types, macros)
 - Reporting dashboard and metrics persistence
 
 ### Phase 4: Enterprise Features (Future)
+
 - Multi-tenant support (separate mailboxes per department)
 - Custom risk scoring policies
 - Integration with SIEM systems
@@ -318,22 +346,26 @@ User receives verdict and recommended actions
 ### Existing Solutions
 
 **Commercial Phishing Simulation Tools** (KnowBe4, Proofpoint, Mimecast):
+
 - **Cost**: $5-15 per user/month ($500-1,500/month for 100 users)
 - **Focus**: Training and simulation, not real-time analysis
 - **Limitation**: Require manual forwarding and analysis
 
 **Email Security Gateways** (Proofpoint, Mimecast, Barracuda):
+
 - **Cost**: $3-10 per user/month ($300-1,000/month for 100 users)
 - **Focus**: Preventive filtering, not post-delivery analysis
 - **Limitation**: Miss sophisticated phishing that bypasses filters
 
 **Manual IT Analysis**:
+
 - **Cost**: $50/hour x 10 hours/week = $2,000/month
 - **Limitation**: Slow response time, not scalable
 
 ### Our Advantage
 
 **Phishing Agent**:
+
 - **Cost**: $30-35/month (fixed, no per-user fees)
 - **Speed**: <1 second analysis, 60 second response time
 - **Focus**: Real-time analysis of user-submitted emails
@@ -371,22 +403,26 @@ User receives verdict and recommended actions
 ## Stakeholder Roles & Responsibilities
 
 ### IT Security Team
+
 - Monitor production system health
 - Review flagged emails for accuracy
 - Provide user support and training
 
 ### End Users
+
 - Forward suspicious emails to phishing@company.com
 - Review analysis results and take recommended actions
 - Provide feedback on analysis quality
 
 ### Project Lead (Alex)
+
 - Track metrics and KPIs
 - Coordinate enhancements and bug fixes
 - Maintain documentation
 - Report to stakeholders
 
 ### Business Stakeholders
+
 - Review quarterly reports on ROI and impact
 - Approve budget for enhancements
 - Support user adoption initiatives
@@ -398,6 +434,7 @@ User receives verdict and recommended actions
 ### What We Achieved
 
 In just **3 days**, we built and deployed a production-grade phishing analysis system that:
+
 - ✅ Analyzes emails in **<1 second** (5x faster than target)
 - ✅ Costs **$30-35/month** (100x cheaper than alternatives)
 - ✅ Achieved **95.82% test coverage** (enterprise-grade quality)
@@ -425,6 +462,7 @@ In just **3 days**, we built and deployed a production-grade phishing analysis s
 ## Appendix: Technical Details
 
 ### Production Environment
+
 - **Platform**: Azure Container Apps (serverless, auto-scaling)
 - **Region**: East US
 - **Image Size**: 264MB (multi-stage Docker build)
@@ -432,6 +470,7 @@ In just **3 days**, we built and deployed a production-grade phishing analysis s
 - **Auto-Scaling**: 1-3 replicas based on load
 
 ### Technology Stack
+
 - **Runtime**: Node.js 18 (TypeScript 5)
 - **Email API**: Microsoft Graph API (OAuth 2.0)
 - **Caching**: node-cache (5-minute TTL)
@@ -440,12 +479,14 @@ In just **3 days**, we built and deployed a production-grade phishing analysis s
 - **Testing**: Jest (277 tests, 95.82% coverage)
 
 ### Security & Compliance
+
 - **Authentication**: Azure AD (client credentials flow)
 - **Secrets**: Stored in Azure Container Apps secrets
 - **Data Privacy**: Email content never logged (only metadata)
 - **Vulnerability Management**: Monthly npm audit, critical patches within 48 hours
 
 ### Support & Resources
+
 - **GitHub**: https://github.com/afoxnyc3/phishing-agent
 - **Production URL**: https://phishing-agent.blackisland-7c0080bf.eastus.azurecontainerapps.io/
 - **Documentation**: 10+ comprehensive guides (README, ARCHITECTURE, DEPLOYMENT_PLAN, etc.)
@@ -462,4 +503,4 @@ In just **3 days**, we built and deployed a production-grade phishing analysis s
 
 ---
 
-*This executive summary provides a high-level overview for decision-makers. For technical details, see ARCHITECTURE.md and TECH_STACK.md. For deployment procedures, see DEPLOYMENT_PLAN.md and DEPLOY_MANUAL.md.*
+_This executive summary provides a high-level overview for decision-makers. For technical details, see ARCHITECTURE.md and TECH_STACK.md. For deployment procedures, see DEPLOYMENT_PLAN.md and DEPLOY_MANUAL.md._

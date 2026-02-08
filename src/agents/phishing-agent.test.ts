@@ -174,8 +174,8 @@ describe('PhishingAgent', () => {
 
       const result = await agent.analyzeEmail(request);
 
-      expect(result.indicators.some(i => i.description.includes('Urgency'))).toBe(true);
-      expect(result.indicators.some(i => i.description.includes('Credential'))).toBe(true);
+      expect(result.indicators.some((i) => i.description.includes('Urgency'))).toBe(true);
+      expect(result.indicators.some((i) => i.description.includes('Credential'))).toBe(true);
       expect(result.riskScore).toBeGreaterThanOrEqual(5.0);
     });
 
@@ -198,7 +198,7 @@ describe('PhishingAgent', () => {
 
       const result = await agent.analyzeEmail(request);
 
-      const brandIndicator = result.indicators.find(i => i.description.includes('PayPal'));
+      const brandIndicator = result.indicators.find((i) => i.description.includes('PayPal'));
       expect(brandIndicator).toBeDefined();
       expect(brandIndicator?.severity).toBe('critical');
     });
@@ -222,8 +222,8 @@ describe('PhishingAgent', () => {
 
       const result = await agent.analyzeEmail(request);
 
-      const typosquatIndicator = result.indicators.find(i =>
-        i.description.includes('Typosquatting') && i.description.includes('PayPal')
+      const typosquatIndicator = result.indicators.find(
+        (i) => i.description.includes('Typosquatting') && i.description.includes('PayPal')
       );
       expect(typosquatIndicator).toBeDefined();
       expect(typosquatIndicator?.severity).toBe('critical');
@@ -270,7 +270,7 @@ describe('PhishingAgent', () => {
       const result = await agent.analyzeEmail(request);
 
       expect(mockThreatIntel.enrichEmail).toHaveBeenCalled();
-      expect(result.indicators.some(i => i.description.includes('VirusTotal'))).toBe(true);
+      expect(result.indicators.some((i) => i.description.includes('VirusTotal'))).toBe(true);
       expect(result.riskScore).toBeGreaterThan(0);
     });
 

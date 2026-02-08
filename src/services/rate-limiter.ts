@@ -115,13 +115,19 @@ export class RateLimiter {
     // Check hourly limit
     const hourlyCount = this.getCountInWindow(60 * 60 * 1000);
     if (hourlyCount >= this.config.maxEmailsPerHour) {
-      return { allowed: false, reason: `Hourly limit reached (${hourlyCount}/${this.config.maxEmailsPerHour})` };
+      return {
+        allowed: false,
+        reason: `Hourly limit reached (${hourlyCount}/${this.config.maxEmailsPerHour})`,
+      };
     }
 
     // Check daily limit
     const dailyCount = this.getCountInWindow(24 * 60 * 60 * 1000);
     if (dailyCount >= this.config.maxEmailsPerDay) {
-      return { allowed: false, reason: `Daily limit reached (${dailyCount}/${this.config.maxEmailsPerDay})` };
+      return {
+        allowed: false,
+        reason: `Daily limit reached (${dailyCount}/${this.config.maxEmailsPerDay})`,
+      };
     }
 
     // Check for burst (circuit breaker trigger)

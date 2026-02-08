@@ -28,12 +28,14 @@ describe('Email Guards', () => {
     delete process.env.NODE_ENV;
   });
 
-  const createGraphEmail = (overrides: Partial<{
-    from: { emailAddress: { address: string } };
-    internetMessageId: string;
-    id: string;
-    internetMessageHeaders: Array<{ name: string; value: string }>;
-  }> = {}) => ({
+  const createGraphEmail = (
+    overrides: Partial<{
+      from: { emailAddress: { address: string } };
+      internetMessageId: string;
+      id: string;
+      internetMessageHeaders: Array<{ name: string; value: string }>;
+    }> = {}
+  ) => ({
     from: { emailAddress: { address: 'user@external.com' } },
     internetMessageId: '<test-message-id@example.com>',
     id: 'graph-id-123',
@@ -126,9 +128,7 @@ describe('Email Guards', () => {
     it('should return allowed:false with reason auto-responder-detected for auto-replies', () => {
       process.env.NODE_ENV = 'development';
       const email = createGraphEmail({
-        internetMessageHeaders: [
-          { name: 'Auto-Submitted', value: 'auto-replied' },
-        ],
+        internetMessageHeaders: [{ name: 'Auto-Submitted', value: 'auto-replied' }],
       });
 
       const result = evaluateEmailGuards(email as any, MAILBOX_ADDRESS);
@@ -165,9 +165,7 @@ describe('Email Guards', () => {
     it('should normalize header names to lowercase', () => {
       process.env.NODE_ENV = 'development';
       const email = createGraphEmail({
-        internetMessageHeaders: [
-          { name: 'AUTO-SUBMITTED', value: 'auto-replied' },
-        ],
+        internetMessageHeaders: [{ name: 'AUTO-SUBMITTED', value: 'auto-replied' }],
       });
 
       const result = evaluateEmailGuards(email as any, MAILBOX_ADDRESS);
@@ -523,9 +521,7 @@ describe('Email Guards', () => {
     it('should detect auto-submitted: auto-replied header', () => {
       process.env.NODE_ENV = 'development';
       const email = createGraphEmail({
-        internetMessageHeaders: [
-          { name: 'Auto-Submitted', value: 'auto-replied' },
-        ],
+        internetMessageHeaders: [{ name: 'Auto-Submitted', value: 'auto-replied' }],
       });
 
       const result = evaluateEmailGuards(email as any, MAILBOX_ADDRESS);
@@ -537,9 +533,7 @@ describe('Email Guards', () => {
     it('should detect auto-submitted: auto-generated header', () => {
       process.env.NODE_ENV = 'development';
       const email = createGraphEmail({
-        internetMessageHeaders: [
-          { name: 'Auto-Submitted', value: 'auto-generated' },
-        ],
+        internetMessageHeaders: [{ name: 'Auto-Submitted', value: 'auto-generated' }],
       });
 
       const result = evaluateEmailGuards(email as any, MAILBOX_ADDRESS);
@@ -551,9 +545,7 @@ describe('Email Guards', () => {
     it('should detect auto-submitted: auto-notified header', () => {
       process.env.NODE_ENV = 'development';
       const email = createGraphEmail({
-        internetMessageHeaders: [
-          { name: 'Auto-Submitted', value: 'auto-notified' },
-        ],
+        internetMessageHeaders: [{ name: 'Auto-Submitted', value: 'auto-notified' }],
       });
 
       const result = evaluateEmailGuards(email as any, MAILBOX_ADDRESS);
@@ -565,9 +557,7 @@ describe('Email Guards', () => {
     it('should detect precedence: bulk header', () => {
       process.env.NODE_ENV = 'development';
       const email = createGraphEmail({
-        internetMessageHeaders: [
-          { name: 'Precedence', value: 'bulk' },
-        ],
+        internetMessageHeaders: [{ name: 'Precedence', value: 'bulk' }],
       });
 
       const result = evaluateEmailGuards(email as any, MAILBOX_ADDRESS);
@@ -579,9 +569,7 @@ describe('Email Guards', () => {
     it('should detect precedence: junk header', () => {
       process.env.NODE_ENV = 'development';
       const email = createGraphEmail({
-        internetMessageHeaders: [
-          { name: 'Precedence', value: 'junk' },
-        ],
+        internetMessageHeaders: [{ name: 'Precedence', value: 'junk' }],
       });
 
       const result = evaluateEmailGuards(email as any, MAILBOX_ADDRESS);
@@ -593,9 +581,7 @@ describe('Email Guards', () => {
     it('should detect precedence: auto_reply header', () => {
       process.env.NODE_ENV = 'development';
       const email = createGraphEmail({
-        internetMessageHeaders: [
-          { name: 'Precedence', value: 'auto_reply' },
-        ],
+        internetMessageHeaders: [{ name: 'Precedence', value: 'auto_reply' }],
       });
 
       const result = evaluateEmailGuards(email as any, MAILBOX_ADDRESS);
@@ -607,9 +593,7 @@ describe('Email Guards', () => {
     it('should detect x-auto-response-suppress: all header', () => {
       process.env.NODE_ENV = 'development';
       const email = createGraphEmail({
-        internetMessageHeaders: [
-          { name: 'X-Auto-Response-Suppress', value: 'All' },
-        ],
+        internetMessageHeaders: [{ name: 'X-Auto-Response-Suppress', value: 'All' }],
       });
 
       const result = evaluateEmailGuards(email as any, MAILBOX_ADDRESS);
@@ -621,9 +605,7 @@ describe('Email Guards', () => {
     it('should detect x-auto-response-suppress: DR header', () => {
       process.env.NODE_ENV = 'development';
       const email = createGraphEmail({
-        internetMessageHeaders: [
-          { name: 'X-Auto-Response-Suppress', value: 'DR' },
-        ],
+        internetMessageHeaders: [{ name: 'X-Auto-Response-Suppress', value: 'DR' }],
       });
 
       const result = evaluateEmailGuards(email as any, MAILBOX_ADDRESS);
@@ -635,9 +617,7 @@ describe('Email Guards', () => {
     it('should detect x-auto-response-suppress: AutoReply header', () => {
       process.env.NODE_ENV = 'development';
       const email = createGraphEmail({
-        internetMessageHeaders: [
-          { name: 'X-Auto-Response-Suppress', value: 'AutoReply' },
-        ],
+        internetMessageHeaders: [{ name: 'X-Auto-Response-Suppress', value: 'AutoReply' }],
       });
 
       const result = evaluateEmailGuards(email as any, MAILBOX_ADDRESS);
@@ -649,9 +629,7 @@ describe('Email Guards', () => {
     it('should detect mailer-daemon in headers (not just sender)', () => {
       process.env.NODE_ENV = 'development';
       const email = createGraphEmail({
-        internetMessageHeaders: [
-          { name: 'X-Original-Sender', value: 'mailer-daemon@example.com' },
-        ],
+        internetMessageHeaders: [{ name: 'X-Original-Sender', value: 'mailer-daemon@example.com' }],
       });
 
       const result = evaluateEmailGuards(email as any, MAILBOX_ADDRESS);
@@ -717,9 +695,7 @@ describe('Email Guards', () => {
       process.env.NODE_ENV = 'production';
       // No allowlist configured
       const email = createGraphEmail({
-        internetMessageHeaders: [
-          { name: 'Auto-Submitted', value: 'auto-replied' },
-        ],
+        internetMessageHeaders: [{ name: 'Auto-Submitted', value: 'auto-replied' }],
       });
 
       const result = evaluateEmailGuards(email as any, MAILBOX_ADDRESS);

@@ -158,7 +158,11 @@ export class HeaderValidator {
     const authResults = headers['authentication-results'];
 
     if (!authResults) {
-      return { status: 'none', details: 'No DKIM authentication results found', isAuthentic: false };
+      return {
+        status: 'none',
+        details: 'No DKIM authentication results found',
+        isAuthentic: false,
+      };
     }
 
     const status = this.parseDkimStatus(authResults);

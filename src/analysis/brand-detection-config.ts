@@ -34,10 +34,10 @@ export const BRAND_TARGETS = [
  * Typosquatting patterns (character substitution: 0→o, 1→l, 3→e)
  */
 export const TYPOSQUAT_PATTERNS = [
-  { pattern: /paypa1/, brand: 'PayPal' },          // paypal → paypa1
-  { pattern: /micros0ft/, brand: 'Microsoft' },    // microsoft → micros0ft
-  { pattern: /g00gle/, brand: 'Google' },          // google → g00gle
-  { pattern: /appl3/, brand: 'Apple' },            // apple → appl3
-  { pattern: /amaz0n/, brand: 'Amazon' },          // amazon → amaz0n
-  { pattern: /netf1ix/, brand: 'Netflix' },        // netflix → netf1ix
+  { pattern: /paypa1/, brand: 'PayPal' }, // paypal → paypa1
+  { pattern: /micros0ft/, brand: 'Microsoft' }, // microsoft → micros0ft
+  { pattern: /g00gle/, brand: 'Google' }, // google → g00gle
+  { pattern: /appl3/, brand: 'Apple' }, // apple → appl3
+  { pattern: /amaz0n/, brand: 'Amazon' }, // amazon → amaz0n
+  { pattern: /netf1ix/, brand: 'Netflix' }, // netflix → netf1ix
 ];

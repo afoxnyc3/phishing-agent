@@ -1,10 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import {
-  buildReplyHtml,
-  buildErrorReplyHtml,
-  createReplyMessage,
-  __testEscapeHtml,
-} from './email-reply-builder.js';
+import { buildReplyHtml, buildErrorReplyHtml, createReplyMessage, __testEscapeHtml } from './email-reply-builder.js';
 
 describe('email reply builder', () => {
   describe('escapeHtml', () => {
@@ -81,7 +76,13 @@ describe('email reply builder', () => {
         riskScore: 9.1,
         severity: 'critical',
         indicators: [
-          { type: 'content', description: `<b>bold</b>`, severity: 'high', evidence: '', confidence: 0.9 },
+          {
+            type: 'content',
+            description: `<b>bold</b>`,
+            severity: 'high',
+            evidence: '',
+            confidence: 0.9,
+          },
         ],
         recommendedActions: [
           {

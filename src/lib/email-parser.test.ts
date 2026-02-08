@@ -326,7 +326,8 @@ Body`;
     });
 
     it('should handle CRLF line endings', () => {
-      const rawEmail = 'From: sender@example.com\r\nTo: recipient@test.com\r\nSubject: Test\r\nDate: Mon, 1 Jan 2024 12:00:00 GMT\r\nMessage-ID: <test@example.com>\r\n\r\nBody';
+      const rawEmail =
+        'From: sender@example.com\r\nTo: recipient@test.com\r\nSubject: Test\r\nDate: Mon, 1 Jan 2024 12:00:00 GMT\r\nMessage-ID: <test@example.com>\r\n\r\nBody';
 
       const parsed = EmailParser.parseEmail(rawEmail);
 

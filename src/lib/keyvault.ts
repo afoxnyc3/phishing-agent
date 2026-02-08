@@ -74,7 +74,9 @@ export async function loadSecretsFromKeyVault(): Promise<void> {
     await Promise.all(secretPromises);
     securityLogger.info('All secrets loaded successfully from Key Vault');
   } catch (error) {
-    securityLogger.error('Failed to load secrets from Key Vault', { error: (error as Error).message });
+    securityLogger.error('Failed to load secrets from Key Vault', {
+      error: (error as Error).message,
+    });
     throw new Error(`Key Vault initialization failed: ${(error as Error).message}`);
   }
 }

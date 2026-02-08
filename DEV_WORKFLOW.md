@@ -98,17 +98,20 @@ phishing-agent/
 ### Initial Setup
 
 1. **Clone Repository**:
+
    ```bash
    git clone https://github.com/afoxnyc3/phishing-agent.git
    cd phishing-agent
    ```
 
 2. **Install Dependencies**:
+
    ```bash
    npm install
    ```
 
 3. **Configure Environment**:
+
    ```bash
    cp .env.example .env
    # Edit .env with your Azure credentials
@@ -127,12 +130,14 @@ phishing-agent/
 **Recommended**: Visual Studio Code
 
 **Extensions**:
+
 - `ms-vscode.vscode-typescript-next` - TypeScript support
 - `dbaeumer.vscode-eslint` - ESLint integration
 - `esbenp.prettier-vscode` - Code formatting
 - `firsttris.vscode-jest-runner` - Run individual tests
 
 **VS Code Settings** (`.vscode/settings.json`):
+
 ```json
 {
   "editor.formatOnSave": true,
@@ -155,12 +160,14 @@ npm run dev
 ```
 
 **What it does**:
+
 - Compiles TypeScript on the fly (using `tsx`)
 - Watches for file changes
 - Hot-reloads on save (<500ms)
 - Preserves application state during reload
 
 **Output**:
+
 ```
 info: Phishing Agent initialized successfully
 info: HTTP server started on port 3000
@@ -170,6 +177,7 @@ info: Mailbox monitor started successfully
 ### 2. Make Changes
 
 **Typical workflow**:
+
 1. Create new function in appropriate module
 2. Write unit test first (TDD approach)
 3. Implement function (max 25 lines)
@@ -205,6 +213,7 @@ npm run build
 **Output**: `dist/` directory with compiled JavaScript
 
 **Verification**:
+
 ```bash
 node dist/index.js  # Should start without errors
 ```
@@ -218,6 +227,7 @@ node dist/index.js  # Should start without errors
 **Rationale**: Forces single responsibility, improves testability
 
 **Example**:
+
 ```typescript
 // ❌ BAD: 50-line function
 export function analyzeEmail(email: Email): AnalysisResult {
@@ -229,10 +239,10 @@ export function analyzeEmail(email: Email): AnalysisResult {
 }
 
 // ✅ GOOD: 4 atomic functions (each <25 lines)
-export function validateHeaders(headers: EmailHeaders): HeaderResult
-export function analyzeContent(body: string): ContentResult
-export function calculateRisk(results: ValidationResult): number
-export function generateReport(risk: number): AnalysisResult
+export function validateHeaders(headers: EmailHeaders): HeaderResult;
+export function analyzeContent(body: string): ContentResult;
+export function calculateRisk(results: ValidationResult): number;
+export function generateReport(risk: number): AnalysisResult;
 ```
 
 **Enforcement**: Code review (automated enforcement in ESLint planned)
@@ -246,6 +256,7 @@ export function generateReport(risk: number): AnalysisResult
 ### TypeScript Strict Mode
 
 **Configuration** (`tsconfig.json`):
+
 ```json
 {
   "compilerOptions": {
@@ -268,9 +279,7 @@ export function generateReport(risk: number): AnalysisResult
 **Use `Result<T, E>` type for operations that can fail**:
 
 ```typescript
-type Result<T, E = Error> =
-  | { success: true; value: T }
-  | { success: false; error: E };
+type Result<T, E = Error> = { success: true; value: T } | { success: false; error: E };
 
 // Example usage
 export function parseEmailAddress(sender: string | undefined): Result<string, Error> {
@@ -287,7 +296,7 @@ if (!result.success) {
   logger.error('Failed to parse email address', { error: result.error });
   return;
 }
-const address = result.value;  // TypeScript knows this is string
+const address = result.value; // TypeScript knows this is string
 ```
 
 **Benefits**: Explicit error handling, no uncaught exceptions
@@ -295,11 +304,13 @@ const address = result.value;  // TypeScript knows this is string
 ### Naming Conventions
 
 **Variables and Functions**:
+
 - `camelCase` for variables and functions
 - `UPPER_SNAKE_CASE` for constants
 - `PascalCase` for types and interfaces
 
 **Examples**:
+
 ```typescript
 const emailAddress = 'user@example.com';        // variable
 const MAX_RETRIES = 3;                          // constant
@@ -317,6 +328,7 @@ type AnalysisResult = { ... }                   // type
 **Current**: 95.82% (277 passing tests)
 
 **Coverage by Module**:
+
 - `analysis/` (header-validator, content-analyzer, risk-scorer): 97-100%
 - `services/` (mailbox-monitor, graph-email-parser, threat-intel): 93-97%
 - `lib/` (config, logger, types, schemas): 90-95%
@@ -326,6 +338,7 @@ type AnalysisResult = { ... }                   // type
 **Convention**: `<module-name>.test.ts` next to `<module-name>.ts`
 
 **Example**:
+
 ```
 src/analysis/
 ├── header-validator.ts
@@ -337,6 +350,7 @@ src/analysis/
 ### Writing Tests
 
 **Template**:
+
 ```typescript
 import { describe, test, expect } from '@jest/globals';
 import { validateSpfRecord } from './header-validator';
@@ -367,6 +381,7 @@ describe('validateSpfRecord', () => {
 **Format**: `should <expected behavior> when <condition>`
 
 **Examples**:
+
 - ✅ `should return PASS for valid SPF record`
 - ✅ `should detect suspicious URL with IP address`
 - ✅ `should calculate HIGH risk score for multiple failures`
@@ -384,10 +399,10 @@ jest.mock('@microsoft/microsoft-graph-client', () => ({
   Client: {
     init: jest.fn().mockReturnValue({
       api: jest.fn().mockReturnValue({
-        get: jest.fn().mockResolvedValue({ value: [] })
-      })
-    })
-  }
+        get: jest.fn().mockResolvedValue({ value: [] }),
+      }),
+    }),
+  },
 }));
 ```
 
@@ -415,6 +430,7 @@ npm test -- --testPathPattern=integration
 **Format**: `<type>: <description>`
 
 **Types**:
+
 - `feat:` - New feature
 - `fix:` - Bug fix
 - `docs:` - Documentation changes
@@ -424,6 +440,7 @@ npm test -- --testPathPattern=integration
 - `perf:` - Performance improvements
 
 **Examples**:
+
 ```
 feat: add Zod runtime validation for production safety
 fix: resolve Docker platform mismatch for Azure deployment
@@ -435,6 +452,7 @@ perf: optimize URL extraction with compiled regex
 ```
 
 **Generated with Claude Code footer** (required):
+
 ```
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
@@ -444,6 +462,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 ### Pre-Commit Checklist
 
 Before committing, ensure:
+
 - [ ] `npm run build` succeeds
 - [ ] `npm test` passes (all tests)
 - [ ] `npm run lint` passes (no linting errors)
@@ -473,11 +492,13 @@ git push origin main
 ### Local Development
 
 **Option 1: Direct Node.js**:
+
 ```bash
 npm run dev  # Hot-reload development server
 ```
 
 **Option 2: Docker Compose** (recommended):
+
 ```bash
 docker-compose up -d    # Start in background
 docker-compose logs -f  # View logs
@@ -489,6 +510,7 @@ docker-compose down     # Stop and remove
 See **DEPLOY_MANUAL.md** for comprehensive step-by-step guide.
 
 **Quick reference**:
+
 ```bash
 # 1. Build for linux/amd64
 docker buildx build --platform linux/amd64 \
@@ -517,6 +539,7 @@ See **DEPLOYMENT_PLAN.md Phase 2** for CI/CD pipeline design.
 ### Local Debugging
 
 **VS Code Launch Configuration** (`.vscode/launch.json`):
+
 ```json
 {
   "version": "0.2.0",
@@ -539,6 +562,7 @@ See **DEPLOYMENT_PLAN.md Phase 2** for CI/CD pipeline design.
 ### Production Debugging
 
 **View live logs**:
+
 ```bash
 az containerapp logs show \
   --name phishing-agent \
@@ -547,6 +571,7 @@ az containerapp logs show \
 ```
 
 **SSH into container** (if needed):
+
 ```bash
 az containerapp exec \
   --name phishing-agent \
@@ -555,6 +580,7 @@ az containerapp exec \
 ```
 
 **Check environment variables**:
+
 ```bash
 az containerapp show \
   --name phishing-agent \
@@ -567,6 +593,7 @@ az containerapp show \
 **Issue**: `Access is denied` error from Graph API
 
 **Solution**:
+
 1. Check Azure AD permissions: `az ad app permission list --id <app-id>`
 2. Verify Mail.Read, Mail.Send, Mail.ReadWrite are granted
 3. Grant admin consent: `az ad app permission admin-consent --id <app-id>`
@@ -575,6 +602,7 @@ az containerapp show \
 **Issue**: Container won't start
 
 **Solution**:
+
 1. Check logs: `az containerapp logs show ...`
 2. Verify environment variables are set
 3. Check image platform: Should be linux/amd64
@@ -582,6 +610,7 @@ az containerapp show \
 **Issue**: Tests failing locally
 
 **Solution**:
+
 1. Delete `node_modules` and `package-lock.json`
 2. Run `npm install`
 3. Run `npm test -- --clearCache`
@@ -599,6 +628,7 @@ az containerapp show \
 - **PATCH**: Bug fixes
 
 **Examples**:
+
 - `v0.1.0` - Initial project setup
 - `v0.2.0` - MVP implementation complete
 - `v0.2.1` - Production deployment
@@ -625,21 +655,27 @@ Before releasing a new version:
 ## [0.x.x] - YYYY-MM-DD
 
 ### Added
+
 - New feature description
 
 ### Changed
+
 - Modified functionality description
 
 ### Fixed
+
 - Bug fix description
 
 ### Deprecated
+
 - Feature to be removed in future
 
 ### Removed
+
 - Removed feature description
 
 ### Security
+
 - Security fix description
 ```
 
@@ -675,17 +711,20 @@ Before releasing a new version:
 ### Key Metrics to Track
 
 **Analysis Performance**:
+
 - Header validation time (<100ms target)
 - Content analysis time (<500ms target)
 - Threat intel enrichment time (2-3s target)
 - Total analysis time (<5s target)
 
 **Mailbox Monitoring**:
+
 - Polling interval (60s configured)
 - Emails processed per check
 - Failed API calls (should be <1%)
 
 **System Health**:
+
 - Memory usage (<200MB target)
 - CPU usage (<20% average)
 - Container restart count (should be 0)
@@ -693,14 +732,16 @@ Before releasing a new version:
 ### Logging Best Practices
 
 **Use appropriate log levels**:
+
 ```typescript
-logger.info('Email received', { subject, from });       // Normal operation
-logger.warn('SPF validation failed', { domain });       // Suspicious activity
-logger.error('Graph API call failed', { error });       // System errors
-logger.security('Phishing detected', { score, risk });  // Security events
+logger.info('Email received', { subject, from }); // Normal operation
+logger.warn('SPF validation failed', { domain }); // Suspicious activity
+logger.error('Graph API call failed', { error }); // System errors
+logger.security('Phishing detected', { score, risk }); // Security events
 ```
 
 **Include correlation IDs**:
+
 ```typescript
 const correlationId = uuidv4();
 logger.info('Starting email analysis', { correlationId, emailId });
@@ -715,11 +756,13 @@ logger.info('Analysis complete', { correlationId, riskScore });
 ### Documentation Files
 
 **Required**:
+
 - `README.md` - Quick start guide
 - `ARCHITECTURE.md` - System design
 - `CLAUDE.md` - Agent behavior spec
 
 **Recommended**:
+
 - `STATUS.md` - Project status
 - `roadmap.md` - Feature planning
 - `changelog.md` - Version history
@@ -744,10 +787,7 @@ logger.info('Analysis complete', { correlationId, riskScore });
  * @param contentResult - Content analysis results
  * @returns Risk score (0-10 scale)
  */
-export function calculateRiskScore(
-  headerResult: HeaderValidationResult,
-  contentResult: ContentAnalysisResult
-): number {
+export function calculateRiskScore(headerResult: HeaderValidationResult, contentResult: ContentAnalysisResult): number {
   // Implementation...
 }
 ```
@@ -757,6 +797,7 @@ export function calculateRiskScore(
 ## Useful Commands Reference
 
 ### Development
+
 ```bash
 npm install           # Install dependencies
 npm run dev           # Start development server (hot-reload)
@@ -765,6 +806,7 @@ npm run clean         # Remove build artifacts
 ```
 
 ### Testing
+
 ```bash
 npm test              # Run all tests
 npm test -- --watch   # Run tests in watch mode
@@ -773,6 +815,7 @@ npm run test:integration # Run integration tests (requires Azure creds)
 ```
 
 ### Code Quality
+
 ```bash
 npm run lint          # Run ESLint
 npm run lint:fix      # Auto-fix linting issues
@@ -780,6 +823,7 @@ npm run typecheck     # Run TypeScript type checking
 ```
 
 ### Docker
+
 ```bash
 docker build -t phishing-agent:latest .                    # Build image
 docker run -d --env-file .env -p 3000:3000 phishing-agent  # Run container
@@ -789,6 +833,7 @@ docker-compose down                                         # Stop services
 ```
 
 ### Azure CLI
+
 ```bash
 az login                                       # Login to Azure
 az account show                                # Show current subscription
@@ -802,6 +847,7 @@ az containerapp update ... --image <new-image> # Update image
 ## Support & Resources
 
 ### Internal Documentation
+
 - **README.md** - Quick start guide
 - **ARCHITECTURE.md** - System design
 - **DEPLOYMENT_PLAN.md** - Infrastructure roadmap
@@ -809,12 +855,14 @@ az containerapp update ... --image <new-image> # Update image
 - **SECURITY.md** - Security procedures
 
 ### External Resources
+
 - **Node.js Docs**: https://nodejs.org/docs/latest-v18.x/api/
 - **TypeScript Handbook**: https://www.typescriptlang.org/docs/
 - **Jest Documentation**: https://jestjs.io/docs/getting-started
 - **Microsoft Graph API**: https://learn.microsoft.com/en-us/graph/
 
 ### Getting Help
+
 - **GitHub Issues**: https://github.com/afoxnyc3/phishing-agent/issues
 - **Project Lead**: Alex
 

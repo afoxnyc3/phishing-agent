@@ -7,7 +7,13 @@
 
 import { EmailAnalysisRequest, EmailHeaders, EmailAttachment } from '../lib/types.js';
 import { securityLogger } from '../lib/logger.js';
-import { GraphEmail, GraphEmailSchema, GraphEmailListResponseSchema, GraphAttachment, safeParse } from '../lib/schemas.js';
+import {
+  GraphEmail,
+  GraphEmailSchema,
+  GraphEmailListResponseSchema,
+  GraphAttachment,
+  safeParse,
+} from '../lib/schemas.js';
 
 /**
  * Parse Graph API email to analysis request
@@ -28,7 +34,9 @@ export function parseGraphEmail(graphEmail: unknown): EmailAnalysisRequest {
   const attachments = extractAttachments(validatedEmail);
 
   securityLogger.debug('Parsed Graph email', {
-    sender, subject, messageId,
+    sender,
+    subject,
+    messageId,
     headerCount: Object.keys(headers).length,
     attachmentCount: attachments.length,
   });

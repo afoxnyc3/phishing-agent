@@ -72,37 +72,28 @@ describe('Logger Module', () => {
         const error = new Error('Test error');
         testLogger.error('An error occurred', error);
 
-        expect(mockWinstonLogger.error).toHaveBeenCalledWith(
-          'An error occurred',
-          {
-            error: 'Test error',
-            stack: expect.any(String),
-          }
-        );
+        expect(mockWinstonLogger.error).toHaveBeenCalledWith('An error occurred', {
+          error: 'Test error',
+          stack: expect.any(String),
+        });
       });
 
       it('should log error messages without error object', () => {
         testLogger.error('Generic error');
 
-        expect(mockWinstonLogger.error).toHaveBeenCalledWith(
-          'Generic error',
-          {
-            error: undefined,
-            stack: undefined,
-          }
-        );
+        expect(mockWinstonLogger.error).toHaveBeenCalledWith('Generic error', {
+          error: undefined,
+          stack: undefined,
+        });
       });
 
       it('should log error with string instead of Error object', () => {
         testLogger.error('Error occurred', 'String error');
 
-        expect(mockWinstonLogger.error).toHaveBeenCalledWith(
-          'Error occurred',
-          {
-            error: 'String error',
-            stack: undefined,
-          }
-        );
+        expect(mockWinstonLogger.error).toHaveBeenCalledWith('Error occurred', {
+          error: 'String error',
+          stack: undefined,
+        });
       });
 
       it('should log debug messages', () => {
@@ -121,20 +112,14 @@ describe('Logger Module', () => {
       it('should log security events with special prefix', () => {
         testLogger.security('Phishing email detected');
 
-        expect(mockWinstonLogger.info).toHaveBeenCalledWith(
-          '[SECURITY] Phishing email detected',
-          undefined
-        );
+        expect(mockWinstonLogger.info).toHaveBeenCalledWith('[SECURITY] Phishing email detected', undefined);
       });
 
       it('should log security events with metadata', () => {
         const meta = { riskScore: 8.5, messageId: 'abc123' };
         testLogger.security('High risk email', meta);
 
-        expect(mockWinstonLogger.info).toHaveBeenCalledWith(
-          '[SECURITY] High risk email',
-          meta
-        );
+        expect(mockWinstonLogger.info).toHaveBeenCalledWith('[SECURITY] High risk email', meta);
       });
     });
 
@@ -290,7 +275,7 @@ describe('Logger Module', () => {
 
       // PerformanceTimer uses the global securityLogger instance
       const metrics = securityLogger.getPerformanceMetrics();
-      const testMetric = metrics.find(m => m.operation === 'timer-test-op');
+      const testMetric = metrics.find((m) => m.operation === 'timer-test-op');
       expect(testMetric).toBeDefined();
       expect(testMetric!.duration).toBe(150);
       expect(testMetric!.success).toBe(true);
@@ -304,7 +289,7 @@ describe('Logger Module', () => {
       timer.end(false, 'Operation timeout');
 
       const metrics = securityLogger.getPerformanceMetrics();
-      const testMetric = metrics.find(m => m.operation === 'timer-failing-op');
+      const testMetric = metrics.find((m) => m.operation === 'timer-failing-op');
       expect(testMetric).toBeDefined();
       expect(testMetric!.duration).toBe(300);
       expect(testMetric!.success).toBe(false);
@@ -335,10 +320,9 @@ describe('Logger Module', () => {
 
       timer.end(false, 'Error occurred');
 
-      expect(mockWinstonLogger.warn).toHaveBeenCalledWith(
-        'Failed: failed-op (250ms)',
-        { errorMessage: 'Error occurred' }
-      );
+      expect(mockWinstonLogger.warn).toHaveBeenCalledWith('Failed: failed-op (250ms)', {
+        errorMessage: 'Error occurred',
+      });
     });
 
     it('should track multiple concurrent operations', () => {
@@ -354,8 +338,8 @@ describe('Logger Module', () => {
       timer2.end(true);
 
       const metrics = securityLogger.getPerformanceMetrics();
-      const op1 = metrics.find(m => m.operation === 'timer-concurrent-1');
-      const op2 = metrics.find(m => m.operation === 'timer-concurrent-2');
+      const op1 = metrics.find((m) => m.operation === 'timer-concurrent-1');
+      const op2 = metrics.find((m) => m.operation === 'timer-concurrent-2');
 
       expect(op1).toBeDefined();
       expect(op1!.duration).toBe(150);

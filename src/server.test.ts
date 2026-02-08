@@ -17,8 +17,14 @@ jest.unstable_mockModule('./lib/config.js', () => ({
   config: {
     server: { port: 3000, environment: 'test' },
     http: { helmetEnabled: false, bodyLimit: '4mb', healthCacheTtlMs: 30000 },
-    llm: { apiKey: undefined, demoMode: false, timeoutMs: 10000,
-      retryAttempts: 3, circuitBreakerThreshold: 5, circuitBreakerResetMs: 60000 },
+    llm: {
+      apiKey: undefined,
+      demoMode: false,
+      timeoutMs: 10000,
+      retryAttempts: 3,
+      circuitBreakerThreshold: 5,
+      circuitBreakerResetMs: 60000,
+    },
     threatIntel: { enabled: false, timeoutMs: 5000, cacheTtlMs: 300000 },
   },
   isProduction: jest.fn().mockReturnValue(false),
@@ -28,7 +34,9 @@ jest.unstable_mockModule('./services/llm-analyzer.js', () => ({
   shouldRunLlmAnalysis: jest.fn<any>().mockReturnValue(false),
   generateThreatExplanation: jest.fn<any>().mockResolvedValue(null),
   getLlmServiceStatus: jest.fn<any>().mockReturnValue({
-    enabled: false, circuitBreakerState: 'not-initialized', consecutiveFailures: 0,
+    enabled: false,
+    circuitBreakerState: 'not-initialized',
+    consecutiveFailures: 0,
   }),
   healthCheck: jest.fn<any>().mockResolvedValue(true),
 }));

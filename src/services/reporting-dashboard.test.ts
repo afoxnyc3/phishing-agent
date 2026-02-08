@@ -57,10 +57,22 @@ describe('ReportingDashboardService', () => {
 
   describe('Report Generation', () => {
     beforeEach(() => {
-      dashboard.recordAnalysis(createMockResult({ isPhishing: true, riskScore: 8, severity: 'critical' }), 'bad@attacker.com');
-      dashboard.recordAnalysis(createMockResult({ isPhishing: true, riskScore: 6.5, severity: 'high' }), 'phish@badguy.com');
-      dashboard.recordAnalysis(createMockResult({ isPhishing: false, riskScore: 2, severity: 'low' }), 'legit@goodcompany.com');
-      dashboard.recordAnalysis(createMockResult({ isPhishing: false, riskScore: 1.5, severity: 'low' }), 'real@trustedsender.com');
+      dashboard.recordAnalysis(
+        createMockResult({ isPhishing: true, riskScore: 8, severity: 'critical' }),
+        'bad@attacker.com'
+      );
+      dashboard.recordAnalysis(
+        createMockResult({ isPhishing: true, riskScore: 6.5, severity: 'high' }),
+        'phish@badguy.com'
+      );
+      dashboard.recordAnalysis(
+        createMockResult({ isPhishing: false, riskScore: 2, severity: 'low' }),
+        'legit@goodcompany.com'
+      );
+      dashboard.recordAnalysis(
+        createMockResult({ isPhishing: false, riskScore: 1.5, severity: 'low' }),
+        'real@trustedsender.com'
+      );
     });
 
     it('should generate report with summary', () => {
@@ -192,15 +204,35 @@ describe('ReportingDashboardService', () => {
       dashboard.recordAnalysis(
         createMockResult({
           indicators: [
-            { type: 'header', description: 'SPF fail', severity: 'high', evidence: 'test', confidence: 0.9 },
-            { type: 'content', description: 'Phishing URL', severity: 'critical', evidence: 'test', confidence: 0.95 },
+            {
+              type: 'header',
+              description: 'SPF fail',
+              severity: 'high',
+              evidence: 'test',
+              confidence: 0.9,
+            },
+            {
+              type: 'content',
+              description: 'Phishing URL',
+              severity: 'critical',
+              evidence: 'test',
+              confidence: 0.95,
+            },
           ],
         }),
         'test@example.com'
       );
       dashboard.recordAnalysis(
         createMockResult({
-          indicators: [{ type: 'header', description: 'DKIM fail', severity: 'high', evidence: 'test', confidence: 0.85 }],
+          indicators: [
+            {
+              type: 'header',
+              description: 'DKIM fail',
+              severity: 'high',
+              evidence: 'test',
+              confidence: 0.85,
+            },
+          ],
         }),
         'test2@example.com'
       );
@@ -215,9 +247,27 @@ describe('ReportingDashboardService', () => {
       dashboard.recordAnalysis(
         createMockResult({
           indicators: [
-            { type: 'content', description: 'test', severity: 'high', evidence: 'test', confidence: 0.9 },
-            { type: 'content', description: 'test', severity: 'high', evidence: 'test', confidence: 0.9 },
-            { type: 'header', description: 'test', severity: 'high', evidence: 'test', confidence: 0.9 },
+            {
+              type: 'content',
+              description: 'test',
+              severity: 'high',
+              evidence: 'test',
+              confidence: 0.9,
+            },
+            {
+              type: 'content',
+              description: 'test',
+              severity: 'high',
+              evidence: 'test',
+              confidence: 0.9,
+            },
+            {
+              type: 'header',
+              description: 'test',
+              severity: 'high',
+              evidence: 'test',
+              confidence: 0.9,
+            },
           ],
         }),
         'test@example.com'

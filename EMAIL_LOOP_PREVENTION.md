@@ -49,6 +49,7 @@ Original:    "Suspicious email from PayPal"
 ### Real-World Impact
 
 **Our Incident (October 20, 2025)**:
+
 - **10,000 emails** sent in 24 hours
 - **Microsoft 365 security alert** triggered
 - **4 hours** to detect and resolve
@@ -56,6 +57,7 @@ Original:    "Suspicious email from PayPal"
 - **Internal mailbox only** (no customer impact)
 
 **Worst-Case Scenarios**:
+
 - Millions of emails sent to customers
 - Email provider account suspended
 - IP address blacklisted
@@ -75,13 +77,14 @@ All email loops share the same root cause:
 async function processIncomingEmail(email: Email) {
   // No check if email is from the agent itself
   const analysis = await analyzeEmail(email);
-  await sendReply(email.from, analysis);  // ← If email.from is the agent, loop begins
+  await sendReply(email.from, analysis); // ← If email.from is the agent, loop begins
 }
 ```
 
 ### Common Scenarios
 
 #### Scenario 1: Direct Self-Reply
+
 ```
 Agent address: agent@company.com
 Incoming email from: agent@company.com
@@ -89,6 +92,7 @@ Action: Agent replies to itself
 ```
 
 #### Scenario 2: Bounce Message Loop
+
 ```
 Agent sends reply → Email bounces → Bounce notification arrives
 Agent analyzes bounce → Sends reply to mailer-daemon
@@ -96,6 +100,7 @@ Mailer-daemon sends another bounce → LOOP
 ```
 
 #### Scenario 3: Forwarding Loop
+
 ```
 Agent sends reply to user@company.com
 User has auto-forward rule → Forwards to agent@company.com
@@ -104,6 +109,7 @@ Auto-forward triggers again → LOOP
 ```
 
 #### Scenario 4: "Re: Re: Re:" Chain
+
 ```
 Agent replies with subject "Re: Original subject"
 Agent polls mailbox → Finds "Re: Original subject"
@@ -152,6 +158,7 @@ Subject becomes "Re: Re: Original subject" → LOOP
 **Purpose**: Prevent agent from replying to its own emails
 
 **Implementation**:
+
 ```typescript
 function shouldProcessEmail(email: Email, agentAddress: string): boolean {
   const fromAddress = extractEmailAddress(email.from);
@@ -176,13 +183,10 @@ function shouldProcessEmail(email: Email, agentAddress: string): boolean {
 ```
 
 **Edge Cases to Handle**:
+
 ```typescript
 // Case 1: Multiple agent addresses
-const agentAddresses = [
-  'phishing@company.com',
-  'security@company.com',
-  'analyzer@company.com'
-];
+const agentAddresses = ['phishing@company.com', 'security@company.com', 'analyzer@company.com'];
 
 if (agentAddresses.includes(fromAddress.toLowerCase())) {
   return false;
@@ -195,7 +199,7 @@ if (fromAddress.toLowerCase() === agentAddress.toLowerCase()) {
 
 // Case 3: Address with display name
 // "Phishing Agent <phishing@company.com>"
-const cleanedFrom = extractEmailAddress(email.from);  // → phishing@company.com
+const cleanedFrom = extractEmailAddress(email.from); // → phishing@company.com
 ```
 
 ### Layer 2: Bounce/NDR Detection
@@ -203,6 +207,7 @@ const cleanedFrom = extractEmailAddress(email.from);  // → phishing@company.co
 **Purpose**: Prevent loops with email delivery failure notifications
 
 **Implementation**:
+
 ```typescript
 function isBounceMessage(email: Email): boolean {
   const from = email.from.toLowerCase();
@@ -219,7 +224,7 @@ function isBounceMessage(email: Email): boolean {
     'mdaemon',
   ];
 
-  if (bounceSenders.some(sender => from.includes(sender))) {
+  if (bounceSenders.some((sender) => from.includes(sender))) {
     logger.info('Bounce message detected', { from: email.from });
     return true;
   }
@@ -234,7 +239,7 @@ function isBounceMessage(email: Email): boolean {
     'delivery status notification',
   ];
 
-  if (bounceKeywords.some(keyword => subject.includes(keyword))) {
+  if (bounceKeywords.some((keyword) => subject.includes(keyword))) {
     logger.info('Bounce detected in subject', { subject: email.subject });
     return true;
   }
@@ -244,6 +249,7 @@ function isBounceMessage(email: Email): boolean {
 ```
 
 **Why Bounces Create Loops**:
+
 ```
 Agent sends to invalid@example.com
 ↓
@@ -263,6 +269,7 @@ LOOP
 **Purpose**: Detect "Re: Re: Re:" chains that indicate potential loops
 
 **Implementation**:
+
 ```typescript
 function isSubjectChain(email: Email, maxDepth: number = 3): boolean {
   const subject = email.subject;
@@ -294,11 +301,13 @@ function isSubjectChain(email: Email, maxDepth: number = 3): boolean {
 ```
 
 **Recommended Thresholds**:
+
 - **Strict**: `maxDepth = 2` (blocks "Re: Re: Re:")
 - **Moderate**: `maxDepth = 3` (blocks after 4th reply)
 - **Lenient**: `maxDepth = 5` (blocks after 6th reply)
 
 **Trade-offs**:
+
 - Lower threshold = fewer false positives, but may block legitimate chains
 - Higher threshold = more permissive, but allows deeper loops before detection
 
@@ -307,14 +316,12 @@ function isSubjectChain(email: Email, maxDepth: number = 3): boolean {
 **Purpose**: Cap total emails sent per time period (damage control)
 
 **Implementation**:
+
 ```typescript
 class RateLimiter {
   private emailTimestamps: number[] = [];
 
-  canSendEmail(
-    hourlyLimit: number = 100,
-    dailyLimit: number = 1000
-  ): { allowed: boolean; reason?: string } {
+  canSendEmail(hourlyLimit: number = 100, dailyLimit: number = 1000): { allowed: boolean; reason?: string } {
     this.cleanOldTimestamps();
 
     // Check hourly limit
@@ -344,17 +351,18 @@ class RateLimiter {
 
   private getCountInWindow(windowMs: number): number {
     const cutoff = Date.now() - windowMs;
-    return this.emailTimestamps.filter(t => t > cutoff).length;
+    return this.emailTimestamps.filter((t) => t > cutoff).length;
   }
 
   private cleanOldTimestamps(): void {
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-    this.emailTimestamps = this.emailTimestamps.filter(t => t > cutoff);
+    this.emailTimestamps = this.emailTimestamps.filter((t) => t > cutoff);
   }
 }
 ```
 
 **Recommended Limits**:
+
 ```typescript
 const limits = {
   development: { hourly: 10, daily: 50 },
@@ -368,6 +376,7 @@ const limits = {
 **Purpose**: Emergency stop for burst sending (rapid email loops)
 
 **Implementation**:
+
 ```typescript
 class CircuitBreaker {
   private circuitBreakerTripped: boolean = false;
@@ -376,7 +385,7 @@ class CircuitBreaker {
   canSendEmail(
     recentEmails: number[],
     threshold: number = 50,
-    windowMs: number = 10 * 60 * 1000  // 10 minutes
+    windowMs: number = 10 * 60 * 1000 // 10 minutes
   ): { allowed: boolean; reason?: string } {
     // Check if already tripped
     if (this.isTripped()) {
@@ -388,7 +397,7 @@ class CircuitBreaker {
 
     // Count emails in window
     const cutoff = Date.now() - windowMs;
-    const burstCount = recentEmails.filter(t => t > cutoff).length;
+    const burstCount = recentEmails.filter((t) => t > cutoff).length;
 
     // Trip if threshold exceeded
     if (burstCount >= threshold) {
@@ -416,7 +425,7 @@ class CircuitBreaker {
 
   private trip(): void {
     this.circuitBreakerTripped = true;
-    this.circuitBreakerResetTime = Date.now() + 60 * 60 * 1000;  // 1 hour
+    this.circuitBreakerResetTime = Date.now() + 60 * 60 * 1000; // 1 hour
 
     logger.error('Circuit breaker tripped!', {
       resetTime: new Date(this.circuitBreakerResetTime).toISOString(),
@@ -432,11 +441,12 @@ class CircuitBreaker {
 ```
 
 **Recommended Thresholds**:
+
 ```typescript
 const thresholds = {
-  development: { emails: 10, windowMs: 5 * 60 * 1000 },  // 10 emails in 5 min
-  staging: { emails: 25, windowMs: 10 * 60 * 1000 },     // 25 emails in 10 min
-  production: { emails: 50, windowMs: 10 * 60 * 1000 },  // 50 emails in 10 min
+  development: { emails: 10, windowMs: 5 * 60 * 1000 }, // 10 emails in 5 min
+  staging: { emails: 25, windowMs: 10 * 60 * 1000 }, // 25 emails in 10 min
+  production: { emails: 50, windowMs: 10 * 60 * 1000 }, // 50 emails in 10 min
 };
 ```
 
@@ -447,6 +457,7 @@ const thresholds = {
 ### Unit Tests
 
 **Test 1: Self-Reply Detection**
+
 ```typescript
 describe('Email Loop Prevention', () => {
   it('should detect self-reply (exact match)', () => {
@@ -485,6 +496,7 @@ describe('Email Loop Prevention', () => {
 ```
 
 **Test 2: Bounce Detection**
+
 ```typescript
 describe('Bounce Detection', () => {
   it('should detect mailer-daemon', () => {
@@ -510,6 +522,7 @@ describe('Bounce Detection', () => {
 ```
 
 **Test 3: Subject Chain Detection**
+
 ```typescript
 describe('Subject Chain Detection', () => {
   it('should detect "Re: Re: Re:" chain (depth 3)', () => {
@@ -537,6 +550,7 @@ describe('Subject Chain Detection', () => {
 ### Integration Tests
 
 **Test 4: Full Email Loop Simulation**
+
 ```typescript
 describe('Email Loop Simulation', () => {
   it('should prevent infinite loop when agent replies to itself', async () => {
@@ -554,7 +568,7 @@ describe('Email Loop Simulation', () => {
 
     // Step 2: Simulate agent receiving its own reply
     const agentReply = {
-      from: 'agent@company.com',  // ← Agent's own address
+      from: 'agent@company.com', // ← Agent's own address
       subject: 'Re: Help with phishing email',
       body: 'Your email analysis: ...',
     };
@@ -562,7 +576,7 @@ describe('Email Loop Simulation', () => {
     await emailAgent.processEmail(agentReply);
 
     // ✅ ASSERT: Agent should NOT reply to itself
-    expect(emailAgent.getSentEmailCount()).toBe(1);  // Still 1 (no new reply)
+    expect(emailAgent.getSentEmailCount()).toBe(1); // Still 1 (no new reply)
   });
 
   it('should trip circuit breaker after 50 emails', async () => {
@@ -598,6 +612,7 @@ describe('Email Loop Simulation', () => {
 ### Load Testing
 
 **Test 5: Stress Test Rate Limiter**
+
 ```typescript
 describe('Rate Limiter Stress Test', () => {
   it('should handle 1000 emails and enforce limits', async () => {
@@ -619,7 +634,7 @@ describe('Rate Limiter Stress Test', () => {
       }
     }
 
-    expect(sentCount).toBeLessThanOrEqual(100);  // Hourly limit
+    expect(sentCount).toBeLessThanOrEqual(100); // Hourly limit
     expect(blockedCount).toBeGreaterThan(0);
   });
 });
@@ -632,20 +647,22 @@ describe('Rate Limiter Stress Test', () => {
 ### Metrics to Track
 
 **Real-Time Metrics**:
+
 ```typescript
 interface EmailAgentMetrics {
-  emailsProcessed: number;         // Total emails processed
-  emailsSent: number;              // Total replies sent
-  selfRepliesDetected: number;     // Email loop detection hits
-  bouncesDetected: number;         // Bounce message detections
-  subjectChainsDetected: number;   // Re: Re: Re: detections
-  rateLimitHits: number;           // Rate limiter blocks
-  circuitBreakerTrips: number;     // Circuit breaker activations
-  duplicatesDetected: number;      // Deduplication hits
+  emailsProcessed: number; // Total emails processed
+  emailsSent: number; // Total replies sent
+  selfRepliesDetected: number; // Email loop detection hits
+  bouncesDetected: number; // Bounce message detections
+  subjectChainsDetected: number; // Re: Re: Re: detections
+  rateLimitHits: number; // Rate limiter blocks
+  circuitBreakerTrips: number; // Circuit breaker activations
+  duplicatesDetected: number; // Deduplication hits
 }
 ```
 
 **Example Implementation**:
+
 ```typescript
 class MetricsCollector {
   private metrics: EmailAgentMetrics = {
@@ -681,15 +698,23 @@ class MetricsCollector {
 ### Alert Thresholds
 
 **Critical Alerts** (Immediate Action Required):
+
 ```typescript
 const criticalAlerts = {
-  selfRepliesDetected: { threshold: 1, message: 'Email loop detected! Agent is replying to itself.' },
-  circuitBreakerTrips: { threshold: 1, message: 'Circuit breaker tripped! Burst sending detected.' },
+  selfRepliesDetected: {
+    threshold: 1,
+    message: 'Email loop detected! Agent is replying to itself.',
+  },
+  circuitBreakerTrips: {
+    threshold: 1,
+    message: 'Circuit breaker tripped! Burst sending detected.',
+  },
   rateLimitHits: { threshold: 90, message: 'Rate limit almost exceeded (90/100).' },
 };
 ```
 
 **Warning Alerts** (Investigation Recommended):
+
 ```typescript
 const warningAlerts = {
   bouncesDetected: { threshold: 10, message: 'High bounce rate detected.' },
@@ -699,6 +724,7 @@ const warningAlerts = {
 ```
 
 **Alert Implementation**:
+
 ```typescript
 function checkAlerts(metrics: EmailAgentMetrics): void {
   // Critical: Self-reply detected
@@ -737,6 +763,7 @@ function checkAlerts(metrics: EmailAgentMetrics): void {
 **If email loop is detected in production**:
 
 **Step 1: Stop the Agent Immediately**
+
 ```bash
 # Azure Container Apps
 az containerapp stop --name phishing-agent --resource-group rg-phishing-agent
@@ -752,6 +779,7 @@ pm2 stop email-agent
 ```
 
 **Step 2: Assess Damage**
+
 ```bash
 # Check sent email count in last hour
 grep "Email sent" logs.txt | wc -l
@@ -764,6 +792,7 @@ grep "from.*agent@company.com" logs.txt
 ```
 
 **Step 3: Clear Mailbox (if needed)**
+
 ```bash
 # Delete loop emails to prevent re-triggering
 # Use email client or Graph API to bulk delete
@@ -772,6 +801,7 @@ grep "from.*agent@company.com" logs.txt
 ### Root Cause Analysis
 
 **Investigation Checklist**:
+
 - [ ] Review logs for first occurrence of self-reply
 - [ ] Identify which layer failed (Loop detection? Rate limiting?)
 - [ ] Check if configuration was changed recently
@@ -780,6 +810,7 @@ grep "from.*agent@company.com" logs.txt
 - [ ] Check monitoring alerts (were any missed?)
 
 **Log Analysis**:
+
 ```bash
 # Find when loop started
 grep "Email sent" logs.txt | head -1
@@ -794,6 +825,7 @@ grep "Rate limit" logs.txt
 ### Deployment Fix
 
 **Before Redeploying**:
+
 ```bash
 # Run all email loop tests
 npm test -- email-loop
@@ -809,6 +841,7 @@ echo $MAX_EMAILS_PER_HOUR  # Should be set
 ```
 
 **Safe Redeploy Procedure**:
+
 ```bash
 # 1. Deploy with conservative limits
 export MAX_EMAILS_PER_HOUR=10  # Very low for testing
@@ -832,6 +865,7 @@ npm run deploy:production
 **Before Deploying ANY Email Agent**:
 
 ### Code Implementation
+
 - [ ] Layer 1: Self-reply detection implemented
 - [ ] Layer 2: Bounce/NDR detection implemented
 - [ ] Layer 3: Subject chain detection implemented
@@ -841,6 +875,7 @@ npm run deploy:production
 - [ ] Integration test simulates email loop
 
 ### Configuration
+
 - [ ] Agent email address configured
 - [ ] Rate limits set (hourly: 100, daily: 1000)
 - [ ] Circuit breaker threshold set (50 emails/10 min)
@@ -848,6 +883,7 @@ npm run deploy:production
 - [ ] Alert thresholds configured
 
 ### Testing
+
 - [ ] Self-reply test passed
 - [ ] Bounce detection test passed
 - [ ] Subject chain test passed
@@ -857,6 +893,7 @@ npm run deploy:production
 - [ ] Load test passed (1000 emails)
 
 ### Monitoring
+
 - [ ] Real-time metrics dashboard configured
 - [ ] Critical alerts configured (self-reply, circuit breaker)
 - [ ] Warning alerts configured (bounces, rate limits)
@@ -864,12 +901,14 @@ npm run deploy:production
 - [ ] Alert notification channels tested
 
 ### Documentation
+
 - [ ] Emergency stop procedure documented
 - [ ] Recovery procedure documented
 - [ ] Monitoring runbook created
 - [ ] Team trained on incident response
 
 ### Production Readiness
+
 - [ ] Deployed to staging environment
 - [ ] 24-hour monitoring period completed
 - [ ] No self-replies detected
@@ -944,6 +983,7 @@ async function processIncomingEmail(
 **Next Review**: After next email agent deployment
 
 **Related Documents**:
+
 - [Azure Email Loop Incident Report](./AZURE_EMAIL_LOOP_INCIDENT.md)
 - [Lessons Learned](./LESSONS_LEARNED.md)
 - [Architecture Documentation](./ARCHITECTURE.md)

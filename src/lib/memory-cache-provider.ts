@@ -3,7 +3,10 @@
 import { CacheProvider, CachePipeline } from './cache-provider.js';
 import { securityLogger } from './logger.js';
 
-interface SortedSetEntry { score: number; member: string; }
+interface SortedSetEntry {
+  score: number;
+  member: string;
+}
 
 /** In-memory pipeline implementation */
 export class MemoryCachePipeline implements CachePipeline {

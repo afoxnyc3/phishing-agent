@@ -58,27 +58,21 @@ describe('AttachmentAnalyzer', () => {
     });
 
     it('should detect .bat files as critical', () => {
-      const result = AttachmentAnalyzer.analyze([
-        { filename: 'script.bat', contentType: 'text/plain', size: 500 },
-      ]);
+      const result = AttachmentAnalyzer.analyze([{ filename: 'script.bat', contentType: 'text/plain', size: 500 }]);
 
       expect(result.riskLevel).toBe('critical');
       expect(result.indicators[0].description).toContain('.bat');
     });
 
     it('should detect .vbs files as critical', () => {
-      const result = AttachmentAnalyzer.analyze([
-        { filename: 'virus.vbs', contentType: 'text/vbscript', size: 1000 },
-      ]);
+      const result = AttachmentAnalyzer.analyze([{ filename: 'virus.vbs', contentType: 'text/vbscript', size: 1000 }]);
 
       expect(result.riskLevel).toBe('critical');
       expect(result.indicators[0].description).toContain('.vbs');
     });
 
     it('should detect .cmd files as critical', () => {
-      const result = AttachmentAnalyzer.analyze([
-        { filename: 'command.cmd', contentType: 'text/plain', size: 500 },
-      ]);
+      const result = AttachmentAnalyzer.analyze([{ filename: 'command.cmd', contentType: 'text/plain', size: 500 }]);
 
       expect(result.riskLevel).toBe('critical');
     });
@@ -92,9 +86,7 @@ describe('AttachmentAnalyzer', () => {
     });
 
     it('should detect .hta files as critical', () => {
-      const result = AttachmentAnalyzer.analyze([
-        { filename: 'app.hta', contentType: 'application/hta', size: 3000 },
-      ]);
+      const result = AttachmentAnalyzer.analyze([{ filename: 'app.hta', contentType: 'application/hta', size: 3000 }]);
 
       expect(result.riskLevel).toBe('critical');
     });
@@ -128,7 +120,11 @@ describe('AttachmentAnalyzer', () => {
 
     it('should detect .pptm files as high risk', () => {
       const result = AttachmentAnalyzer.analyze([
-        { filename: 'presentation.pptm', contentType: 'application/vnd.ms-powerpoint', size: 200000 },
+        {
+          filename: 'presentation.pptm',
+          contentType: 'application/vnd.ms-powerpoint',
+          size: 200000,
+        },
       ]);
 
       expect(result.riskLevel).toBe('high');
@@ -165,13 +161,11 @@ describe('AttachmentAnalyzer', () => {
       ]);
 
       expect(result.riskLevel).toBe('critical');
-      expect(result.indicators.some(i => i.description.includes('Double extension'))).toBe(true);
+      expect(result.indicators.some((i) => i.description.includes('Double extension'))).toBe(true);
     });
 
     it('should detect image.jpg.vbs as critical', () => {
-      const result = AttachmentAnalyzer.analyze([
-        { filename: 'image.jpg.vbs', contentType: 'image/jpeg', size: 2000 },
-      ]);
+      const result = AttachmentAnalyzer.analyze([{ filename: 'image.jpg.vbs', contentType: 'image/jpeg', size: 2000 }]);
 
       expect(result.riskLevel).toBe('critical');
     });
@@ -231,9 +225,7 @@ describe('AttachmentAnalyzer', () => {
 
   describe('File Size Anomalies', () => {
     it('should flag suspiciously small files', () => {
-      const result = AttachmentAnalyzer.analyze([
-        { filename: 'tiny.txt', contentType: 'text/plain', size: 50 },
-      ]);
+      const result = AttachmentAnalyzer.analyze([{ filename: 'tiny.txt', contentType: 'text/plain', size: 50 }]);
 
       expect(result.hasRiskyAttachments).toBe(true);
       expect(result.indicators).toContainEqual(
@@ -295,9 +287,7 @@ describe('AttachmentAnalyzer', () => {
     });
 
     it('should not flag text files', () => {
-      const result = AttachmentAnalyzer.analyze([
-        { filename: 'notes.txt', contentType: 'text/plain', size: 5000 },
-      ]);
+      const result = AttachmentAnalyzer.analyze([{ filename: 'notes.txt', contentType: 'text/plain', size: 5000 }]);
 
       expect(result.hasRiskyAttachments).toBe(false);
     });
@@ -370,11 +360,9 @@ describe('AttachmentAnalyzer', () => {
     });
 
     it('should handle zero-byte files', () => {
-      const result = AttachmentAnalyzer.analyze([
-        { filename: 'empty.txt', contentType: 'text/plain', size: 0 },
-      ]);
+      const result = AttachmentAnalyzer.analyze([{ filename: 'empty.txt', contentType: 'text/plain', size: 0 }]);
 
-      expect(result.indicators.some(i => i.description.includes('small'))).toBe(true);
+      expect(result.indicators.some((i) => i.description.includes('small'))).toBe(true);
     });
   });
 
@@ -384,7 +372,7 @@ describe('AttachmentAnalyzer', () => {
         { filename: 'virus.exe', contentType: 'application/x-msdownload', size: 5000 },
       ]);
 
-      const indicator = result.indicators.find(i => i.description.includes('.exe'));
+      const indicator = result.indicators.find((i) => i.description.includes('.exe'));
       expect(indicator?.confidence).toBeGreaterThanOrEqual(0.9);
     });
 
@@ -393,7 +381,7 @@ describe('AttachmentAnalyzer', () => {
         { filename: 'invoice.pdf.exe', contentType: 'application/pdf', size: 5000 },
       ]);
 
-      const indicator = result.indicators.find(i => i.description.includes('Double'));
+      const indicator = result.indicators.find((i) => i.description.includes('Double'));
       expect(indicator?.confidence).toBeGreaterThanOrEqual(0.95);
     });
 
@@ -402,7 +390,7 @@ describe('AttachmentAnalyzer', () => {
         { filename: 'files.zip', contentType: 'application/zip', size: 100000 },
       ]);
 
-      const indicator = result.indicators.find(i => i.description.includes('.zip'));
+      const indicator = result.indicators.find((i) => i.description.includes('.zip'));
       expect(indicator?.confidence).toBeLessThan(0.8);
     });
   });

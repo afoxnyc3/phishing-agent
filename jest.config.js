@@ -12,11 +12,12 @@ export default {
       {
         useESM: true,
         tsconfig: {
+          target: 'ES2022',
           module: 'ESNext',
           moduleResolution: 'Node16',
         },
         diagnostics: {
-          ignoreCodes: [151002],
+          ignoreCodes: [151002, 1378],
         },
       },
     ],

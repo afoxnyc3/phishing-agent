@@ -32,22 +32,27 @@
 ## Core Components
 
 ### 1. Mailbox Monitor
+
 **File**: `src/services/mailbox-monitor.ts`
 
 **Responsibilities**:
+
 - Poll mailbox every 60 seconds
 - Query Graph API for new emails since last check
 - Pass each email to phishing analyzer
 - Send HTML reply to original sender
 
 **API Calls**:
+
 - `GET /users/{mailbox}/messages` - Retrieve new emails
 - `POST /users/{mailbox}/sendMail` - Send analysis reply
 
 ### 2. Phishing Analyzer
+
 **File**: `src/agents/phishing-agent.ts`
 
 **Responsibilities**:
+
 - Orchestrate complete analysis pipeline
 - Validate email headers (SPF, DKIM, DMARC)
 - Analyze content (URLs, keywords, patterns)
@@ -57,6 +62,7 @@
 - Return structured analysis result
 
 **Pipeline**:
+
 ```
 Email → Header Validation → Content Analysis → Attachment Analysis →
 [Threat Intel Enrichment] → Risk Scoring → [LLM Explanation] → Result
@@ -65,11 +71,14 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 **Note**: Threat intel enrichment runs in parallel with core analysis for speed. LLM explanation only runs for borderline cases (risk 4.0-6.0).
 
 ### 3. Threat Intel Enricher
+
 **Files**:
+
 - `src/services/threat-intel.ts` - Main orchestrator service
 - `src/services/threat-intel-clients.ts` - API client implementations
 
 **Responsibilities**:
+
 - Enrich analysis with external threat intelligence
 - Query VirusTotal, AbuseIPDB in parallel via dedicated client classes
 - Each client has built-in retry logic (p-retry) and circuit breaker (opossum)
@@ -79,22 +88,27 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 **Architecture**: Service + Client pattern for separation of concerns
 
 **Client Features**:
+
 - **VirusTotalClient**: URL reputation checking with retry + circuit breaker
 - **AbuseIPDBClient**: IP abuse scoring with retry + circuit breaker
 
 **Caching**: 5-minute TTL using `node-cache` (avoid duplicate lookups)
 
 ### 4. Header Validator
+
 **File**: `src/analysis/header-validator.ts`
 
 **Atomic Functions**:
+
 - `validateSpfRecord(spfHeader)` - Check SPF result
 - `validateDkimRecord(dkimHeader)` - Check DKIM signature
 - `validateDmarcRecord(dmarcHeader)` - Check DMARC policy
 - `extractAuthenticationResults(headers)` - Parse auth headers
 
 ### 4. Content Analyzer
+
 **Files**:
+
 - `src/analysis/content-analyzer.ts` - Main orchestrator
 - `src/analysis/url-analyzer.ts` - URL extraction and validation
 - `src/analysis/social-engineering-detector.ts` - Keyword detection
@@ -102,6 +116,7 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 - `src/analysis/brand-detection-config.ts` - Brand/typosquat patterns
 
 **Responsibilities**:
+
 - Orchestrate content analysis across focused modules
 - Detect suspicious URLs (IP addresses, shorteners, suspicious TLDs)
 - Detect mismatched links (display text differs from href)
@@ -109,9 +124,11 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 - Detect brand impersonation and typosquatting
 
 ### 5. Risk Scorer
+
 **File**: `src/analysis/risk-scorer.ts`
 
 **Atomic Functions**:
+
 - `calculateHeaderRisk(headerResult)` - Score auth failures
 - `calculateContentRisk(contentResult)` - Score suspicious patterns
 - `calculateAttachmentRisk(attachmentResult)` - Score dangerous files
@@ -119,13 +136,16 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 - `determineSeverity(riskScore)` - Map to LOW/MEDIUM/HIGH/CRITICAL
 
 **Weighting**:
+
 - With attachments: Header (40%) + Content (30%) + Attachment (30%)
 - Without attachments: Header (60%) + Content (40%)
 
 ### 6. Attachment Analyzer
+
 **File**: `src/analysis/attachment-analyzer.ts`
 
 **Responsibilities**:
+
 - Detect dangerous executable extensions (.exe, .bat, .vbs, .scr, etc.)
 - Flag macro-enabled documents (.docm, .xlsm, .pptm)
 - Identify double extension tricks (invoice.pdf.exe)
@@ -133,14 +153,17 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 - Flag suspicious file sizes (too small or too large)
 
 **Risk Levels**:
+
 - CRITICAL: Executables, double extensions
 - HIGH: Macro-enabled documents
 - MEDIUM: Archives, suspicious sizes
 
 ### 7. LLM Analyzer
+
 **File**: `src/services/llm-analyzer.ts`
 
 **Responsibilities**:
+
 - Generate natural language threat explanations
 - Only runs for borderline cases (risk score 4.0-6.0)
 - Retry logic with exponential backoff (3 attempts)
@@ -148,31 +171,37 @@ Email → Header Validation → Content Analysis → Attachment Analysis →
 - Graceful degradation (analysis continues without explanation)
 
 **Configuration**:
+
 ```typescript
-ANTHROPIC_API_KEY=your-key  // Optional - enables LLM explanations
-LLM_MODEL=claude-sonnet-4-20250514  // Model to use
-LLM_MAX_TOKENS=500  // Response length limit
+ANTHROPIC_API_KEY = your - key; // Optional - enables LLM explanations
+LLM_MODEL = claude - sonnet - 4 - 20250514; // Model to use
+LLM_MAX_TOKENS = 500; // Response length limit
 ```
 
 ### 8. Reporting Dashboard
+
 **File**: `src/services/reporting-dashboard.ts`
 
 **Responsibilities**:
+
 - Aggregate phishing analysis metrics
 - Track top phishing senders and domains
 - Calculate severity distribution and trends
 - Provide indicator type breakdown
 
 **Key Methods**:
+
 - `recordAnalysis(result, sender)` - Store analysis result
 - `generateReport(days)` - Generate dashboard report
 - `getTopSenders(limit)` - Get top phishing senders
 - `getSeverityTrend(days)` - Get severity over time
 
 ### 9. Graph Email Parser
+
 **File**: `src/services/graph-email-parser.ts`
 
 **Responsibilities**:
+
 - Convert Microsoft Graph API email objects to analysis request format
 - Extract headers from `internetMessageHeaders` array
 - Parse URLs from email body
@@ -237,12 +266,14 @@ LLM_MAX_TOKENS=500  // Response length limit
 ## API Endpoints
 
 ### Health Check
+
 ```
 GET /health
 Response: { "status": "healthy", "timestamp": "..." }
 ```
 
 ### Readiness Check
+
 ```
 GET /ready
 Response: {
@@ -258,17 +289,20 @@ Response: {
 ### Environment Variables
 
 **Required**:
+
 - `AZURE_TENANT_ID` - Azure AD tenant
 - `AZURE_CLIENT_ID` - App registration client ID
 - `AZURE_CLIENT_SECRET` - App registration secret
 - `PHISHING_MAILBOX_ADDRESS` - Monitored mailbox (e.g., phishing@company.com)
 
 **Optional**:
+
 - `MAILBOX_CHECK_INTERVAL_MS` - Polling frequency (default: 60000)
 - `PORT` - HTTP server port (default: 3000)
 - `NODE_ENV` - Environment (development/production)
 
 **Threat Intel** (optional):
+
 - `VIRUSTOTAL_API_KEY` - URL/domain/IP reputation
 - `ABUSEIPDB_API_KEY` - IP abuse scoring
 - `URLSCAN_API_KEY` - URL scanning
@@ -276,6 +310,7 @@ Response: {
 ### Azure Permissions
 
 App registration requires:
+
 - `Mail.Read` - Read emails from monitored mailbox
 - `Mail.Send` - Send analysis replies
 - `Mail.ReadWrite` - Mark emails as read (optional)
@@ -285,11 +320,13 @@ App registration requires:
 ## Error Handling
 
 ### Graceful Degradation
+
 - **Graph API timeout**: Skip email, log error, continue polling
 - **Analysis failure**: Send error reply to user
 - **Email send failure**: Log error, mark email as failed
 
 ### Retry Strategy
+
 - **Graph API 429**: Exponential backoff (1s, 2s, 4s)
 - **Transient failures**: Retry up to 3 times
 - **Permanent failures**: Log and skip
@@ -299,10 +336,12 @@ App registration requires:
 ## Performance Characteristics
 
 **Mailbox Polling**:
+
 - Interval: 60 seconds (configurable)
 - Max emails per check: 50 (Graph API limit)
 
 **Analysis Performance**:
+
 - Header validation: <100ms
 - Content analysis: <500ms
 - Threat intel enrichment: 2-3 seconds (parallel, with 5s timeout)
@@ -310,6 +349,7 @@ App registration requires:
 - Total: 3-5 seconds average (up to 8 seconds with threat intel)
 
 **Email Reply**:
+
 - HTML formatting: <100ms
 - Graph API send: 1-2 seconds
 - Total response time: 10 seconds average
@@ -319,16 +359,19 @@ App registration requires:
 ## Security Considerations
 
 ### Data Privacy
+
 - No email content logged (only metadata)
 - Sanitize all user input
 - No PII in structured logs
 
 ### Authentication
+
 - App-only authentication (no user context)
 - Client secret stored in environment variables
 - Rotate secrets every 90 days
 
 ### Rate Limiting
+
 - Graph API: 10,000 requests/10 min per app
 - Threat intel APIs: Varies by provider (use caching)
 
@@ -337,6 +380,7 @@ App registration requires:
 ## Deployment
 
 ### Local Development
+
 ```bash
 npm install
 cp .env.example .env
@@ -345,12 +389,14 @@ npm run dev
 ```
 
 ### Production (Docker)
+
 ```bash
 docker build -t phishing-agent .
 docker run -d --env-file .env -p 3000:3000 phishing-agent
 ```
 
 ### Azure Container Apps
+
 ```bash
 az containerapp create \
   --name phishing-agent \
@@ -371,6 +417,7 @@ This section provides an example of deploying to Azure Container Apps. Adapt to 
 **Platform**: Azure Container Apps (serverless container hosting)
 
 **Example Configuration**:
+
 - **Resource Group**: `rg-phishing-agent` (choose your region)
 - **Container Registry**: `<your-registry-name>.azurecr.io`
 - **Container App**: `phishing-agent`
@@ -378,6 +425,7 @@ This section provides an example of deploying to Azure Container Apps. Adapt to 
 - **Production URL**: `https://<your-app-name>.<region>.azurecontainerapps.io/`
 
 **Compute Specifications**:
+
 - **Platform**: Azure Container Apps (serverless)
 - **Container Image**: node:18-alpine (multi-stage build)
 - **Image Size**: ~264MB
@@ -387,6 +435,7 @@ This section provides an example of deploying to Azure Container Apps. Adapt to 
 - **Ingress**: External HTTPS (automatic certificates)
 
 **Authentication & Permissions**:
+
 - **Azure AD App ID**: `<your-azure-app-id>`
 - **Auth Method**: Client credentials flow (app-only)
 - **Permissions Required**: Mail.Read, Mail.Send, Mail.ReadWrite (Application scope)
@@ -394,6 +443,7 @@ This section provides an example of deploying to Azure Container Apps. Adapt to 
 - **Secrets Management**: Azure Container Apps secrets (or Azure Key Vault)
 
 **Example Resource Topology**:
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │ Azure Container Apps Environment                        │
@@ -442,11 +492,13 @@ This section provides an example of deploying to Azure Container Apps. Adapt to 
 ### Estimated Cloud Costs
 
 **Azure Example** (Costs vary by region and usage):
+
 - Container Apps: ~$25-30/month (1 replica average, 0.5 vCPU, 1Gi RAM)
 - Container Registry Basic: ~$5/month
 - **Estimated Total**: ~$30-35/month
 
 **Note**: Actual costs depend on:
+
 - Number of replicas (auto-scaling)
 - Region selected
 - Network egress
@@ -455,11 +507,13 @@ This section provides an example of deploying to Azure Container Apps. Adapt to 
 ### Deployment Approach
 
 **Manual Deployment** (MVP validation):
+
 - Fastest path to production
 - Validate with real users first
 - Invest in automation after validation
 
 **CI/CD Automation** (Post-validation):
+
 - GitHub Actions or Azure DevOps
 - Automated testing and deployment
 - See DEPLOYMENT_PLAN.md for comprehensive guides
@@ -467,6 +521,7 @@ This section provides an example of deploying to Azure Container Apps. Adapt to 
 ### Validation Checklist
 
 After deployment, verify:
+
 - ✅ Health endpoint responds: `curl https://your-url.com/health`
 - ✅ Readiness check passes: `curl https://your-url.com/ready`
 - ✅ Mailbox polling working (check logs)
@@ -479,18 +534,21 @@ After deployment, verify:
 ## Monitoring
 
 ### Logs
+
 - **Info**: Email received, analysis completed
 - **Warn**: Authentication failures, suspicious patterns
 - **Error**: API failures, processing errors
 - **Security**: Phishing detections with risk scores
 
 ### Metrics
+
 - Emails processed per minute
 - Average analysis time
 - Phishing detection rate
 - False positive rate
 
 ### Health Checks
+
 - `/health` - Basic server health
 - `/ready` - Mailbox monitor status
 
@@ -549,6 +607,7 @@ On October 20, 2025, the phishing agent entered an email loop, sending **10,000 
 ### Layer 1: Email Loop Detection
 
 **Implementation**:
+
 ```typescript
 // src/services/mailbox-monitor.ts:148-156
 private shouldProcessEmail(email: any): boolean {
@@ -576,6 +635,7 @@ private shouldProcessEmail(email: any): boolean {
 ### Layer 2: Rate Limiting
 
 **Implementation**:
+
 ```typescript
 // src/services/rate-limiter.ts
 export class RateLimiter {
@@ -587,7 +647,7 @@ export class RateLimiter {
     if (hourlyCount >= this.config.maxEmailsPerHour) {
       return {
         allowed: false,
-        reason: `Hourly limit reached (${hourlyCount}/${this.config.maxEmailsPerHour})`
+        reason: `Hourly limit reached (${hourlyCount}/${this.config.maxEmailsPerHour})`,
       };
     }
 
@@ -596,7 +656,7 @@ export class RateLimiter {
     if (dailyCount >= this.config.maxEmailsPerDay) {
       return {
         allowed: false,
-        reason: `Daily limit reached (${dailyCount}/${this.config.maxEmailsPerDay})`
+        reason: `Daily limit reached (${dailyCount}/${this.config.maxEmailsPerDay})`,
       };
     }
 
@@ -606,6 +666,7 @@ export class RateLimiter {
 ```
 
 **Configuration**:
+
 ```bash
 # Default limits
 MAX_EMAILS_PER_HOUR=100
@@ -621,6 +682,7 @@ MAX_EMAILS_PER_DAY=1000
 ### Layer 3: Circuit Breaker
 
 **Implementation**:
+
 ```typescript
 // src/services/rate-limiter.ts:68-72
 canSendEmail(): { allowed: boolean; reason?: string } {
@@ -648,6 +710,7 @@ private tripCircuitBreaker(): void {
 ```
 
 **Configuration**:
+
 ```bash
 CIRCUIT_BREAKER_THRESHOLD=50    # 50 emails
 CIRCUIT_BREAKER_WINDOW_MS=600000  # 10 minutes
@@ -659,6 +722,7 @@ CIRCUIT_BREAKER_WINDOW_MS=600000  # 10 minutes
 **Alert**: Security log error + metric counter
 
 **Why Circuit Breaker vs Rate Limiting**:
+
 - Rate limiting: Gradual enforcement (100/hour spread evenly)
 - Circuit breaker: Immediate shutdown on burst pattern
 - Example: 50 emails in 5 min → Circuit breaker trips (doesn't wait for hourly limit)
@@ -666,6 +730,7 @@ CIRCUIT_BREAKER_WINDOW_MS=600000  # 10 minutes
 ### Layer 4: Email Deduplication
 
 **Implementation**:
+
 ```typescript
 // src/services/email-deduplication.ts
 private hashEmailContent(subject: string, body: string): string {
@@ -692,6 +757,7 @@ shouldProcess(sender: string, subject: string, body: string): { allowed: boolean
 ```
 
 **Configuration**:
+
 ```bash
 DEDUPLICATION_ENABLED=true
 DEDUPLICATION_TTL_MS=86400000  # 24 hours
@@ -702,6 +768,7 @@ DEDUPLICATION_TTL_MS=86400000  # 24 hours
 **Cache**: In-memory Map with TTL (auto-cleanup every 5 minutes)
 
 **Why It Helps with Loops**:
+
 - Agent's analysis replies have same content
 - Hash matches → Email ignored
 - Prevents processing same loop iteration multiple times
@@ -709,6 +776,7 @@ DEDUPLICATION_TTL_MS=86400000  # 24 hours
 ### Layer 5: Sender Cooldown
 
 **Implementation**:
+
 ```typescript
 // src/services/email-deduplication.ts:59-67
 shouldProcess(sender: string, subject: string, body: string): { allowed: boolean; reason?: string } {
@@ -729,6 +797,7 @@ shouldProcess(sender: string, subject: string, body: string): { allowed: boolean
 ```
 
 **Configuration**:
+
 ```bash
 SENDER_COOLDOWN_MS=86400000  # 24 hours
 ```
@@ -737,6 +806,7 @@ SENDER_COOLDOWN_MS=86400000  # 24 hours
 **Storage**: In-memory Map (sender email → last reply timestamp)
 
 **Why It Helps with Loops**:
+
 - Even if agent replies to itself once, cooldown prevents 2nd reply
 - Limits damage to 1 email per sender per 24 hours
 
@@ -800,12 +870,14 @@ SENDER_COOLDOWN_MS=86400000  # 24 hours
 ### Error Handling Strategy
 
 **Graceful Degradation**:
+
 - If email loop detected → Log warning + ignore email
 - If rate limit exceeded → Log info + skip reply
 - If circuit breaker tripped → Log error + alert admins
 - If deduplication cache full → Continue processing (fail open)
 
 **No Silent Failures**:
+
 - Every blocked email logged with reason
 - Metrics tracked for monitoring
 - Alerts triggered on critical events
@@ -840,6 +912,7 @@ SENDER_COOLDOWN_MS=86400000  # 24 hours
 ### Recommended Settings by Environment
 
 **Development**:
+
 ```bash
 MAX_EMAILS_PER_HOUR=10
 MAX_EMAILS_PER_DAY=50
@@ -847,6 +920,7 @@ CIRCUIT_BREAKER_THRESHOLD=5
 ```
 
 **Staging**:
+
 ```bash
 MAX_EMAILS_PER_HOUR=50
 MAX_EMAILS_PER_DAY=200
@@ -854,6 +928,7 @@ CIRCUIT_BREAKER_THRESHOLD=25
 ```
 
 **Production**:
+
 ```bash
 MAX_EMAILS_PER_HOUR=100
 MAX_EMAILS_PER_DAY=1000
@@ -869,6 +944,7 @@ CIRCUIT_BREAKER_THRESHOLD=50
 **Test Suite**: 106 tests added post-incident
 
 **Categories**:
+
 1. **Email Loop Simulation** (15 tests)
    - Self-reply detection
    - Bounce message handling
@@ -887,6 +963,7 @@ CIRCUIT_BREAKER_THRESHOLD=50
    - Cache expiration
 
 **Critical Test**:
+
 ```typescript
 // tests/integration/email-loop.test.ts
 describe('Email Loop Prevention', () => {
@@ -914,17 +991,18 @@ describe('Email Loop Prevention', () => {
 
 ```typescript
 interface EmailLoopMetrics {
-  selfRepliesDetected: number;      // Layer 1 hits
-  rateLimitHits: number;            // Layer 2 hits
-  circuitBreakerTrips: number;      // Layer 3 activations
-  duplicatesDetected: number;       // Layer 4 hits
-  senderCooldownHits: number;       // Layer 5 hits
+  selfRepliesDetected: number; // Layer 1 hits
+  rateLimitHits: number; // Layer 2 hits
+  circuitBreakerTrips: number; // Layer 3 activations
+  duplicatesDetected: number; // Layer 4 hits
+  senderCooldownHits: number; // Layer 5 hits
 }
 ```
 
 ### Critical Alerts
 
 **Self-Reply Detected** (CRITICAL):
+
 ```
 Trigger: selfRepliesDetected > 0
 Action: Immediate investigation required
@@ -932,6 +1010,7 @@ Message: "Email loop detected! Agent is replying to itself."
 ```
 
 **Circuit Breaker Tripped** (CRITICAL):
+
 ```
 Trigger: circuitBreakerTrips > 0
 Action: Immediate investigation required
@@ -939,6 +1018,7 @@ Message: "Circuit breaker tripped! Burst sending detected."
 ```
 
 **Rate Limit Approaching** (WARNING):
+
 ```
 Trigger: rateLimitHits > 90
 Action: Monitor for email loop
@@ -952,6 +1032,7 @@ Message: "Rate limit almost exceeded (90/100)"
 ### If Email Loop Detected
 
 **Step 1: Emergency Stop**
+
 ```bash
 # Azure Container Apps
 az containerapp stop --name phishing-agent --resource-group rg-phishing-agent
@@ -961,6 +1042,7 @@ docker stop phishing-agent
 ```
 
 **Step 2: Assess Damage**
+
 ```bash
 # Check sent email count
 grep "Email sent" logs.txt | wc -l
@@ -970,6 +1052,7 @@ grep "from.*phishing@yourcompany.com" logs.txt
 ```
 
 **Step 3: Review Logs**
+
 ```bash
 # Find when loop started
 grep "Email loop detected" logs.txt | head -1
@@ -979,6 +1062,7 @@ grep -E "shouldProcessEmail|RateLimiter|CircuitBreaker" logs.txt
 ```
 
 **Step 4: Fix & Redeploy**
+
 ```bash
 # Verify all layers enabled
 npm test -- email-loop

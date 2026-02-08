@@ -19,6 +19,7 @@ This document outlines the complete deployment infrastructure implementation for
 ## Current State Analysis
 
 ### ✅ Strengths
+
 - Production-ready codebase with 95.82% test coverage
 - Clean build process (TypeScript → 336KB dist output)
 - Health check endpoints (`/health`, `/ready`)
@@ -28,6 +29,7 @@ This document outlines the complete deployment infrastructure implementation for
 - ES modules with path aliases
 
 ### ❌ Gaps
+
 - No Docker containerization
 - No CI/CD pipeline
 - No automated deployment
@@ -48,6 +50,7 @@ This document outlines the complete deployment infrastructure implementation for
 **Target image size:** 60-80MB
 
 **Strategy:**
+
 - Multi-stage build to minimize final image size
 - Builder stage: Compile TypeScript, install all dependencies
 - Production stage: Copy compiled code, install production deps only
@@ -55,6 +58,7 @@ This document outlines the complete deployment infrastructure implementation for
 - Non-root user for security
 
 **Structure:**
+
 ```dockerfile
 # Stage 1: Builder
 FROM node:18-alpine AS builder
@@ -76,6 +80,7 @@ FROM node:18-alpine AS production
 ```
 
 **Security features:**
+
 - Non-root user execution
 - Minimal attack surface (Alpine)
 - No source code in final image
@@ -86,6 +91,7 @@ FROM node:18-alpine AS production
 **File:** `.dockerignore`
 
 **Excludes:**
+
 - Development files: `*.test.ts`, `coverage/`, `.vscode/`, `.idea/`
 - Build artifacts: `dist/`, `node_modules/`, `*.tsbuildinfo`
 - Git metadata: `.git/`, `.gitignore`
@@ -102,9 +108,11 @@ FROM node:18-alpine AS production
 **File:** `docker-compose.yml`
 
 **Services:**
+
 - `phishing-agent`: Main application service
 
 **Configuration:**
+
 - Build from local Dockerfile
 - Environment variables from `.env` file
 - Port mapping: `3000:3000`
@@ -113,6 +121,7 @@ FROM node:18-alpine AS production
 - Logging: JSON driver with max size/files
 
 **Usage:**
+
 ```bash
 # Start service
 docker-compose up -d
@@ -146,6 +155,7 @@ docker-compose down
 **File:** `.github/workflows/ci.yml`
 
 **Triggers:**
+
 - Push to `main` branch
 - Pull requests to `main`
 - Manual workflow dispatch (for testing)
@@ -153,6 +163,7 @@ docker-compose down
 **Jobs:**
 
 **Job 1: Lint**
+
 - Checkout code
 - Setup Node.js 18
 - Cache npm dependencies
@@ -161,6 +172,7 @@ docker-compose down
 - Fail on warnings (CI mode)
 
 **Job 2: Test**
+
 - Matrix strategy: Node 18, 20
 - Checkout code
 - Setup Node.js (matrix version)
@@ -172,6 +184,7 @@ docker-compose down
 - Optional: Upload to Codecov/Coveralls
 
 **Job 3: Build**
+
 - Checkout code
 - Setup Node.js 18
 - Cache npm dependencies
@@ -182,6 +195,7 @@ docker-compose down
 - Upload build artifacts
 
 **Job 4: Security Audit**
+
 - Checkout code
 - Setup Node.js 18
 - Run npm audit: `npm audit --audit-level=high`
@@ -190,6 +204,7 @@ docker-compose down
 - Upload to GitHub Security tab
 
 **Job 5: Docker Build**
+
 - Depends on: lint, test, build
 - Checkout code
 - Setup Docker Buildx (for caching)
@@ -200,6 +215,7 @@ docker-compose down
 - Verify image size (<100MB)
 
 **Optimizations:**
+
 - Dependency caching (npm, TypeScript)
 - Parallel job execution
 - Docker layer caching
@@ -207,6 +223,7 @@ docker-compose down
 
 **Status Badges:**
 Add to README.md:
+
 - Build status
 - Test coverage
 - Security audit
@@ -216,17 +233,20 @@ Add to README.md:
 **File:** `.github/workflows/deploy.yml`
 
 **Triggers:**
+
 - Manual workflow dispatch (with environment selection)
 - Git tags matching `v*.*.*` (semantic versioning)
 - Push to `production` branch (optional)
 
 **Inputs:**
+
 - Environment: staging | production
 - Version tag (auto-generated from git tag or manual)
 
 **Jobs:**
 
 **Job 1: Build & Push to ACR**
+
 - Checkout code
 - Login to Azure CLI using service principal
 - Login to Azure Container Registry
@@ -237,6 +257,7 @@ Add to README.md:
   - `{ACR_NAME}.azurecr.io/phishing-agent:{commit-sha}`
 
 **Job 2: Deploy to Azure Container Apps**
+
 - Depends on: build-and-push
 - Environment: staging (auto) or production (manual approval)
 - Login to Azure
@@ -254,16 +275,19 @@ Add to README.md:
 - Rollback on failure: Revert to previous revision
 
 **Job 3: Post-Deployment**
+
 - Create GitHub release (on git tag)
 - Update deployment status badge
 - Send notification (Slack/Teams/Email)
 - Log deployment to audit trail
 
 **Environments:**
+
 - **Staging**: Auto-deploy on git tags, no approval
 - **Production**: Requires manual approval from security team
 
 **Required GitHub Secrets:**
+
 - `AZURE_CREDENTIALS` - Service principal JSON
 - `AZURE_REGISTRY_URL` - ACR login server (e.g., myacr.azurecr.io)
 - `AZURE_REGISTRY_USERNAME` - ACR username
@@ -279,13 +303,14 @@ Add to README.md:
 
 **Authentication Options:**
 
-| Environment | Auth Method | Secrets Required |
-|-------------|-------------|------------------|
-| Production (Azure) | Managed Identity | `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` only |
-| Local Development | Client Secret | All Azure secrets including `AZURE_CLIENT_SECRET` |
-| CI/CD Pipeline | Service Principal | `AZURE_CREDENTIALS` JSON |
+| Environment        | Auth Method       | Secrets Required                                  |
+| ------------------ | ----------------- | ------------------------------------------------- |
+| Production (Azure) | Managed Identity  | `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` only         |
+| Local Development  | Client Secret     | All Azure secrets including `AZURE_CLIENT_SECRET` |
+| CI/CD Pipeline     | Service Principal | `AZURE_CREDENTIALS` JSON                          |
 
 **Managed Identity Benefits:**
+
 - No secrets to rotate or manage
 - Automatic credential handling by Azure
 - Reduced attack surface (no secrets in environment)
@@ -304,6 +329,7 @@ Add to README.md:
 **Purpose:** One-time infrastructure provisioning
 
 **Actions:**
+
 1. Create resource group: `rg-phishing-agent-{env}`
 2. Create Azure Container Registry: `{prefix}phishingagent`
 3. Create Log Analytics workspace: `law-phishing-agent-{env}`
@@ -324,6 +350,7 @@ Add to README.md:
 10. Output deployment URLs and connection strings
 
 **Usage:**
+
 ```bash
 ./deploy/azure-setup.sh \
   --environment production \
@@ -332,6 +359,7 @@ Add to README.md:
 ```
 
 **Prerequisites:**
+
 - Azure CLI installed and logged in
 - Contributor role on subscription
 - Azure AD permissions to create app registrations
@@ -343,6 +371,7 @@ Add to README.md:
 **Purpose:** Repeatable deployment script (local or CI/CD)
 
 **Actions:**
+
 1. Validate parameters (image tag, environment)
 2. Build Docker image (if local)
 3. Push to Azure Container Registry
@@ -354,6 +383,7 @@ Add to README.md:
 9. Output deployment status
 
 **Usage:**
+
 ```bash
 # Deploy specific version
 ./deploy/azure-deploy.sh \
@@ -368,6 +398,7 @@ Add to README.md:
 ```
 
 **Rollback:**
+
 ```bash
 # Rollback to previous revision
 ./deploy/azure-deploy.sh \
@@ -382,6 +413,7 @@ Add to README.md:
 **Purpose:** Template for Azure-specific environment variables
 
 **Configuration:**
+
 - Managed Identity integration (recommended)
 - Azure Key Vault references (e.g., `@Microsoft.KeyVault(...)`)
 - Application Insights connection string
@@ -461,6 +493,7 @@ Add to README.md:
 #### 4.2 Update README.md
 
 **Additions:**
+
 - Docker badges (build status, image size, security scan)
 - Quick Docker commands section
 - Link to DEPLOYMENT.md for detailed instructions
@@ -468,6 +501,7 @@ Add to README.md:
 - Add production deployment section
 
 **Example Quick Start with Docker:**
+
 ```bash
 # Using Docker
 docker run --env-file .env -p 3000:3000 ghcr.io/afoxnyc3/phishing-agent:latest
@@ -479,6 +513,7 @@ docker-compose up -d
 #### 4.3 Update ARCHITECTURE.md
 
 **Additions:**
+
 - Deployment architecture diagram (ASCII or link to image)
 - Container specifications (CPU, memory, storage)
 - Azure resource topology:
@@ -527,6 +562,7 @@ phishing-agent/
 ## Testing & Validation Plan
 
 ### Local Testing (Phase 1)
+
 1. Build Docker image locally
 2. Run container with `.env` file
 3. Verify health endpoint responds
@@ -537,6 +573,7 @@ phishing-agent/
 8. Check image size (<100MB)
 
 ### CI Pipeline Testing (Phase 2)
+
 1. Create test branch
 2. Push changes to trigger CI
 3. Verify lint job passes
@@ -547,6 +584,7 @@ phishing-agent/
 8. Check job execution time (<10 min total)
 
 ### Azure Deployment Testing (Phase 3)
+
 1. Run `azure-setup.sh` in test subscription
 2. Verify all Azure resources created
 3. Deploy using `azure-deploy.sh`
@@ -559,6 +597,7 @@ phishing-agent/
 10. Test scaling (manual trigger)
 
 ### End-to-End Testing
+
 1. Make code change in feature branch
 2. Open pull request
 3. CI pipeline runs automatically
@@ -576,6 +615,7 @@ phishing-agent/
 ## Success Criteria
 
 ### Performance
+
 - [ ] Docker image builds in <5 minutes
 - [ ] Docker image size <100MB (target: 60-80MB)
 - [ ] CI pipeline completes in <10 minutes
@@ -583,6 +623,7 @@ phishing-agent/
 - [ ] Health checks pass within 30 seconds of container start
 
 ### Quality
+
 - [ ] All tests pass in CI
 - [ ] Test coverage maintained at 90%+
 - [ ] No high/critical security vulnerabilities
@@ -590,6 +631,7 @@ phishing-agent/
 - [ ] Container starts successfully on first attempt
 
 ### Reliability
+
 - [ ] Graceful shutdown works (SIGTERM handling)
 - [ ] Health checks accurately reflect service status
 - [ ] Container restarts automatically on failure
@@ -597,6 +639,7 @@ phishing-agent/
 - [ ] Rollback works within 2 minutes
 
 ### Security
+
 - [ ] Non-root user in container
 - [ ] No secrets in Docker image layers
 - [ ] Secrets stored in Azure Key Vault
@@ -604,6 +647,7 @@ phishing-agent/
 - [ ] HTTPS-only ingress configured
 
 ### Documentation
+
 - [ ] All deployment steps documented
 - [ ] Troubleshooting guide complete
 - [ ] Environment variables documented
@@ -615,16 +659,19 @@ phishing-agent/
 ## Risk Assessment
 
 ### Low Risk
+
 - Docker containerization (isolated from existing code)
 - CI pipeline setup (doesn't affect production)
 - Documentation updates
 
 ### Medium Risk
+
 - Azure deployment scripts (requires proper testing)
 - GitHub secrets configuration (sensitive data)
 - Container registry permissions
 
 ### Mitigation Strategies
+
 1. Test all scripts in non-production environment first
 2. Use separate Azure subscriptions for dev/staging/prod
 3. Document all GitHub secrets with examples
@@ -637,7 +684,9 @@ phishing-agent/
 ## Timeline & Milestones
 
 ### Week 1: Docker (Phase 1)
+
 **Day 1-2:**
+
 - Create Dockerfile, .dockerignore, docker-compose.yml
 - Test local builds
 - Optimize image size
@@ -646,7 +695,9 @@ phishing-agent/
 **Deliverable:** Working Docker container running locally
 
 ### Week 1: CI/CD (Phase 2)
+
 **Day 3-4:**
+
 - Create CI workflow (lint, test, build)
 - Create deploy workflow skeleton
 - Configure GitHub secrets documentation
@@ -655,7 +706,9 @@ phishing-agent/
 **Deliverable:** Automated CI pipeline running on PRs
 
 ### Week 2: Azure (Phase 3)
+
 **Day 5-6:**
+
 - Create Azure setup script
 - Create Azure deploy script
 - Test in Azure test subscription
@@ -664,7 +717,9 @@ phishing-agent/
 **Deliverable:** Automated deployment to Azure
 
 ### Week 2: Documentation (Phase 4)
+
 **Day 7:**
+
 - Write DEPLOYMENT.md
 - Update README.md and ARCHITECTURE.md
 - Create troubleshooting guide
@@ -724,12 +779,14 @@ Before proceeding, please confirm:
 ### Azure Monthly Costs (Estimated)
 
 **Staging Environment:**
+
 - Container App (1 replica, 0.5 CPU, 1GB RAM): ~$30/month
 - Azure Container Registry (Basic): ~$5/month
 - Log Analytics (5GB/month): ~$10/month
 - **Total:** ~$45/month
 
 **Production Environment:**
+
 - Container App (2-5 replicas, 0.5 CPU, 1GB RAM): ~$60-150/month
 - Azure Container Registry (Standard, shared): ~$20/month
 - Log Analytics (20GB/month): ~$40/month
@@ -737,6 +794,7 @@ Before proceeding, please confirm:
 - **Total:** ~$120-210/month
 
 **Notes:**
+
 - Costs vary by region and actual usage
 - Threat intel API costs not included (external services)
 - Microsoft Graph API included in M365 license

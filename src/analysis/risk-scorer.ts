@@ -45,21 +45,31 @@ export class RiskScorer {
     const recommendedActions = this.generateActions(isPhishing, severity, indicators);
 
     securityLogger.debug('Risk scoring completed', {
-      riskScore, isPhishing, severity, headerScore, contentScore, attachmentScore,
+      riskScore,
+      isPhishing,
+      severity,
+      headerScore,
+      contentScore,
+      attachmentScore,
       indicatorCount: indicators.length,
     });
 
     return {
-      riskScore, isPhishing, confidence, severity, indicators, recommendedActions,
+      riskScore,
+      isPhishing,
+      confidence,
+      severity,
+      indicators,
+      recommendedActions,
       analysis: { headerScore, contentScore, attachmentScore, aggregatedScore },
     };
   }
 
   private static aggregateScores(header: number, content: number, attachment: number): number {
     if (attachment > 0) {
-      return (header * 0.4) + (content * 0.3) + (attachment * 0.3);
+      return header * 0.4 + content * 0.3 + attachment * 0.3;
     }
-    return (header * 0.6) + (content * 0.4);
+    return header * 0.6 + content * 0.4;
   }
 
   private static collectIndicators(
@@ -152,42 +162,60 @@ export class RiskScorer {
     return indicators.reduce((sum, ind) => sum + ind.confidence, 0) / indicators.length;
   }
 
-  /**
-   * Generate recommended actions based on severity and indicators
-   */
+  private static action(
+    priority: 'low' | 'medium' | 'high' | 'urgent',
+    action: string,
+    description: string,
+    automated: boolean,
+    requiresApproval: boolean
+  ): RecommendedAction {
+    return { priority, action, description, automated, requiresApproval };
+  }
+
   private static generateActions(
     isPhishing: boolean,
     severity: 'low' | 'medium' | 'high' | 'critical',
     indicators: ThreatIndicator[]
   ): RecommendedAction[] {
-    if (!isPhishing) {
-      return [{ priority: 'low', action: 'monitor', description: 'Email appears legitimate', automated: true, requiresApproval: false }];
-    }
-    const actions: RecommendedAction[] = [];
-    // Credential actions
-    if (indicators.some(i => i.description.includes('Credential'))) {
-      actions.push({ priority: 'urgent', action: 'reset_user_credentials', description: 'Force password reset', automated: false, requiresApproval: true });
-    }
-    // Attachment actions
-    if (indicators.some(i => i.type === 'attachment' && i.severity === 'critical')) {
-      actions.push({ priority: 'urgent', action: 'block_attachment', description: 'Block dangerous attachment', automated: true, requiresApproval: false });
-    }
-    if (indicators.some(i => i.type === 'attachment' && i.description.includes('Macro'))) {
-      actions.push({ priority: 'high', action: 'strip_macros', description: 'Remove macros from document', automated: false, requiresApproval: true });
-    }
-    // Severity-based actions
-    if (severity === 'critical') {
-      actions.push({ priority: 'urgent', action: 'quarantine_email', description: 'Quarantine and prevent delivery', automated: false, requiresApproval: true });
-      actions.push({ priority: 'urgent', action: 'alert_security_team', description: 'Alert security team', automated: true, requiresApproval: false });
-    } else if (severity === 'high') {
-      actions.push({ priority: 'high', action: 'quarantine_email', description: 'Quarantine and warn recipient', automated: false, requiresApproval: true });
-      actions.push({ priority: 'high', action: 'notify_recipient', description: 'Notify recipient', automated: true, requiresApproval: false });
-    } else if (severity === 'medium') {
-      actions.push({ priority: 'medium', action: 'flag_for_review', description: 'Flag for manual review', automated: true, requiresApproval: false });
-      actions.push({ priority: 'medium', action: 'user_education', description: 'Send security training', automated: true, requiresApproval: false });
-    }
-    actions.push({ priority: 'low', action: 'create_incident', description: 'Create incident ticket', automated: true, requiresApproval: false });
+    if (!isPhishing) return [this.action('low', 'monitor', 'Email appears legitimate', true, false)];
+
+    const actions = this.getIndicatorActions(indicators);
+    actions.push(...this.getSeverityActions(severity));
+    actions.push(this.action('low', 'create_incident', 'Create incident ticket', true, false));
     return actions;
+  }
+
+  private static getIndicatorActions(indicators: ThreatIndicator[]): RecommendedAction[] {
+    const actions: RecommendedAction[] = [];
+    if (indicators.some((i) => i.description.includes('Credential')))
+      actions.push(this.action('urgent', 'reset_user_credentials', 'Force password reset', false, true));
+    if (indicators.some((i) => i.type === 'attachment' && i.severity === 'critical'))
+      actions.push(this.action('urgent', 'block_attachment', 'Block dangerous attachment', true, false));
+    if (indicators.some((i) => i.type === 'attachment' && i.description.includes('Macro')))
+      actions.push(this.action('high', 'strip_macros', 'Remove macros from document', false, true));
+    return actions;
+  }
+
+  private static getSeverityActions(severity: string): RecommendedAction[] {
+    if (severity === 'critical') {
+      return [
+        this.action('urgent', 'quarantine_email', 'Quarantine and prevent delivery', false, true),
+        this.action('urgent', 'alert_security_team', 'Alert security team', true, false),
+      ];
+    }
+    if (severity === 'high') {
+      return [
+        this.action('high', 'quarantine_email', 'Quarantine and warn recipient', false, true),
+        this.action('high', 'notify_recipient', 'Notify recipient', true, false),
+      ];
+    }
+    if (severity === 'medium') {
+      return [
+        this.action('medium', 'flag_for_review', 'Flag for manual review', true, false),
+        this.action('medium', 'user_education', 'Send security training', true, false),
+      ];
+    }
+    return [];
   }
 
   static getSummary(result: RiskScoringResult): string {

@@ -73,10 +73,7 @@ async function checkPreConditions(
 /**
  * Process single email with full analysis pipeline
  */
-export async function processEmail(
-  graphEmail: GraphEmail,
-  config: EmailProcessorConfig
-): Promise<void> {
+export async function processEmail(graphEmail: GraphEmail, config: EmailProcessorConfig): Promise<void> {
   const ctx = extractEmailContext(graphEmail);
   securityLogger.info('Processing email from mailbox', {
     processingId: ctx.processingId,
@@ -91,7 +88,9 @@ export async function processEmail(
     const analysisResult = await executeAnalysis(graphEmail, ctx.processingId, config);
     await sendAnalysisReply(graphEmail, analysisResult, ctx.processingId, config);
     await config.deduplication.recordProcessed(ctx.senderEmail, ctx.subject, ctx.body);
-    securityLogger.info('Email processing completed successfully', { processingId: ctx.processingId });
+    securityLogger.info('Email processing completed successfully', {
+      processingId: ctx.processingId,
+    });
   } catch (error: unknown) {
     await handleProcessingError(error, graphEmail, ctx.processingId, config);
   }
@@ -165,9 +164,7 @@ async function sendAnalysisReply(
 
   try {
     const replyStart = Date.now();
-    await config.graphClient
-      .api(`/users/${config.mailboxAddress}/sendMail`)
-      .post(replyMessage);
+    await config.graphClient.api(`/users/${config.mailboxAddress}/sendMail`).post(replyMessage);
     const replyLatency = Date.now() - replyStart;
 
     // Record metrics

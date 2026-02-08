@@ -18,19 +18,29 @@ export interface AttachmentAnalysisResult {
 export class AttachmentAnalyzer {
   // Dangerous executable extensions (critical risk)
   private static readonly DANGEROUS_EXTENSIONS = [
-    '.exe', '.scr', '.bat', '.cmd', '.vbs', '.vbe', '.js', '.jse',
-    '.ws', '.wsf', '.msc', '.pif', '.com', '.hta', '.cpl', '.reg',
+    '.exe',
+    '.scr',
+    '.bat',
+    '.cmd',
+    '.vbs',
+    '.vbe',
+    '.js',
+    '.jse',
+    '.ws',
+    '.wsf',
+    '.msc',
+    '.pif',
+    '.com',
+    '.hta',
+    '.cpl',
+    '.reg',
   ];
 
   // Macro-enabled document extensions (high risk)
-  private static readonly MACRO_EXTENSIONS = [
-    '.docm', '.xlsm', '.pptm', '.dotm', '.xltm', '.potm', '.xlam', '.ppam',
-  ];
+  private static readonly MACRO_EXTENSIONS = ['.docm', '.xlsm', '.pptm', '.dotm', '.xltm', '.potm', '.xlam', '.ppam'];
 
   // Archive extensions that may hide malware (medium risk)
-  private static readonly ARCHIVE_EXTENSIONS = [
-    '.zip', '.rar', '.7z', '.tar', '.gz', '.iso', '.img',
-  ];
+  private static readonly ARCHIVE_EXTENSIONS = ['.zip', '.rar', '.7z', '.tar', '.gz', '.iso', '.img'];
 
   // Size thresholds
   private static readonly MIN_SUSPICIOUS_SIZE = 100; // Less than 100 bytes is suspicious
@@ -223,9 +233,9 @@ export class AttachmentAnalyzer {
   private static calculateRiskLevel(indicators: ThreatIndicator[]): 'none' | 'low' | 'medium' | 'high' | 'critical' {
     if (indicators.length === 0) return 'none';
 
-    const hasCritical = indicators.some(i => i.severity === 'critical');
-    const hasHigh = indicators.some(i => i.severity === 'high');
-    const hasMedium = indicators.some(i => i.severity === 'medium');
+    const hasCritical = indicators.some((i) => i.severity === 'critical');
+    const hasHigh = indicators.some((i) => i.severity === 'high');
+    const hasMedium = indicators.some((i) => i.severity === 'medium');
 
     if (hasCritical) return 'critical';
     if (hasHigh) return 'high';

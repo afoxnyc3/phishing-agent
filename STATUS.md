@@ -13,6 +13,7 @@
 ### Completed Features
 
 **Core Functionality** (v0.2.0):
+
 - ✅ Email header validation (SPF, DKIM, DMARC)
 - ✅ Content analysis (URL extraction, keyword detection, brand impersonation)
 - ✅ Risk scoring engine (0-10 scale with severity mapping)
@@ -25,6 +26,7 @@
 - ✅ Runtime validation with Zod
 
 **Production Enhancements** (v0.2.2):
+
 - ✅ Rate limiting (hourly/daily email caps)
 - ✅ Circuit breaker (burst sending protection)
 - ✅ Email deduplication (content hashing)
@@ -33,17 +35,20 @@
 - ✅ Typosquatting detection (6 patterns)
 
 **Phase 3 Features** (v0.3.0):
+
 - ✅ Attachment analysis (executables, macros, double extensions, archives)
 - ✅ LLM-enhanced analysis with retry/circuit breaker hardening
 - ✅ Reporting dashboard (analytics, top senders/domains, severity trends)
 
 **Phase 4 Features** (v0.3.1):
+
 - ✅ Managed Identity authentication for Azure (Issue #21)
 - ✅ Passwordless authentication in production
 - ✅ DefaultAzureCredential with auto-fallback
 - ✅ Comprehensive security module test coverage
 
 **Infrastructure**:
+
 - ✅ GitHub repository established
 - ✅ Code quality validated (atomic functions ≤ 25 lines)
 - ✅ TypeScript builds successfully
@@ -58,18 +63,21 @@
 ## What's Working
 
 ### Analysis Pipeline
+
 - **Performance**: < 1 second average analysis time
 - **Accuracy**: Rule-based detection with explainable results
 - **Reliability**: Graceful degradation when external APIs unavailable
 - **Scalability**: Stateless design supports horizontal scaling
 
 ### Email Processing
+
 - **Detection Latency**: 60 seconds (configurable polling interval)
 - **Throughput**: Up to 50 emails per check
 - **Reply Generation**: HTML-formatted, mobile-responsive
 - **Error Handling**: Failed emails don't block processing queue
 
 ### Safety Features
+
 - **Rate Limiting**: Prevents email sending abuse
   - 100 emails/hour (default, configurable)
   - 1,000 emails/day (default, configurable)
@@ -85,6 +93,7 @@
 **Design Philosophy**: Rule-based with optional LLM enhancement for borderline cases
 
 **Technology Stack**:
+
 - Runtime: Node.js 18+ with TypeScript 5+
 - Email API: Microsoft Graph API
 - Threat Intel: VirusTotal, AbuseIPDB, URLScan (optional)
@@ -94,11 +103,13 @@
 - Validation: Zod (runtime type safety)
 
 **Analysis Pipeline**:
+
 ```
 Email Input → Headers → Content → [Threat Intel] → Risk Score → [LLM] → Reply
 ```
 
 **Performance Targets**:
+
 - Header validation: < 100ms
 - Content analysis: < 500ms
 - Threat intel (parallel): 2-3s
@@ -227,6 +238,7 @@ npm test -- --watch
 ```
 
 **Current Coverage**:
+
 - Test Suites: 26 passed
 - Tests: 661 passed
 - Coverage: 95%+ across all modules
@@ -245,6 +257,7 @@ npm test -- --watch
 ### Monitoring Phase (Current Focus)
 
 If deployed to production:
+
 1. Monitor for 1-2 weeks to collect usage data
 2. Measure true/false positive rates
 3. Gather user feedback on analysis quality
@@ -253,6 +266,7 @@ If deployed to production:
 ### Planned Enhancements (Phase 4+)
 
 **Future Priority**:
+
 - Redis-backed rate limiting for multi-replica deployments (Issue #20)
 - Advanced attachment deep scanning
 - SIEM/SOAR integration
@@ -265,16 +279,19 @@ See [roadmap.md](./roadmap.md) for detailed feature planning.
 ## Documentation
 
 ### User Documentation
+
 - **[README.md](./README.md)** - Quick start and usage guide
 - **[AGENT.md](./AGENT.md)** - Design philosophy and methodology
 - **[CLAUDE.md](./CLAUDE.md)** - Claude Code project instructions
 
 ### Technical Documentation
+
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System design and data flow
 - **[TECH_STACK.md](./TECH_STACK.md)** - Technology inventory
 - **[SECURITY.md](./SECURITY.md)** - Credential management
 
 ### Project Documentation
+
 - **[roadmap.md](./roadmap.md)** - Feature planning
 - **[changelog.md](./changelog.md)** - Version history
 - **[decision-log.md](./decision-log.md)** - Technical decisions
@@ -284,6 +301,7 @@ See [roadmap.md](./roadmap.md) for detailed feature planning.
 ## Dependencies
 
 **Production**:
+
 - `@azure/identity` - Azure AD authentication
 - `@microsoft/microsoft-graph-client` - Email operations
 - `axios` - HTTP client for threat intel APIs
@@ -293,6 +311,7 @@ See [roadmap.md](./roadmap.md) for detailed feature planning.
 - `zod` - Runtime validation
 
 **Development**:
+
 - `typescript` - Type system
 - `jest` + `ts-jest` - Testing framework
 - `eslint` - Code quality
@@ -312,6 +331,7 @@ See [roadmap.md](./roadmap.md) for detailed feature planning.
 ### Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on:
+
 - Code style and conventions
 - Testing requirements
 - Pull request process
