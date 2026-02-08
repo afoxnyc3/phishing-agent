@@ -19,6 +19,7 @@ async function bootstrap(): Promise<{
   MailMonitor: typeof import('./services/mail-monitor.js').MailMonitor;
   HttpServer: typeof import('./server.js').HttpServer;
   createResilientCacheProvider: typeof import('./lib/cache-provider.js').createResilientCacheProvider;
+  createSubscriptionManager: typeof import('./services/subscription-factory.js').createSubscriptionManager;
 }> {
   await loadSecretsFromKeyVault();
   const { securityLogger } = await import('./lib/logger.js');
@@ -28,6 +29,7 @@ async function bootstrap(): Promise<{
   const { MailMonitor } = await import('./services/mail-monitor.js');
   const { HttpServer } = await import('./server.js');
   const { createResilientCacheProvider } = await import('./lib/cache-provider.js');
+  const { createSubscriptionManager } = await import('./services/subscription-factory.js');
 
   return {
     securityLogger,
@@ -37,6 +39,7 @@ async function bootstrap(): Promise<{
     MailMonitor,
     HttpServer,
     createResilientCacheProvider,
+    createSubscriptionManager,
   };
 }
 
@@ -53,6 +56,7 @@ class Application {
   private mailMonitor!: InstanceType<BootstrappedModules['MailMonitor']>;
   private httpServer!: InstanceType<BootstrappedModules['HttpServer']>;
   private cacheProvider?: Awaited<ReturnType<BootstrappedModules['createResilientCacheProvider']>>;
+  private subscriptionManager?: Awaited<ReturnType<BootstrappedModules['createSubscriptionManager']>>;
 
   constructor(modules: BootstrappedModules) {
     this.modules = modules;
@@ -77,6 +81,7 @@ class Application {
 
     await this.initializeMailboxMonitor();
     this.initializeMailMonitor();
+    await this.initializeSubscriptionManager();
     await this.initializeHttpServer();
 
     securityLogger.info('Phishing Agent initialized successfully');
@@ -127,6 +132,16 @@ class Application {
     );
   }
 
+  private async initializeSubscriptionManager(): Promise<void> {
+    const { config, createSubscriptionManager } = this.modules;
+    this.subscriptionManager = await createSubscriptionManager(
+      this.mailboxMonitor.getGraphClient(),
+      config.webhookSubscription,
+      config.mailbox.address,
+      () => this.mailMonitor.poll().then(() => {})
+    );
+  }
+
   private async initializeHttpServer(): Promise<void> {
     const { config, HttpServer } = this.modules;
 
@@ -172,6 +187,7 @@ class Application {
 
     securityLogger.info('Stopping Phishing Agent...');
 
+    this.subscriptionManager?.stop();
     this.mailMonitor.stop();
     this.mailboxMonitor.stop();
     await this.phishingAgent.shutdown();

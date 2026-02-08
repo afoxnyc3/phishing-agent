@@ -58,6 +58,13 @@ export const EnvConfigSchema = z
     REDIS_URL: z.string().url().optional(),
     REDIS_KEY_PREFIX: z.string().default('phishing-agent:'),
 
+    // Webhook subscription configuration
+    WEBHOOK_NOTIFICATION_URL: z.string().url().optional(),
+    WEBHOOK_CLIENT_STATE: z.string().optional(),
+    WEBHOOK_SUBSCRIPTION_RESOURCE: z.string().optional(),
+    WEBHOOK_SUBSCRIPTION_ENABLED: z.coerce.boolean().default(true),
+    WEBHOOK_RENEWAL_MARGIN_MS: z.coerce.number().int().positive().default(7200000), // 2 hours
+
     // HTTP server configuration
     PORT: z.coerce.number().int().positive().default(3000),
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
