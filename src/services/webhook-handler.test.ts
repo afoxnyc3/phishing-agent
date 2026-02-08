@@ -155,6 +155,16 @@ describe('handleValidationHandshake', () => {
     expect(res.send).toHaveBeenCalledWith('Invalid validation token');
   });
 
+  it('should ignore array-typed validation token', () => {
+    const req = { query: { validationToken: ['a', 'b'] } } as any;
+    const res = mockRes();
+
+    const handled = handleValidationHandshake(req, res);
+
+    expect(handled).toBe(false);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
   it('should return false when no validation token', () => {
     const req = { query: {} } as any;
     const res = mockRes();

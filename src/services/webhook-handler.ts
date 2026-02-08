@@ -43,7 +43,8 @@ function isSafeToken(token: string): boolean {
 
 /** Handle validation handshake from Graph API */
 export function handleValidationHandshake(req: Request, res: Response): boolean {
-  const validationToken = req.query.validationToken as string | undefined;
+  const rawToken = req.query.validationToken;
+  const validationToken = typeof rawToken === 'string' ? rawToken : undefined;
   if (validationToken) {
     if (!isSafeToken(validationToken)) {
       securityLogger.warn('Rejected validation token with unsafe characters');
