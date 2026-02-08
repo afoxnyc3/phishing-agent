@@ -38,10 +38,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
 
       - name: Run ESLint
         run: npm run lint
@@ -79,10 +78,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
 
       - name: Run unit tests with coverage
         run: npm run test:unit -- --coverage
@@ -134,21 +132,22 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
 
       - name: Wait for Redis
         run: |
           for i in $(seq 1 10); do
             if redis-cli -h localhost ping 2>/dev/null | grep -q PONG; then
               echo "Redis is ready"
-              break
+              exit 0
             fi
             echo "Waiting for Redis... ($i/10)"
             sleep 2
           done
+          echo "Redis failed to start"
+          exit 1
 
       - name: Run integration tests
         run: npm run test:integration
@@ -176,10 +175,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
 
-      - name: Generate lockfile for Docker build
-        run: npm install --package-lock-only --no-audit --no-fund
+      - name: Install dependencies and generate lockfile
+        run: npm install --no-audit --no-fund
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -198,6 +196,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=sha,prefix=
+            type=raw,value=${{ github.sha }}
             type=raw,value=latest
 
       - name: Build and push Docker image
