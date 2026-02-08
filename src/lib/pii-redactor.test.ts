@@ -25,7 +25,7 @@ describe('PiiRedactor', () => {
 
     it('should redact JWT tokens', () => {
       const jwt =
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U';
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U'; // gitleaks:allow
       expect(redactor.redactString(`Token: ${jwt}`)).toBe('Token: [REDACTED-JWT]');
     });
 
