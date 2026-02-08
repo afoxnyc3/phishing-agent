@@ -14,9 +14,9 @@ jest.unstable_mockModule('@anthropic-ai/sdk', () => ({
 
 // Mock p-retry to just call the function directly (bypass retry logic in tests)
 jest.unstable_mockModule('p-retry', () => ({
-  default: jest.fn<(fn: () => Promise<unknown>) => Promise<unknown>>().mockImplementation(
-    async (fn: () => Promise<unknown>) => fn()
-  ),
+  default: jest
+    .fn<(fn: () => Promise<unknown>) => Promise<unknown>>()
+    .mockImplementation(async (fn: () => Promise<unknown>) => fn()),
 }));
 
 // Track circuit breaker state for testing
@@ -209,7 +209,8 @@ describe('LlmAnalyzer', () => {
         expect.objectContaining({
           model: 'claude-3-5-haiku-20241022',
           max_tokens: 300,
-        })
+        }),
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
       );
     });
 
@@ -230,7 +231,8 @@ describe('LlmAnalyzer', () => {
               content: expect.stringContaining('URGENT: Account Suspended'),
             }),
           ]),
-        })
+        }),
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
       );
     });
 

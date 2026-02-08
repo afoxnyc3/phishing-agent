@@ -1,25 +1,8 @@
 import { PhishingAnalysisResult } from '../lib/types.js';
 import { securityLogger } from '../lib/logger.js';
+import { DailyMetrics, SenderStats, DashboardReport, StoredResult } from './reporting-types.js';
 
-export interface DailyMetrics {
-  date: string; totalAnalyzed: number; phishingDetected: number; legitimateEmails: number; detectionRate: number;
-  severityBreakdown: { low: number; medium: number; high: number; critical: number }; avgRiskScore: number; avgConfidence: number;
-}
-
-export interface SenderStats {
-  sender: string; domain: string; totalEmails: number; phishingEmails: number; avgRiskScore: number; lastSeen: Date;
-}
-
-export interface DashboardReport {
-  generatedAt: Date; period: { start: Date; end: Date };
-  summary: { totalAnalyzed: number; phishingDetected: number; legitimateEmails: number; detectionRate: number; avgRiskScore: number };
-  dailyMetrics: DailyMetrics[]; topPhishingSenders: SenderStats[];
-  topPhishingDomains: { domain: string; count: number; avgRiskScore: number }[];
-  severityDistribution: { low: number; medium: number; high: number; critical: number };
-  indicatorBreakdown: { type: string; count: number; avgConfidence: number }[];
-}
-
-interface StoredResult { result: PhishingAnalysisResult; sender: string; domain: string; timestamp: Date; }
+export type { DailyMetrics, SenderStats, DashboardReport } from './reporting-types.js';
 
 export class ReportingDashboardService {
   private results: StoredResult[] = [];
@@ -101,7 +84,13 @@ export class ReportingDashboardService {
     const phishing = results.filter((r) => r.result.isPhishing).length;
     const legitimate = total - phishing;
     const avgRisk = total > 0 ? results.reduce((sum, r) => sum + r.result.riskScore, 0) / total : 0;
-    return { totalAnalyzed: total, phishingDetected: phishing, legitimateEmails: legitimate, detectionRate: total > 0 ? phishing / total : 0, avgRiskScore: Math.round(avgRisk * 100) / 100 };
+    return {
+      totalAnalyzed: total,
+      phishingDetected: phishing,
+      legitimateEmails: legitimate,
+      detectionRate: total > 0 ? phishing / total : 0,
+      avgRiskScore: Math.round(avgRisk * 100) / 100,
+    };
   }
 
   private calculateDailyMetrics(results: StoredResult[], days: number): DailyMetrics[] {
@@ -117,7 +106,8 @@ export class ReportingDashboardService {
     const total = results.length;
     const phishing = results.filter((r) => r.result.isPhishing).length;
     const severityBreakdown = { low: 0, medium: 0, high: 0, critical: 0 };
-    let riskSum = 0, confSum = 0;
+    let riskSum = 0,
+      confSum = 0;
 
     for (const r of results) {
       severityBreakdown[r.result.severity]++;
@@ -126,18 +116,31 @@ export class ReportingDashboardService {
     }
 
     return {
-      date: dateStr, totalAnalyzed: total, phishingDetected: phishing, legitimateEmails: total - phishing,
-      detectionRate: total > 0 ? phishing / total : 0, severityBreakdown,
+      date: dateStr,
+      totalAnalyzed: total,
+      phishingDetected: phishing,
+      legitimateEmails: total - phishing,
+      detectionRate: total > 0 ? phishing / total : 0,
+      severityBreakdown,
       avgRiskScore: total > 0 ? Math.round((riskSum / total) * 100) / 100 : 0,
       avgConfidence: total > 0 ? Math.round((confSum / total) * 100) / 100 : 0,
     };
   }
 
   private getTopPhishingSenders(results: StoredResult[], limit: number): SenderStats[] {
-    const senderMap = new Map<string, { total: number; phishing: number; riskSum: number; lastSeen: Date; domain: string }>();
+    const senderMap = new Map<
+      string,
+      { total: number; phishing: number; riskSum: number; lastSeen: Date; domain: string }
+    >();
 
     for (const r of results) {
-      const existing = senderMap.get(r.sender) || { total: 0, phishing: 0, riskSum: 0, lastSeen: r.timestamp, domain: r.domain };
+      const existing = senderMap.get(r.sender) || {
+        total: 0,
+        phishing: 0,
+        riskSum: 0,
+        lastSeen: r.timestamp,
+        domain: r.domain,
+      };
       existing.total++;
       if (r.result.isPhishing) existing.phishing++;
       existing.riskSum += r.result.riskScore;
@@ -147,12 +150,22 @@ export class ReportingDashboardService {
 
     return Array.from(senderMap.entries())
       .filter(([, stats]) => stats.phishing > 0)
-      .map(([sender, stats]) => ({ sender, domain: stats.domain, totalEmails: stats.total, phishingEmails: stats.phishing, avgRiskScore: Math.round((stats.riskSum / stats.total) * 100) / 100, lastSeen: stats.lastSeen }))
+      .map(([sender, stats]) => ({
+        sender,
+        domain: stats.domain,
+        totalEmails: stats.total,
+        phishingEmails: stats.phishing,
+        avgRiskScore: Math.round((stats.riskSum / stats.total) * 100) / 100,
+        lastSeen: stats.lastSeen,
+      }))
       .sort((a, b) => b.phishingEmails - a.phishingEmails)
       .slice(0, limit);
   }
 
-  private getTopPhishingDomains(results: StoredResult[], limit: number): { domain: string; count: number; avgRiskScore: number }[] {
+  private getTopPhishingDomains(
+    results: StoredResult[],
+    limit: number
+  ): { domain: string; count: number; avgRiskScore: number }[] {
     const domainMap = new Map<string, { count: number; riskSum: number }>();
 
     for (const r of results) {
@@ -164,18 +177,29 @@ export class ReportingDashboardService {
     }
 
     return Array.from(domainMap.entries())
-      .map(([domain, stats]) => ({ domain, count: stats.count, avgRiskScore: Math.round((stats.riskSum / stats.count) * 100) / 100 }))
+      .map(([domain, stats]) => ({
+        domain,
+        count: stats.count,
+        avgRiskScore: Math.round((stats.riskSum / stats.count) * 100) / 100,
+      }))
       .sort((a, b) => b.count - a.count)
       .slice(0, limit);
   }
 
-  private calculateSeverityDistribution(results: StoredResult[]): { low: number; medium: number; high: number; critical: number } {
+  private calculateSeverityDistribution(results: StoredResult[]): {
+    low: number;
+    medium: number;
+    high: number;
+    critical: number;
+  } {
     const dist = { low: 0, medium: 0, high: 0, critical: 0 };
     for (const r of results) dist[r.result.severity]++;
     return dist;
   }
 
-  private calculateIndicatorBreakdown(results: StoredResult[]): { type: string; count: number; avgConfidence: number }[] {
+  private calculateIndicatorBreakdown(
+    results: StoredResult[]
+  ): { type: string; count: number; avgConfidence: number }[] {
     const indicatorMap = new Map<string, { count: number; confSum: number }>();
 
     for (const r of results) {
@@ -188,7 +212,11 @@ export class ReportingDashboardService {
     }
 
     return Array.from(indicatorMap.entries())
-      .map(([type, stats]) => ({ type, count: stats.count, avgConfidence: Math.round((stats.confSum / stats.count) * 100) / 100 }))
+      .map(([type, stats]) => ({
+        type,
+        count: stats.count,
+        avgConfidence: Math.round((stats.confSum / stats.count) * 100) / 100,
+      }))
       .sort((a, b) => b.count - a.count);
   }
 }

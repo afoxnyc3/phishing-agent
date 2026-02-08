@@ -32,7 +32,7 @@ describe('HeaderValidator', () => {
       const result = HeaderValidator.validate(headers);
       expect(result.spfResult.status).toBe('fail');
       expect(result.spfResult.isAuthentic).toBe(false);
-      expect(result.indicators.some(i => i.description.includes('SPF'))).toBe(true);
+      expect(result.indicators.some((i) => i.description.includes('SPF'))).toBe(true);
     });
 
     it('should detect SPF softfail', () => {
@@ -94,7 +94,7 @@ describe('HeaderValidator', () => {
       const result = HeaderValidator.validate(headers);
       expect(result.dkimResult.status).toBe('fail');
       expect(result.dkimResult.isAuthentic).toBe(false);
-      expect(result.indicators.some(i => i.description.includes('DKIM'))).toBe(true);
+      expect(result.indicators.some((i) => i.description.includes('DKIM'))).toBe(true);
     });
 
     it('should handle missing DKIM results', () => {
@@ -141,7 +141,7 @@ describe('HeaderValidator', () => {
       const result = HeaderValidator.validate(headers);
       expect(result.dmarcResult.status).toBe('fail');
       expect(result.dmarcResult.isAuthentic).toBe(false);
-      expect(result.indicators.some(i => i.description.includes('DMARC'))).toBe(true);
+      expect(result.indicators.some((i) => i.description.includes('DMARC'))).toBe(true);
     });
 
     it('should detect DMARC quarantine', () => {
@@ -171,7 +171,7 @@ describe('HeaderValidator', () => {
 
       const result = HeaderValidator.validate(headers);
       expect(result.dmarcResult.status).toBe('reject');
-      const dmarcIndicator = result.indicators.find(i => i.description.includes('DMARC'));
+      const dmarcIndicator = result.indicators.find((i) => i.description.includes('DMARC'));
       expect(dmarcIndicator?.severity).toBe('critical');
     });
   });

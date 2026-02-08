@@ -28,12 +28,17 @@ export function buildReplyHtml(analysis: PhishingAnalysisResult): string {
   const color = analysis.isPhishing ? '#D32F2F' : '#388E3C';
   const indicatorsList = buildIndicatorsList(analysis);
   const actionsList = buildActionsList(analysis);
-  const indicatorsSection = analysis.isPhishing && analysis.indicators.length > 0
-    ? `<div class="section"><h2>Threat Indicators</h2><pre>${indicatorsList}</pre></div>` : '';
+  const indicatorsSection =
+    analysis.isPhishing && analysis.indicators.length > 0
+      ? `<div class="section"><h2>Threat Indicators</h2><pre>${indicatorsList}</pre></div>`
+      : '';
   const explanationSection = analysis.explanation
-    ? `<div class="section" style="background-color:#E3F2FD;padding:15px;border-radius:4px;"><h2>🤖 AI Analysis</h2><p style="margin:0;">${escapeHtml(analysis.explanation)}</p></div>` : '';
-  const actionsSection = analysis.recommendedActions.length > 0
-    ? `<div class="section"><h2>Recommended Actions</h2><pre>${actionsList}</pre></div>` : '';
+    ? `<div class="section" style="background-color:#E3F2FD;padding:15px;border-radius:4px;"><h2>🤖 AI Analysis</h2><p style="margin:0;">${escapeHtml(analysis.explanation)}</p></div>`
+    : '';
+  const actionsSection =
+    analysis.recommendedActions.length > 0
+      ? `<div class="section"><h2>Recommended Actions</h2><pre>${actionsList}</pre></div>`
+      : '';
   const guidance = analysis.isPhishing
     ? '<p><strong>⚠️ Do NOT click any links or provide credentials.</strong></p>'
     : '<p>This email appears legitimate. However, always remain vigilant.</p>';

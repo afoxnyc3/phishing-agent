@@ -2,7 +2,7 @@
 
 Email-triggered phishing analysis agent with automated risk assessment replies.
 
-**Version**: v0.3.1
+**Version**: v0.3.2
 **Status**: Production-Ready with Managed Identity Authentication
 
 ## Overview
@@ -65,6 +65,7 @@ npm run dev  # Hot reload with tsx
 ### Quick Start with Docker
 
 **Option 1: Docker Run**
+
 ```bash
 # Build image
 docker build -t phishing-agent:latest .
@@ -84,6 +85,7 @@ docker stop phishing-agent && docker rm phishing-agent
 ```
 
 **Option 2: Docker Compose** (Recommended for local development)
+
 ```bash
 # Start service
 docker-compose up -d
@@ -139,6 +141,7 @@ curl http://localhost:3000/ready
 ```
 
 **Health Check Configuration:**
+
 - Interval: 30 seconds
 - Timeout: 10 seconds
 - Start period: 40 seconds (allows for initialization)
@@ -171,12 +174,13 @@ NODE_ENV=production  # Set to 'production' to enable Managed Identity
 
 ### Authentication Methods
 
-| Environment | Auth Method | Required Variables |
-|-------------|-------------|-------------------|
+| Environment            | Auth Method      | Required Variables                   |
+| ---------------------- | ---------------- | ------------------------------------ |
 | **Production (Azure)** | Managed Identity | `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` |
-| **Local Development** | Client Secret | All above + `AZURE_CLIENT_SECRET` |
+| **Local Development**  | Client Secret    | All above + `AZURE_CLIENT_SECRET`    |
 
 **Managed Identity Benefits:**
+
 - No secrets to manage or rotate
 - Automatic credential handling
 - More secure than client secrets
@@ -209,6 +213,7 @@ SENDER_COOLDOWN_MS=86400000      # Min time between replies to same sender (24 h
 ```
 
 **How it works:**
+
 - **Content Deduplication**: Same phishing email forwarded by 1000 users = only 1 reply sent
 - **Sender Cooldown**: Each user can only receive 1 reply per 24 hours
 - **Rate Limiting**: Hard caps at 100 emails/hour and 1000 emails/day
@@ -217,6 +222,7 @@ SENDER_COOLDOWN_MS=86400000      # Min time between replies to same sender (24 h
 ### Azure AD Permissions
 
 App registration requires:
+
 - `Mail.Read` - Read monitored mailbox
 - `Mail.Send` - Send analysis replies
 - `Mail.ReadWrite` - Mark emails as read (optional)
@@ -362,9 +368,12 @@ For detailed architecture, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 ### Testing
 
 ```bash
-npm test              # Run all tests
-npm test -- --watch   # Watch mode
-npm test -- --coverage # Coverage report
+npm test                  # Run all tests
+npm run test:unit         # Run unit tests only
+npm run test:integration  # Run integration tests only
+npm run test:coverage     # Coverage report
+npm run test:watch        # Watch mode
+npm run validate          # Full check pipeline (type-check + lint + format + test)
 ```
 
 **Target**: 90%+ test coverage for all code.
@@ -388,6 +397,7 @@ export function validateSpfRecord(spfHeader: string | undefined): Result<string,
 ## Roadmap
 
 ### v0.3.0 (Current - Enhanced Detection)
+
 - [x] Project structure and documentation
 - [x] Core analysis engine (header-validator, content-analyzer, risk-scorer)
 - [x] Mailbox monitoring via Microsoft Graph API
@@ -404,10 +414,12 @@ export function validateSpfRecord(spfHeader: string | undefined): Result<string,
 - [x] Reporting dashboard - analytics, top senders/domains, trends (Issue #5)
 
 ### v0.3.1 (Security & Auth - Current)
+
 - [x] Managed Identity authentication for Azure (Issue #21)
 - [x] Comprehensive security module test coverage (661 tests)
 
 ### v0.4.0 (Enterprise Features - Planned)
+
 - [x] Redis-backed rate limiting for multi-replica deployments (Issue #20)
 - [ ] Advanced attachment deep scanning
 - [ ] WHOIS domain age checking integration
@@ -419,6 +431,7 @@ For complete roadmap and GitHub issues, see [roadmap.md](./roadmap.md).
 ## Documentation
 
 ### Core Documentation
+
 - **[CLAUDE.md](./CLAUDE.md)** - Claude Code project instructions
 - **[AGENT.md](./AGENT.md)** - Design philosophy and methodology
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System design and data flow
@@ -426,12 +439,14 @@ For complete roadmap and GitHub issues, see [roadmap.md](./roadmap.md).
 - **[roadmap.md](./roadmap.md)** - Feature planning and roadmap
 
 ### Technical Documentation
+
 - **[TECH_STACK.md](./TECH_STACK.md)** - Technology inventory
 - **[SECURITY.md](./SECURITY.md)** - Credential management guide
 - **[changelog.md](./changelog.md)** - Version history
 - **[decision-log.md](./decision-log.md)** - Technical decisions with rationale
 
 ### Deployment Documentation
+
 - **[DEPLOYMENT_PLAN.md](./DEPLOYMENT_PLAN.md)** - Infrastructure roadmap
 - **[DEPLOY_MANUAL.md](./DEPLOY_MANUAL.md)** - Step-by-step deployment guide
 

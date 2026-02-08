@@ -4,7 +4,7 @@ import { EmailParser } from '../lib/email-parser.js';
 import { HeaderValidator } from '../analysis/header-validator.js';
 import { ContentAnalyzer, SuspiciousUrl } from '../analysis/content-analyzer.js';
 import { AttachmentAnalyzer } from '../analysis/attachment-analyzer.js';
-import { RiskScorer, RiskScoringResult } from '../analysis/risk-scorer.js';
+import { RiskScorer } from '../analysis/risk-scorer.js';
 import { ThreatIntelService, ThreatIntelResult } from '../services/threat-intel.js';
 import { shouldRunLlmAnalysis, generateThreatExplanation } from '../services/llm-analyzer.js';
 
@@ -58,34 +58,30 @@ export class PhishingAgent {
     const enhancedScore = Math.min(10, riskResult.riskScore + threatIntelResult.riskContribution);
 
     const allIndicators = [...riskResult.indicators, ...threatIntelResult.indicators];
-    const severity = this.determineFinalSeverity(riskResult.severity, enhancedScore, threatIntelResult.riskContribution);
+    const severity = this.determineFinalSeverity(
+      riskResult.severity,
+      enhancedScore,
+      threatIntelResult.riskContribution
+    );
     const explanation = await this.generateExplanation(request, enhancedScore, allIndicators);
 
-    this.logAnalysisComplete(analysisId, request.messageId, enhancedScore, severity, allIndicators.length, attachmentResult.riskLevel, explanation);
-
-    return this.buildResult(request.messageId, analysisId, enhancedScore, riskResult, severity, allIndicators, explanation);
-  }
-
-  private logAnalysisComplete(analysisId: string, messageId: string, score: number, severity: string, indicatorCount: number, attachmentRisk: string, explanation: string | undefined): void {
-    securityLogger.info('Email analysis completed', { analysisId, messageId, isPhishing: score >= 5.0, finalRiskScore: score, severity, totalIndicators: indicatorCount, attachmentRisk, hasExplanation: !!explanation });
-  }
-
-  private buildResult(
-    messageId: string,
-    analysisId: string,
-    score: number,
-    riskResult: RiskScoringResult,
-    severity: 'low' | 'medium' | 'high' | 'critical',
-    indicators: ThreatIndicator[],
-    explanation: string | undefined
-  ): PhishingAnalysisResult {
-    return {
-      messageId,
-      isPhishing: score >= 5.0,
-      confidence: riskResult.confidence,
-      riskScore: score,
+    securityLogger.info('Email analysis completed', {
+      analysisId,
+      messageId: request.messageId,
+      isPhishing: enhancedScore >= 5.0,
+      finalRiskScore: enhancedScore,
       severity,
-      indicators,
+      totalIndicators: allIndicators.length,
+      attachmentRisk: attachmentResult.riskLevel,
+      hasExplanation: !!explanation,
+    });
+    return {
+      messageId: request.messageId,
+      isPhishing: enhancedScore >= 5.0,
+      confidence: riskResult.confidence,
+      riskScore: enhancedScore,
+      severity,
+      indicators: allIndicators,
       recommendedActions: riskResult.recommendedActions,
       analysisTimestamp: new Date(),
       analysisId,
@@ -155,37 +151,59 @@ export class PhishingAgent {
     return null;
   }
 
-  private handleAnalysisError(request: EmailAnalysisRequest, analysisId: string, error: unknown): PhishingAnalysisResult {
+  private handleAnalysisError(
+    request: EmailAnalysisRequest,
+    analysisId: string,
+    error: unknown
+  ): PhishingAnalysisResult {
     const errorMsg = error instanceof Error ? error.message : String(error);
     securityLogger.error('Email analysis failed', { analysisId, messageId: request.messageId, error: errorMsg });
     return {
-      messageId: request.messageId, isPhishing: false, confidence: 0, riskScore: 0, severity: 'medium',
-      indicators: [{ type: 'behavioral', description: 'Analysis error - unable to complete security scan', severity: 'medium', evidence: errorMsg, confidence: 1.0 }],
-      recommendedActions: [{ priority: 'medium', action: 'flag_for_review', description: 'Manual review required due to analysis error', automated: false, requiresApproval: false }],
-      analysisTimestamp: new Date(), analysisId,
+      messageId: request.messageId,
+      isPhishing: false,
+      confidence: 0,
+      riskScore: 0,
+      severity: 'medium',
+      indicators: [
+        {
+          type: 'behavioral',
+          description: 'Analysis error - unable to complete security scan',
+          severity: 'medium',
+          evidence: errorMsg,
+          confidence: 1.0,
+        },
+      ],
+      recommendedActions: [
+        {
+          priority: 'medium' as const,
+          action: 'flag_for_review',
+          description: 'Manual review required due to analysis error',
+          automated: false,
+          requiresApproval: false,
+        },
+      ],
+      analysisTimestamp: new Date(),
+      analysisId,
     };
   }
 
   async healthCheck(): Promise<boolean> {
     try {
-      const testHeaders = {
+      const headers = {
         'message-id': '<test@example.com>',
         from: 'test@example.com',
         to: 'user@test.com',
         subject: 'Test',
         date: new Date().toISOString(),
       };
-
-      HeaderValidator.validate(testHeaders);
+      HeaderValidator.validate(headers);
       ContentAnalyzer.analyze('test');
       AttachmentAnalyzer.analyze([]);
       await this.threatIntel.healthCheck();
-
       return true;
     } catch (error) {
-      securityLogger.error('Health check failed', {
-        error: error instanceof Error ? error.message : String(error),
-      });
+      const msg = error instanceof Error ? error.message : String(error);
+      securityLogger.error('Health check failed', { error: msg });
       return false;
     }
   }

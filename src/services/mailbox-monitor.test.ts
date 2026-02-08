@@ -46,7 +46,14 @@ jest.unstable_mockModule('../lib/logger.js', () => ({
 
 jest.unstable_mockModule('./graph-email-parser.js', () => ({
   parseGraphEmail: jest.fn((email: unknown) => {
-    const e = email as { internetMessageId?: string; id?: string; from?: { emailAddress?: { address?: string } }; toRecipients?: Array<{ emailAddress?: { address?: string } }>; subject?: string; body?: { content?: string } };
+    const e = email as {
+      internetMessageId?: string;
+      id?: string;
+      from?: { emailAddress?: { address?: string } };
+      toRecipients?: Array<{ emailAddress?: { address?: string } }>;
+      subject?: string;
+      body?: { content?: string };
+    };
     return {
       messageId: e.internetMessageId || e.id,
       sender: e.from?.emailAddress?.address || 'test@example.com',
@@ -262,20 +269,24 @@ describe('MailboxMonitor', () => {
       riskScore: 8.5,
       severity: 'high',
       confidence: 0.9,
-      indicators: [{
-        type: 'header',
-        description: 'SPF failed',
-        severity: 'high',
-        evidence: 'spf=fail',
-        confidence: 0.9,
-      }],
-      recommendedActions: [{
-        priority: 'urgent',
-        action: 'quarantine',
-        description: 'Quarantine email',
-        automated: true,
-        requiresApproval: false,
-      }],
+      indicators: [
+        {
+          type: 'header',
+          description: 'SPF failed',
+          severity: 'high',
+          evidence: 'spf=fail',
+          confidence: 0.9,
+        },
+      ],
+      recommendedActions: [
+        {
+          priority: 'urgent',
+          action: 'quarantine',
+          description: 'Quarantine email',
+          automated: true,
+          requiresApproval: false,
+        },
+      ],
       analysisTimestamp: new Date(),
     };
 
@@ -287,7 +298,7 @@ describe('MailboxMonitor', () => {
       monitor.start();
 
       // Wait for initial check
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       monitor.stop();
 
@@ -301,7 +312,7 @@ describe('MailboxMonitor', () => {
       mockPhishingAgent.analyzeEmail.mockResolvedValue(mockAnalysisResult);
 
       monitor.start();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
       monitor.stop();
 
       // Verify reply was sent
@@ -316,7 +327,7 @@ describe('MailboxMonitor', () => {
       mockPhishingAgent.analyzeEmail.mockRejectedValue(new Error('Analysis failed'));
 
       monitor.start();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
       monitor.stop();
 
       // Should still send error reply
@@ -333,7 +344,7 @@ describe('MailboxMonitor', () => {
       mockPhishingAgent.analyzeEmail.mockResolvedValue(mockAnalysisResult);
 
       monitor.start();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
       monitor.stop();
 
       // Should skip processing when sender is missing
@@ -354,7 +365,7 @@ describe('MailboxMonitor', () => {
       mockPhishingAgent.analyzeEmail.mockResolvedValue(mockAnalysisResult);
 
       monitor.start();
-      await new Promise(resolve => setTimeout(resolve, 150));
+      await new Promise((resolve) => setTimeout(resolve, 150));
       monitor.stop();
 
       expect(mockPhishingAgent.analyzeEmail).toHaveBeenCalledTimes(2);
@@ -377,7 +388,7 @@ describe('MailboxMonitor', () => {
         .mockResolvedValueOnce(mockAnalysisResult);
 
       monitor.start();
-      await new Promise(resolve => setTimeout(resolve, 150));
+      await new Promise((resolve) => setTimeout(resolve, 150));
       monitor.stop();
 
       // Both emails should be attempted
@@ -388,7 +399,7 @@ describe('MailboxMonitor', () => {
       mockGraphGet.mockResolvedValue({ value: [] });
 
       monitor.start();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
       monitor.stop();
 
       expect(mockPhishingAgent.analyzeEmail).not.toHaveBeenCalled();
@@ -400,7 +411,7 @@ describe('MailboxMonitor', () => {
       const beforeStart = (await monitor.getStatus()).lastCheckTime;
 
       monitor.start();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
       monitor.stop();
 
       const afterStop = (await monitor.getStatus()).lastCheckTime;
@@ -416,20 +427,24 @@ describe('MailboxMonitor', () => {
       riskScore: 8.5,
       severity: 'high',
       confidence: 0.9,
-      indicators: [{
-        type: 'header',
-        description: 'SPF validation failed',
-        severity: 'high',
-        evidence: 'spf=fail',
-        confidence: 0.9,
-      }],
-      recommendedActions: [{
-        priority: 'urgent',
-        action: 'quarantine',
-        description: 'Quarantine this email',
-        automated: true,
-        requiresApproval: false,
-      }],
+      indicators: [
+        {
+          type: 'header',
+          description: 'SPF validation failed',
+          severity: 'high',
+          evidence: 'spf=fail',
+          confidence: 0.9,
+        },
+      ],
+      recommendedActions: [
+        {
+          priority: 'urgent',
+          action: 'quarantine',
+          description: 'Quarantine this email',
+          automated: true,
+          requiresApproval: false,
+        },
+      ],
       analysisTimestamp: new Date(),
     };
 
@@ -477,13 +492,15 @@ describe('MailboxMonitor', () => {
     it('should limit indicators to top 5 in HTML output', () => {
       const manyIndicators: PhishingAnalysisResult = {
         ...mockAnalysisResult,
-        indicators: Array(10).fill(null).map((_, i) => ({
-          type: 'content' as const,
-          description: `Indicator ${i + 1}`,
-          severity: 'medium' as const,
-          evidence: `evidence-${i}`,
-          confidence: 0.7,
-        })),
+        indicators: Array(10)
+          .fill(null)
+          .map((_, i) => ({
+            type: 'content' as const,
+            description: `Indicator ${i + 1}`,
+            severity: 'medium' as const,
+            evidence: `evidence-${i}`,
+            confidence: 0.7,
+          })),
       };
 
       const html = buildReplyHtml(manyIndicators);
@@ -498,13 +515,15 @@ describe('MailboxMonitor', () => {
     it('should limit actions to top 3 in HTML output', () => {
       const manyActions: PhishingAnalysisResult = {
         ...mockAnalysisResult,
-        recommendedActions: Array(6).fill(null).map((_, i) => ({
-          priority: 'medium' as const,
-          action: `action-${i}`,
-          description: `Action ${i + 1}`,
-          automated: false,
-          requiresApproval: true,
-        })),
+        recommendedActions: Array(6)
+          .fill(null)
+          .map((_, i) => ({
+            priority: 'medium' as const,
+            action: `action-${i}`,
+            description: `Action ${i + 1}`,
+            automated: false,
+            requiresApproval: true,
+          })),
       };
 
       const html = buildReplyHtml(manyActions);
@@ -559,7 +578,7 @@ describe('MailboxMonitor', () => {
       mockPhishingAgent.analyzeEmail.mockResolvedValue(mockAnalysisResult);
 
       monitor.start();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
       monitor.stop();
 
       // Should attempt to send despite error

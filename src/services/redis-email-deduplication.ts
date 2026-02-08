@@ -44,11 +44,7 @@ export class RedisEmailDeduplication {
   /**
    * Check if email should be processed (single pipeline)
    */
-  async shouldProcess(
-    sender: string,
-    subject: string,
-    body: string
-  ): Promise<{ allowed: boolean; reason?: string }> {
+  async shouldProcess(sender: string, subject: string, body: string): Promise<{ allowed: boolean; reason?: string }> {
     if (!this.config.enabled) {
       return { allowed: true };
     }

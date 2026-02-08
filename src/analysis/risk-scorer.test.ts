@@ -21,9 +21,27 @@ describe('RiskScorer', () => {
     dkimResult: { status: 'fail', isAuthentic: false, details: 'DKIM fail' },
     dmarcResult: { status: 'fail', isAuthentic: false, details: 'DMARC fail' },
     indicators: [
-      { type: 'header', description: 'SPF failed', severity: 'high', evidence: 'spf=fail', confidence: 0.9 },
-      { type: 'header', description: 'DKIM failed', severity: 'high', evidence: 'dkim=fail', confidence: 0.9 },
-      { type: 'header', description: 'DMARC failed', severity: 'high', evidence: 'dmarc=fail', confidence: 0.85 },
+      {
+        type: 'header',
+        description: 'SPF failed',
+        severity: 'high',
+        evidence: 'spf=fail',
+        confidence: 0.9,
+      },
+      {
+        type: 'header',
+        description: 'DKIM failed',
+        severity: 'high',
+        evidence: 'dkim=fail',
+        confidence: 0.9,
+      },
+      {
+        type: 'header',
+        description: 'DMARC failed',
+        severity: 'high',
+        evidence: 'dmarc=fail',
+        confidence: 0.85,
+      },
     ],
     confidence: 0.88,
   });
@@ -61,9 +79,7 @@ describe('RiskScorer', () => {
         confidence: 0.8,
       },
     ],
-    suspiciousUrls: [
-      { url: 'https://192.168.1.1', reason: 'IP address', severity: 'high', isPhishing: true },
-    ],
+    suspiciousUrls: [{ url: 'https://192.168.1.1', reason: 'IP address', severity: 'high', isPhishing: true }],
     socialEngineeringTactics: ['urgency', 'credential_harvesting'],
     confidence: 0.8,
   });
@@ -159,11 +175,41 @@ describe('RiskScorer', () => {
         dkimResult: { status: 'fail', isAuthentic: false },
         dmarcResult: { status: 'reject', isAuthentic: false },
         indicators: [
-          { type: 'header', description: 'Test', severity: 'critical', evidence: 'test', confidence: 0.95 },
-          { type: 'header', description: 'Test', severity: 'critical', evidence: 'test', confidence: 0.95 },
-          { type: 'header', description: 'Test', severity: 'critical', evidence: 'test', confidence: 0.95 },
-          { type: 'header', description: 'Test', severity: 'critical', evidence: 'test', confidence: 0.95 },
-          { type: 'header', description: 'Test', severity: 'critical', evidence: 'test', confidence: 0.95 },
+          {
+            type: 'header',
+            description: 'Test',
+            severity: 'critical',
+            evidence: 'test',
+            confidence: 0.95,
+          },
+          {
+            type: 'header',
+            description: 'Test',
+            severity: 'critical',
+            evidence: 'test',
+            confidence: 0.95,
+          },
+          {
+            type: 'header',
+            description: 'Test',
+            severity: 'critical',
+            evidence: 'test',
+            confidence: 0.95,
+          },
+          {
+            type: 'header',
+            description: 'Test',
+            severity: 'critical',
+            evidence: 'test',
+            confidence: 0.95,
+          },
+          {
+            type: 'header',
+            description: 'Test',
+            severity: 'critical',
+            evidence: 'test',
+            confidence: 0.95,
+          },
         ],
         confidence: 0.95,
       };
@@ -171,10 +217,34 @@ describe('RiskScorer', () => {
       const content: ContentAnalysisResult = {
         hasPhishingPatterns: true,
         indicators: [
-          { type: 'content', description: 'Urgency tactics', severity: 'medium', evidence: 'urgent', confidence: 0.7 },
-          { type: 'content', description: 'Credential harvesting', severity: 'critical', evidence: 'password', confidence: 0.9 },
-          { type: 'url', description: 'Suspicious URL', severity: 'high', evidence: 'https://192.168.1.1', confidence: 0.8 },
-          { type: 'content', description: 'Brand impersonation', severity: 'critical', evidence: 'PayPal', confidence: 0.9 },
+          {
+            type: 'content',
+            description: 'Urgency tactics',
+            severity: 'medium',
+            evidence: 'urgent',
+            confidence: 0.7,
+          },
+          {
+            type: 'content',
+            description: 'Credential harvesting',
+            severity: 'critical',
+            evidence: 'password',
+            confidence: 0.9,
+          },
+          {
+            type: 'url',
+            description: 'Suspicious URL',
+            severity: 'high',
+            evidence: 'https://192.168.1.1',
+            confidence: 0.8,
+          },
+          {
+            type: 'content',
+            description: 'Brand impersonation',
+            severity: 'critical',
+            evidence: 'PayPal',
+            confidence: 0.9,
+          },
         ],
         suspiciousUrls: [{ url: 'https://192.168.1.1', reason: 'IP address', severity: 'high', isPhishing: true }],
         socialEngineeringTactics: ['urgency', 'credential_harvesting'],
@@ -205,7 +275,13 @@ describe('RiskScorer', () => {
         dkimResult: { status: 'pass', isAuthentic: true },
         dmarcResult: { status: 'pass', isAuthentic: true },
         indicators: [
-          { type: 'header', description: 'SPF softfail', severity: 'medium', evidence: 'test', confidence: 0.6 },
+          {
+            type: 'header',
+            description: 'SPF softfail',
+            severity: 'medium',
+            evidence: 'test',
+            confidence: 0.6,
+          },
         ],
         confidence: 0.6,
       };
@@ -223,7 +299,13 @@ describe('RiskScorer', () => {
       const content: ContentAnalysisResult = {
         hasPhishingPatterns: true,
         indicators: [
-          { type: 'content', description: 'Minor issue', severity: 'low', evidence: 'test', confidence: 0.3 },
+          {
+            type: 'content',
+            description: 'Minor issue',
+            severity: 'low',
+            evidence: 'test',
+            confidence: 0.3,
+          },
         ],
         suspiciousUrls: [],
         socialEngineeringTactics: [],
@@ -271,10 +353,34 @@ describe('RiskScorer', () => {
         dkimResult: { status: 'fail', isAuthentic: false },
         dmarcResult: { status: 'reject', isAuthentic: false },
         indicators: [
-          { type: 'header', description: 'Test', severity: 'critical', evidence: 'test', confidence: 0.95 },
-          { type: 'header', description: 'Test', severity: 'critical', evidence: 'test', confidence: 0.95 },
-          { type: 'header', description: 'Test', severity: 'critical', evidence: 'test', confidence: 0.95 },
-          { type: 'header', description: 'Test', severity: 'critical', evidence: 'test', confidence: 0.95 },
+          {
+            type: 'header',
+            description: 'Test',
+            severity: 'critical',
+            evidence: 'test',
+            confidence: 0.95,
+          },
+          {
+            type: 'header',
+            description: 'Test',
+            severity: 'critical',
+            evidence: 'test',
+            confidence: 0.95,
+          },
+          {
+            type: 'header',
+            description: 'Test',
+            severity: 'critical',
+            evidence: 'test',
+            confidence: 0.95,
+          },
+          {
+            type: 'header',
+            description: 'Test',
+            severity: 'critical',
+            evidence: 'test',
+            confidence: 0.95,
+          },
         ],
         confidence: 0.95,
       };
@@ -283,9 +389,9 @@ describe('RiskScorer', () => {
       const result = RiskScorer.calculateRisk(headers, content);
 
       if (result.severity === 'critical') {
-        expect(result.recommendedActions.some(a => a.action === 'quarantine_email')).toBe(true);
-        expect(result.recommendedActions.some(a => a.action === 'alert_security_team')).toBe(true);
-        expect(result.recommendedActions.some(a => a.priority === 'urgent')).toBe(true);
+        expect(result.recommendedActions.some((a) => a.action === 'quarantine_email')).toBe(true);
+        expect(result.recommendedActions.some((a) => a.action === 'alert_security_team')).toBe(true);
+        expect(result.recommendedActions.some((a) => a.priority === 'urgent')).toBe(true);
       }
     });
 
@@ -310,7 +416,7 @@ describe('RiskScorer', () => {
       const result = RiskScorer.calculateRisk(headers, content);
 
       if (result.isPhishing) {
-        const credAction = result.recommendedActions.find(a => a.action === 'reset_user_credentials');
+        const credAction = result.recommendedActions.find((a) => a.action === 'reset_user_credentials');
         expect(credAction).toBeDefined();
         expect(credAction?.priority).toBe('urgent');
         expect(credAction?.requiresApproval).toBe(true);
@@ -324,8 +430,20 @@ describe('RiskScorer', () => {
         dkimResult: { status: 'pass', isAuthentic: true },
         dmarcResult: { status: 'pass', isAuthentic: true },
         indicators: [
-          { type: 'header', description: 'SPF softfail', severity: 'medium', evidence: 'test', confidence: 0.6 },
-          { type: 'header', description: 'Test', severity: 'medium', evidence: 'test', confidence: 0.6 },
+          {
+            type: 'header',
+            description: 'SPF softfail',
+            severity: 'medium',
+            evidence: 'test',
+            confidence: 0.6,
+          },
+          {
+            type: 'header',
+            description: 'Test',
+            severity: 'medium',
+            evidence: 'test',
+            confidence: 0.6,
+          },
         ],
         confidence: 0.6,
       };
@@ -334,8 +452,8 @@ describe('RiskScorer', () => {
       const result = RiskScorer.calculateRisk(headers, content);
 
       if (result.severity === 'medium') {
-        expect(result.recommendedActions.some(a => a.action === 'flag_for_review')).toBe(true);
-        expect(result.recommendedActions.some(a => a.action === 'user_education')).toBe(true);
+        expect(result.recommendedActions.some((a) => a.action === 'flag_for_review')).toBe(true);
+        expect(result.recommendedActions.some((a) => a.action === 'user_education')).toBe(true);
       }
     });
 
@@ -346,7 +464,7 @@ describe('RiskScorer', () => {
       const result = RiskScorer.calculateRisk(headers, content);
 
       if (result.isPhishing) {
-        expect(result.recommendedActions.some(a => a.action === 'create_incident')).toBe(true);
+        expect(result.recommendedActions.some((a) => a.action === 'create_incident')).toBe(true);
       }
     });
   });
@@ -408,7 +526,13 @@ describe('RiskScorer', () => {
         dkimResult: { status: 'pass', isAuthentic: true },
         dmarcResult: { status: 'reject', isAuthentic: false },
         indicators: [
-          { type: 'header', description: 'DMARC reject', severity: 'critical', evidence: 'test', confidence: 0.95 },
+          {
+            type: 'header',
+            description: 'DMARC reject',
+            severity: 'critical',
+            evidence: 'test',
+            confidence: 0.95,
+          },
         ],
         confidence: 0.95,
       };
@@ -424,9 +548,27 @@ describe('RiskScorer', () => {
       const content: ContentAnalysisResult = {
         hasPhishingPatterns: true,
         indicators: [
-          { type: 'content', description: 'Test1', severity: 'medium', evidence: 'test', confidence: 0.7 },
-          { type: 'content', description: 'Test2', severity: 'medium', evidence: 'test', confidence: 0.7 },
-          { type: 'content', description: 'Test3', severity: 'medium', evidence: 'test', confidence: 0.7 },
+          {
+            type: 'content',
+            description: 'Test1',
+            severity: 'medium',
+            evidence: 'test',
+            confidence: 0.7,
+          },
+          {
+            type: 'content',
+            description: 'Test2',
+            severity: 'medium',
+            evidence: 'test',
+            confidence: 0.7,
+          },
+          {
+            type: 'content',
+            description: 'Test3',
+            severity: 'medium',
+            evidence: 'test',
+            confidence: 0.7,
+          },
         ],
         suspiciousUrls: [],
         socialEngineeringTactics: ['urgency', 'credential_harvesting', 'financial_lure'],
@@ -520,7 +662,7 @@ describe('RiskScorer', () => {
 
       const result = RiskScorer.calculateRisk(headers, content, attachments);
 
-      expect(result.indicators.some(i => i.type === 'attachment')).toBe(true);
+      expect(result.indicators.some((i) => i.type === 'attachment')).toBe(true);
     });
 
     it('should use 40/30/30 weighting when attachments present', () => {
@@ -531,9 +673,7 @@ describe('RiskScorer', () => {
       const result = RiskScorer.calculateRisk(headers, content, attachments);
 
       const expectedScore =
-        result.analysis.headerScore * 0.4 +
-        result.analysis.contentScore * 0.3 +
-        result.analysis.attachmentScore * 0.3;
+        result.analysis.headerScore * 0.4 + result.analysis.contentScore * 0.3 + result.analysis.attachmentScore * 0.3;
       expect(result.analysis.aggregatedScore).toBeCloseTo(expectedScore, 2);
     });
 
@@ -544,8 +684,7 @@ describe('RiskScorer', () => {
       const result = RiskScorer.calculateRisk(headers, content);
 
       expect(result.analysis.attachmentScore).toBe(0);
-      const expectedScore =
-        result.analysis.headerScore * 0.6 + result.analysis.contentScore * 0.4;
+      const expectedScore = result.analysis.headerScore * 0.6 + result.analysis.contentScore * 0.4;
       expect(result.analysis.aggregatedScore).toBeCloseTo(expectedScore, 2);
     });
 
@@ -557,7 +696,7 @@ describe('RiskScorer', () => {
       const result = RiskScorer.calculateRisk(headers, content, attachments);
 
       if (result.isPhishing) {
-        expect(result.recommendedActions.some(a => a.action === 'block_attachment')).toBe(true);
+        expect(result.recommendedActions.some((a) => a.action === 'block_attachment')).toBe(true);
       }
     });
 
@@ -569,7 +708,7 @@ describe('RiskScorer', () => {
       const result = RiskScorer.calculateRisk(headers, content, attachments);
 
       if (result.isPhishing) {
-        expect(result.recommendedActions.some(a => a.action === 'strip_macros')).toBe(true);
+        expect(result.recommendedActions.some((a) => a.action === 'strip_macros')).toBe(true);
       }
     });
 
@@ -580,8 +719,8 @@ describe('RiskScorer', () => {
 
       const result = RiskScorer.calculateRisk(headers, content, attachments);
 
-      expect(result.recommendedActions.every(a => a.action !== 'block_attachment')).toBe(true);
-      expect(result.recommendedActions.every(a => a.action !== 'strip_macros')).toBe(true);
+      expect(result.recommendedActions.every((a) => a.action !== 'block_attachment')).toBe(true);
+      expect(result.recommendedActions.every((a) => a.action !== 'strip_macros')).toBe(true);
     });
 
     it('should handle undefined attachment result', () => {
@@ -591,7 +730,7 @@ describe('RiskScorer', () => {
       const result = RiskScorer.calculateRisk(headers, content, undefined);
 
       expect(result.analysis.attachmentScore).toBe(0);
-      expect(result.indicators.every(i => i.type !== 'attachment')).toBe(true);
+      expect(result.indicators.every((i) => i.type !== 'attachment')).toBe(true);
     });
   });
 });

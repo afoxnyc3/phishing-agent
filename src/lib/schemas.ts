@@ -16,10 +16,7 @@ export const EnvConfigSchema = z
     AZURE_CLIENT_ID: z.string().min(1, 'Azure Client ID is required'),
     AZURE_CLIENT_SECRET: z.string().optional(),
     AZURE_KEY_VAULT_NAME: z.string().optional(),
-    AZURE_AUTH_METHOD: z
-      .enum(['secret', 'managed-identity'])
-      .optional()
-      .default('secret'),
+    AZURE_AUTH_METHOD: z.enum(['secret', 'managed-identity']).optional().default('secret'),
 
     // Sender allowlist configuration (fail-closed in production)
     ALLOWED_SENDER_EMAILS: z.string().optional(),
@@ -83,8 +80,7 @@ export const EnvConfigSchema = z
       if (!data.AZURE_KEY_VAULT_NAME) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message:
-            'AZURE_KEY_VAULT_NAME is required in production. Secrets must be loaded from Key Vault.',
+          message: 'AZURE_KEY_VAULT_NAME is required in production. Secrets must be loaded from Key Vault.',
           path: ['AZURE_KEY_VAULT_NAME'],
         });
       }
@@ -103,8 +99,7 @@ export const EnvConfigSchema = z
       if (!data.API_KEY && !data.HEALTH_API_KEY && !data.METRICS_API_KEY) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message:
-            'API_KEY is required in production to protect operational endpoints.',
+          message: 'API_KEY is required in production to protect operational endpoints.',
           path: ['API_KEY'],
         });
       }
@@ -134,19 +129,21 @@ export const EmailAttachmentSchema = z.object({
   hash: z.string().optional(),
 });
 
-export const EmailHeadersSchema = z.object({
-  'message-id': z.string(),
-  from: z.string(),
-  to: z.string(),
-  subject: z.string(),
-  date: z.string(),
-  'received-spf': z.string().optional(),
-  'authentication-results': z.string().optional(),
-  'dmarc-results': z.string().optional(),
-  'x-originating-ip': z.string().optional(),
-  'reply-to': z.string().optional(),
-  received: z.string().optional(),
-}).catchall(z.string().optional());
+export const EmailHeadersSchema = z
+  .object({
+    'message-id': z.string(),
+    from: z.string(),
+    to: z.string(),
+    subject: z.string(),
+    date: z.string(),
+    'received-spf': z.string().optional(),
+    'authentication-results': z.string().optional(),
+    'dmarc-results': z.string().optional(),
+    'x-originating-ip': z.string().optional(),
+    'reply-to': z.string().optional(),
+    received: z.string().optional(),
+  })
+  .catchall(z.string().optional());
 
 export const EmailAnalysisRequestSchema = z.object({
   messageId: z.string().min(1, 'Message ID is required'),

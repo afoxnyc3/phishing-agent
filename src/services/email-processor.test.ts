@@ -126,7 +126,6 @@ describe('Email Processor', () => {
     ...overrides,
   });
 
-
   describe('processEmail', () => {
     it('should process email through full pipeline', async () => {
       const config = createMockConfig();

@@ -37,17 +37,13 @@ export interface LlmServiceStatus {
 }
 
 // Singleton circuit breaker instance
-let circuitBreaker: CircuitBreaker<[LlmAnalysisRequest], LlmAnalysisResult | null> | null =
-  null;
+let circuitBreaker: CircuitBreaker<[LlmAnalysisRequest], LlmAnalysisResult | null> | null = null;
 let consecutiveFailures = 0;
 
 /**
  * Get or create the circuit breaker instance
  */
-function getCircuitBreaker(): CircuitBreaker<
-  [LlmAnalysisRequest],
-  LlmAnalysisResult | null
-> {
+function getCircuitBreaker(): CircuitBreaker<[LlmAnalysisRequest], LlmAnalysisResult | null> {
   if (!circuitBreaker) {
     circuitBreaker = new CircuitBreaker(callAnthropicWithRetry, {
       timeout: config.llm.timeoutMs,
@@ -108,11 +104,14 @@ async function makeApiCall(apiKey: string, prompt: string): Promise<Anthropic.Me
   const timeoutId = setTimeout(() => controller.abort(), config.llm.timeoutMs);
 
   try {
-    const response = await client.messages.create({
-      model: 'claude-3-5-haiku-20241022',
-      max_tokens: 300,
-      messages: [{ role: 'user', content: prompt }],
-    });
+    const response = await client.messages.create(
+      {
+        model: 'claude-3-5-haiku-20241022',
+        max_tokens: 300,
+        messages: [{ role: 'user', content: prompt }],
+      },
+      { signal: controller.signal }
+    );
     clearTimeout(timeoutId);
     return response;
   } catch (error) {
@@ -134,9 +133,7 @@ function isRetryableError(error: Error): boolean {
 /**
  * Call Anthropic API with retry logic
  */
-async function callAnthropicWithRetry(
-  request: LlmAnalysisRequest
-): Promise<LlmAnalysisResult | null> {
+async function callAnthropicWithRetry(request: LlmAnalysisRequest): Promise<LlmAnalysisResult | null> {
   const apiKey = config.llm.apiKey || process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     securityLogger.debug('LLM analysis skipped: no API key configured');
@@ -174,9 +171,7 @@ async function callAnthropicWithRetry(
  * Generate natural language threat explanation using Claude
  * Protected by circuit breaker and retry logic
  */
-export async function generateThreatExplanation(
-  request: LlmAnalysisRequest
-): Promise<LlmAnalysisResult | null> {
+export async function generateThreatExplanation(request: LlmAnalysisRequest): Promise<LlmAnalysisResult | null> {
   const apiKey = config.llm.apiKey || process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     securityLogger.debug('LLM analysis skipped: no API key configured');

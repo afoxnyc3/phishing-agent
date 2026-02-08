@@ -102,11 +102,7 @@ describe('Azure Authentication', () => {
 
         createAzureCredential(baseConfig);
 
-        expect(mockClientSecretCredential).toHaveBeenCalledWith(
-          'test-tenant',
-          'test-client',
-          'test-secret'
-        );
+        expect(mockClientSecretCredential).toHaveBeenCalledWith('test-tenant', 'test-client', 'test-secret');
       });
 
       it('should throw error when client secret is missing', () => {

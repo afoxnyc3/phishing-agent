@@ -33,9 +33,7 @@ export function evaluateEmailGuards(
   return { allowed: true };
 }
 
-function buildHeaderMap(
-  headers: Array<{ name?: string; value?: string }> | undefined
-): Record<string, string> {
+function buildHeaderMap(headers: Array<{ name?: string; value?: string }> | undefined): Record<string, string> {
   if (!Array.isArray(headers)) return {};
   return headers.reduce<Record<string, string>>((acc, header) => {
     if (header.name && header.value) {

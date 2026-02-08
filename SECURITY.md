@@ -14,11 +14,13 @@
 ### Azure Credentials
 
 **Required Credentials**:
+
 - `AZURE_TENANT_ID` - Your Azure AD tenant ID
 - `AZURE_CLIENT_ID` - Application (client) ID from App Registration
 - `AZURE_CLIENT_SECRET` - Client secret from App Registration
 
 **Security Requirements**:
+
 - ✅ Store credentials ONLY in `.env` file (already in `.gitignore`)
 - ✅ Never commit credentials to git
 - ✅ Rotate client secrets every 90 days
@@ -28,11 +30,13 @@
 ### Threat Intel API Keys (Optional)
 
 **Optional Keys**:
+
 - `VIRUSTOTAL_API_KEY` - VirusTotal API key
 - `ABUSEIPDB_API_KEY` - AbuseIPDB API key
 - `URLSCAN_API_KEY` - URLScan.io API key
 
 **Security Requirements**:
+
 - ✅ Store in `.env` file
 - ✅ Use separate keys for dev/staging/production
 - ✅ Monitor API usage for anomalies
@@ -45,6 +49,7 @@
 ### When to Rotate Credentials
 
 **Immediate rotation required if**:
+
 - Credentials committed to git history
 - Credentials shared in unsecure channel (email, chat)
 - Suspicious activity detected in logs
@@ -52,6 +57,7 @@
 - Security audit recommends rotation
 
 **Scheduled rotation**:
+
 - Azure client secrets: Every 90 days
 - API keys: Every 180 days or per provider policy
 
@@ -104,7 +110,8 @@ npm run dev
 az containerapp update \
   --name phishing-agent \
   --resource-group rg-security \
-  --set-env-vars AZURE_CLIENT_SECRET=<new-secret>
+  --secrets azure-client-secret=<new-secret> \
+  --set-env-vars AZURE_CLIENT_SECRET=secretref:azure-client-secret
 
 # Docker:
 # Update .env file on production server and restart container
@@ -180,6 +187,7 @@ git gc --prune=now --aggressive
 ```
 
 **If repository is public**:
+
 - Assume all credentials are compromised
 - Rotate ALL credentials immediately
 - Consider the repository permanently tainted
@@ -188,12 +196,14 @@ git gc --prune=now --aggressive
 ### Suspicious Activity Detection
 
 **Signs of compromised credentials**:
+
 - Unexpected API calls in Azure logs
 - Emails sent from mailbox outside normal hours
 - Failed authentication attempts
 - Unusual Graph API usage patterns
 
 **Response steps**:
+
 1. Immediately rotate all credentials
 2. Review Azure AD sign-in logs
 3. Review Graph API audit logs
@@ -226,6 +236,7 @@ git gc --prune=now --aggressive
 ### Code Review Checklist
 
 Before merging any PR:
+
 - [ ] No credentials in code or config files
 - [ ] No credentials in commit messages
 - [ ] All new config uses environment variables
@@ -238,13 +249,14 @@ Before merging any PR:
 
 Track all credential rotations in your organization:
 
-| Date | Credential Type | Reason | Performed By | Notes |
-|------|----------------|--------|--------------|-------|
-| YYYY-MM-DD | Azure Client Secret | Scheduled 90-day rotation | Admin Name | Successful |
-| YYYY-MM-DD | API Keys | Security incident response | Admin Name | Emergency rotation |
-| | | | | |
+| Date       | Credential Type     | Reason                     | Performed By | Notes              |
+| ---------- | ------------------- | -------------------------- | ------------ | ------------------ |
+| YYYY-MM-DD | Azure Client Secret | Scheduled 90-day rotation  | Admin Name   | Successful         |
+| YYYY-MM-DD | API Keys            | Security incident response | Admin Name   | Emergency rotation |
+|            |                     |                            |              |                    |
 
 **Best Practices**:
+
 - Log all credential changes
 - Include who performed the rotation
 - Document the reason (scheduled vs. incident)
@@ -264,10 +276,12 @@ Track all credential rotations in your organization:
 ## Contact
 
 For security issues or questions:
+
 - **Email**: security@yourcompany.com
 - **Internal Communication**: Use your organization's secure channel (e.g., Slack #security-team)
 - **Emergency**: Follow your organization's incident response procedures
 
 **For Public Vulnerability Reports**:
+
 - Use GitHub Security Advisories (https://github.com/YOUR-REPO/security/advisories)
 - Or email security contact listed in repository

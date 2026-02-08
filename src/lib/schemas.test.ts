@@ -162,11 +162,13 @@ describe('Zod Schemas', () => {
           date: '2024-01-01T12:00:00.000Z',
         },
         body: 'Test body content',
-        attachments: [{
-          filename: 'test.pdf',
-          contentType: 'application/pdf',
-          size: 1024,
-        }],
+        attachments: [
+          {
+            filename: 'test.pdf',
+            contentType: 'application/pdf',
+            size: 1024,
+          },
+        ],
       };
 
       const result = EmailAnalysisRequestSchema.safeParse(request);
@@ -254,20 +256,24 @@ describe('Zod Schemas', () => {
         confidence: 0.95,
         riskScore: 8.5,
         severity: 'high',
-        indicators: [{
-          type: 'header',
-          description: 'SPF failed',
-          severity: 'high',
-          evidence: 'spf=fail',
-          confidence: 0.9,
-        }],
-        recommendedActions: [{
-          priority: 'urgent',
-          action: 'quarantine',
-          description: 'Quarantine email',
-          automated: true,
-          requiresApproval: false,
-        }],
+        indicators: [
+          {
+            type: 'header',
+            description: 'SPF failed',
+            severity: 'high',
+            evidence: 'spf=fail',
+            confidence: 0.9,
+          },
+        ],
+        recommendedActions: [
+          {
+            priority: 'urgent',
+            action: 'quarantine',
+            description: 'Quarantine email',
+            automated: true,
+            requiresApproval: false,
+          },
+        ],
         analysisTimestamp: new Date(),
         analysisId: 'analysis-123',
       };
@@ -306,12 +312,14 @@ describe('Zod Schemas', () => {
             name: 'Sender Name',
           },
         },
-        toRecipients: [{
-          emailAddress: {
-            address: 'recipient@example.com',
-            name: 'Recipient Name',
+        toRecipients: [
+          {
+            emailAddress: {
+              address: 'recipient@example.com',
+              name: 'Recipient Name',
+            },
           },
-        }],
+        ],
         receivedDateTime: '2024-01-01T12:00:00.000Z',
         sentDateTime: '2024-01-01T11:59:00.000Z',
         body: {
@@ -319,15 +327,19 @@ describe('Zod Schemas', () => {
           contentType: 'html',
         },
         bodyPreview: 'Test preview',
-        internetMessageHeaders: [{
-          name: 'Received-SPF',
-          value: 'pass',
-        }],
-        attachments: [{
-          name: 'document.pdf',
-          contentType: 'application/pdf',
-          size: 1024,
-        }],
+        internetMessageHeaders: [
+          {
+            name: 'Received-SPF',
+            value: 'pass',
+          },
+        ],
+        attachments: [
+          {
+            name: 'document.pdf',
+            contentType: 'application/pdf',
+            size: 1024,
+          },
+        ],
       };
 
       const result = GraphEmailSchema.safeParse(email);
@@ -345,13 +357,16 @@ describe('Zod Schemas', () => {
 
     it('should validate Graph email list response', () => {
       const response = {
-        value: [{
-          id: 'email-1',
-          subject: 'Test 1',
-        }, {
-          id: 'email-2',
-          subject: 'Test 2',
-        }],
+        value: [
+          {
+            id: 'email-1',
+            subject: 'Test 1',
+          },
+          {
+            id: 'email-2',
+            subject: 'Test 2',
+          },
+        ],
       };
 
       const result = GraphEmailListResponseSchema.safeParse(response);
@@ -391,8 +406,8 @@ describe('Zod Schemas', () => {
               timeout: 0,
             },
             last_analysis_results: {
-              'Scanner1': { category: 'malicious' },
-              'Scanner2': { category: 'clean' },
+              Scanner1: { category: 'malicious' },
+              Scanner2: { category: 'clean' },
             },
             url: 'https://example.com',
           },
@@ -519,15 +534,15 @@ describe('Zod Schemas', () => {
           size: -1, // Invalid
         };
 
-        expect(() => safeParse(EmailAttachmentSchema, data))
-          .toThrow('Validation failed');
+        expect(() => safeParse(EmailAttachmentSchema, data)).toThrow('Validation failed');
       });
 
       it('should include context in error message', () => {
         const data = { invalid: 'data' };
 
-        expect(() => safeParse(EmailAttachmentSchema, data, 'test context'))
-          .toThrow('Validation failed for test context');
+        expect(() => safeParse(EmailAttachmentSchema, data, 'test context')).toThrow(
+          'Validation failed for test context'
+        );
       });
     });
 

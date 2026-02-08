@@ -29,9 +29,7 @@ describe('GraphEmailParser', () => {
           { name: 'Received-SPF', value: 'pass' },
           { name: 'Authentication-Results', value: 'spf=pass; dkim=pass' },
         ],
-        attachments: [
-          { name: 'document.pdf', contentType: 'application/pdf', size: 1024 },
-        ],
+        attachments: [{ name: 'document.pdf', contentType: 'application/pdf', size: 1024 }],
       };
 
       const result = parseGraphEmail(graphEmail);
@@ -184,9 +182,7 @@ describe('GraphEmailParser', () => {
         from: { emailAddress: { address: 'sender@example.com' } },
         toRecipients: [{ emailAddress: { address: 'recipient@example.com' } }],
         subject: 'Test',
-        internetMessageHeaders: [
-          { name: 'X-Custom-Header', value: 'custom-value' },
-        ],
+        internetMessageHeaders: [{ name: 'X-Custom-Header', value: 'custom-value' }],
       };
 
       const result = parseGraphEmail(graphEmail);
@@ -251,7 +247,11 @@ describe('GraphEmailParser', () => {
         subject: 'Test',
         attachments: [
           { name: 'file1.pdf', contentType: 'application/pdf', size: 1024 },
-          { name: 'file2.docx', contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', size: 2048 },
+          {
+            name: 'file2.docx',
+            contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            size: 2048,
+          },
           { name: 'image.jpg', contentType: 'image/jpeg', size: 512 },
         ],
       };
@@ -270,11 +270,7 @@ describe('GraphEmailParser', () => {
         from: { emailAddress: { address: 'sender@example.com' } },
         toRecipients: [{ emailAddress: { address: 'recipient@example.com' } }],
         subject: 'Test',
-        attachments: [
-          { name: 'file1.pdf' },
-          { contentType: 'application/pdf', size: 1024 },
-          {},
-        ],
+        attachments: [{ name: 'file1.pdf' }, { contentType: 'application/pdf', size: 1024 }, {}],
       };
 
       const result = parseGraphEmail(graphEmail);

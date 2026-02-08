@@ -52,11 +52,7 @@ export async function createEmailDeduplication(
 export class EmailDeduplicationWrapper implements IEmailDeduplication {
   constructor(private dedup: EmailDeduplication) {}
 
-  async shouldProcess(
-    sender: string,
-    subject: string,
-    body: string
-  ): Promise<{ allowed: boolean; reason?: string }> {
+  async shouldProcess(sender: string, subject: string, body: string): Promise<{ allowed: boolean; reason?: string }> {
     return this.dedup.shouldProcess(sender, subject, body);
   }
   async recordProcessed(sender: string, subject: string, body: string): Promise<void> {

@@ -58,7 +58,13 @@ export class ContentAnalyzer {
       tactics,
     });
 
-    return { hasPhishingPatterns, indicators, suspiciousUrls, socialEngineeringTactics: tactics, confidence };
+    return {
+      hasPhishingPatterns,
+      indicators,
+      suspiciousUrls,
+      socialEngineeringTactics: tactics,
+      confidence,
+    };
   }
 
   /**

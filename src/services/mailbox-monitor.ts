@@ -6,13 +6,7 @@ import { securityLogger } from '../lib/logger.js';
 import { PhishingAgent } from '../agents/phishing-agent.js';
 import { GraphEmail } from '../lib/schemas.js';
 import { fetchNewEmails } from './email-fetcher.js';
-import {
-  createRateLimiter,
-  IRateLimiter,
-  RateLimiterConfig,
-  RateLimiter,
-  RateLimiterWrapper,
-} from './rate-limiter.js';
+import { createRateLimiter, IRateLimiter, RateLimiterConfig, RateLimiter, RateLimiterWrapper } from './rate-limiter.js';
 import {
   createEmailDeduplication,
   IEmailDeduplication,
@@ -42,12 +36,17 @@ export interface MailboxMonitorConfig {
 }
 
 const DEFAULT_RATE_LIMITER: RateLimiterConfig = {
-  enabled: true, maxEmailsPerHour: 100, maxEmailsPerDay: 1000,
-  circuitBreakerThreshold: 50, circuitBreakerWindowMs: 600000,
+  enabled: true,
+  maxEmailsPerHour: 100,
+  maxEmailsPerDay: 1000,
+  circuitBreakerThreshold: 50,
+  circuitBreakerWindowMs: 600000,
 };
 
 const DEFAULT_DEDUPLICATION: DeduplicationConfig = {
-  enabled: true, contentHashTtlMs: 86400000, senderCooldownMs: 86400000,
+  enabled: true,
+  contentHashTtlMs: 86400000,
+  senderCooldownMs: 86400000,
 };
 
 export class MailboxMonitor {
@@ -156,10 +155,14 @@ export class MailboxMonitor {
     });
 
     try {
-      const emails = await fetchNewEmails(this.client, {
-        mailboxAddress: this.config.mailboxAddress,
-        maxPages: this.config.maxPages,
-      }, filterDate);
+      const emails = await fetchNewEmails(
+        this.client,
+        {
+          mailboxAddress: this.config.mailboxAddress,
+          maxPages: this.config.maxPages,
+        },
+        filterDate
+      );
 
       if (emails.length === 0) {
         securityLogger.debug('No new emails found');

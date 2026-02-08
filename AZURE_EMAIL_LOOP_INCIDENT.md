@@ -22,20 +22,20 @@ On October 20, 2025, the phishing analysis agent deployed on Azure Container App
 
 ### October 20, 2025
 
-| Time | Event | Evidence |
-|------|-------|----------|
-| **~9:00 AM** | Agent analyzes legitimate phishing email | Normal operation |
-| **~9:02 AM** | Agent sends reply to user's email | Analysis reply sent successfully |
-| **~9:03 AM** | **Email loop begins** | Agent receives its own reply as "new email" |
-| **9:03-10:00 AM** | Loop accelerates exponentially | Each reply triggers another analysis |
-| **~10:00 AM** | Microsoft Defender flags unusual activity | Screenshot evidence: Multiple "Undeliverable: Re: Re: Re:" emails |
-| **12:11 PM** | Office 365 alert triggered | **"Email sending limit exceeded"** alert sent to admins |
-| **1:28 PM** | Microsoft Defender shows full extent | Screenshot shows dozens of loop emails in mailbox |
-| **1:30 PM** | Investigation begins | Log analysis reveals self-reply pattern |
-| **2:00 PM** | Container stopped manually | Emergency stop to prevent further emails |
-| **2:30-4:00 PM** | Code fixes implemented | Rate limiter, circuit breaker, deduplication added |
-| **4:06 PM** | Rate limiting deployed | Container restarted with safeguards |
-| **4:30 PM** | Monitoring confirms resolution | No further loop emails detected |
+| Time              | Event                                     | Evidence                                                          |
+| ----------------- | ----------------------------------------- | ----------------------------------------------------------------- |
+| **~9:00 AM**      | Agent analyzes legitimate phishing email  | Normal operation                                                  |
+| **~9:02 AM**      | Agent sends reply to user's email         | Analysis reply sent successfully                                  |
+| **~9:03 AM**      | **Email loop begins**                     | Agent receives its own reply as "new email"                       |
+| **9:03-10:00 AM** | Loop accelerates exponentially            | Each reply triggers another analysis                              |
+| **~10:00 AM**     | Microsoft Defender flags unusual activity | Screenshot evidence: Multiple "Undeliverable: Re: Re: Re:" emails |
+| **12:11 PM**      | Office 365 alert triggered                | **"Email sending limit exceeded"** alert sent to admins           |
+| **1:28 PM**       | Microsoft Defender shows full extent      | Screenshot shows dozens of loop emails in mailbox                 |
+| **1:30 PM**       | Investigation begins                      | Log analysis reveals self-reply pattern                           |
+| **2:00 PM**       | Container stopped manually                | Emergency stop to prevent further emails                          |
+| **2:30-4:00 PM**  | Code fixes implemented                    | Rate limiter, circuit breaker, deduplication added                |
+| **4:06 PM**       | Rate limiting deployed                    | Container restarted with safeguards                               |
+| **4:30 PM**       | Monitoring confirms resolution            | No further loop emails detected                                   |
 
 ---
 
@@ -46,6 +46,7 @@ On October 20, 2025, the phishing analysis agent deployed on Azure Container App
 ![Defender Alert](./misc/Screenshot%202025-10-20%20at%201.28.04%20PM.png)
 
 **What it shows**:
+
 - Email inbox filled with "Undeliverable: Re: Re: Re: Re: Re: Re: Undeliverable..." emails
 - All sent from `microsoftexchange329f1ec8b5d5b4015b...@chelseapiers.com` to `phishing@chelseapiers.com`
 - Subject lines showing classic email loop pattern
@@ -58,6 +59,7 @@ On October 20, 2025, the phishing analysis agent deployed on Azure Container App
 ![Office 365 Alert](./misc/Screenshot%202025-10-20%20at%208.25.44%20PM.png)
 
 **Alert Details**:
+
 ```
 ⚠️ Email sending limit exceeded
 
@@ -82,6 +84,7 @@ Last Message ID: 7709c04f-2af2-49b3-1cd7-08de0f8ddc91.
 **Problem**: The agent had no mechanism to detect it was replying to its own emails.
 
 **How the loop worked**:
+
 ```
 1. User forwards phishing email → phishing@chelseapiers.com
 2. Agent analyzes email → Sends reply from phishing@chelseapiers.com
@@ -91,6 +94,7 @@ Last Message ID: 7709c04f-2af2-49b3-1cd7-08de0f8ddc91.
 ```
 
 **Code gap** (original implementation):
+
 ```typescript
 // mailbox-monitor.ts (BEFORE FIX)
 async checkForNewEmails(): Promise<void> {
@@ -106,21 +110,25 @@ async checkForNewEmails(): Promise<void> {
 ### Contributing Factors
 
 #### 1. Insufficient Rate Limiting
+
 - **Original**: No rate limiting implemented
 - **Impact**: Agent could send unlimited emails per hour/day
 - **Result**: 10,000 emails sent before Microsoft 365 intervened
 
 #### 2. No Email Deduplication
+
 - **Original**: No check for duplicate content
 - **Impact**: Same email analyzed repeatedly (each "Re:" iteration)
 - **Result**: Wasted compute resources and API calls
 
 #### 3. Aggressive Polling Interval
+
 - **Configuration**: 60-second polling interval
 - **Impact**: Loop accelerated quickly (60 new emails per hour potential)
 - **Result**: Rapid escalation from 1 email to thousands
 
 #### 4. No Circuit Breaker
+
 - **Original**: No burst sending protection
 - **Impact**: Agent didn't stop even when sending 50+ emails in 10 minutes
 - **Result**: Loop continued for hours without automatic intervention
@@ -130,23 +138,27 @@ async checkForNewEmails(): Promise<void> {
 ## Impact Assessment
 
 ### Email System Impact
+
 - **Emails sent**: ~10,000 in 24 hours
 - **Recipient rate limit**: Exceeded (10,000 limit)
 - **Mailbox pollution**: 100+ "Undeliverable" emails in phishing inbox
 - **Legitimate emails**: Temporarily blocked due to rate limit
 
 ### Security Alert Impact
+
 - **Microsoft Defender**: Flagged unusual activity
 - **Office 365 Security**: Medium-severity alert triggered
 - **Admin notifications**: Multiple admins alerted
 - **Investigation time**: ~2 hours to identify root cause
 
 ### Cost Impact
+
 - **Azure Container Apps**: Negligible (same CPU/memory usage)
 - **Microsoft Graph API**: ~10,000 API calls (well within quota)
 - **Admin time**: ~4 hours (investigation + fix + deployment)
 
 ### User Experience Impact
+
 - **User confusion**: No impact (loops were internal)
 - **Analysis quality**: No degradation (legitimate emails still processed)
 - **Downtime**: ~1.5 hours (container stopped during fix)
@@ -158,6 +170,7 @@ async checkForNewEmails(): Promise<void> {
 ### Layer 1: Email Loop Detection
 
 **Implementation** (`src/services/mailbox-monitor.ts:148-156`):
+
 ```typescript
 private shouldProcessEmail(email: any): boolean {
   const fromAddress = EmailParser.extractEmail(email.from.emailAddress.address);
@@ -176,17 +189,19 @@ private shouldProcessEmail(email: any): boolean {
 ```
 
 **How it works**:
+
 - Every email checked against monitored mailbox address
 - If `from` address matches `phishing@chelseapiers.com`, email is ignored
 - Prevents the fundamental loop: agent replying to itself
 
 **Test case**:
+
 ```typescript
 // Email from user → Process ✅
-shouldProcessEmail({ from: 'user@company.com' }) === true
+shouldProcessEmail({ from: 'user@company.com' }) === true;
 
 // Email from our own address → Ignore ❌
-shouldProcessEmail({ from: 'phishing@chelseapiers.com' }) === false
+shouldProcessEmail({ from: 'phishing@chelseapiers.com' }) === false;
 ```
 
 ### Layer 2: Rate Limiting
@@ -194,28 +209,31 @@ shouldProcessEmail({ from: 'phishing@chelseapiers.com' }) === false
 **Implementation** (`src/services/rate-limiter.ts`):
 
 **Hourly Limit** (default: 100 emails/hour):
+
 ```typescript
 const hourlyCount = this.getCountInWindow(60 * 60 * 1000);
 if (hourlyCount >= this.config.maxEmailsPerHour) {
   return {
     allowed: false,
-    reason: `Hourly limit reached (${hourlyCount}/${this.config.maxEmailsPerHour})`
+    reason: `Hourly limit reached (${hourlyCount}/${this.config.maxEmailsPerHour})`,
   };
 }
 ```
 
 **Daily Limit** (default: 1,000 emails/day):
+
 ```typescript
 const dailyCount = this.getCountInWindow(24 * 60 * 60 * 1000);
 if (dailyCount >= this.config.maxEmailsPerDay) {
   return {
     allowed: false,
-    reason: `Daily limit reached (${dailyCount}/${this.config.maxEmailsPerDay})`
+    reason: `Daily limit reached (${dailyCount}/${this.config.maxEmailsPerDay})`,
   };
 }
 ```
 
 **How it prevents loops**:
+
 - Even if loop detection fails, rate limiter caps damage
 - 100 emails/hour max (vs 10,000 in incident)
 - Provides emergency brake if other safeguards fail
@@ -223,22 +241,25 @@ if (dailyCount >= this.config.maxEmailsPerDay) {
 ### Layer 3: Circuit Breaker
 
 **Implementation** (`src/services/rate-limiter.ts:68-72`):
+
 ```typescript
 // Check for burst (circuit breaker trigger)
 const burstCount = this.getCountInWindow(this.config.circuitBreakerWindowMs);
 if (burstCount >= this.config.circuitBreakerThreshold) {
-  this.tripCircuitBreaker();  // Auto-reset in 1 hour
+  this.tripCircuitBreaker(); // Auto-reset in 1 hour
   return { allowed: false, reason: 'Circuit breaker tripped due to burst sending' };
 }
 ```
 
 **Configuration**:
+
 - **Threshold**: 50 emails in 10 minutes
 - **Action**: Trip circuit breaker (block all sending)
 - **Reset**: Automatic after 1 hour
 - **Alert**: Security log warning
 
 **How it prevents loops**:
+
 - Detects abnormal burst patterns (50 emails in 10 min)
 - Stops agent immediately (even if under hourly/daily limits)
 - Requires manual investigation before resuming
@@ -248,6 +269,7 @@ if (burstCount >= this.config.circuitBreakerThreshold) {
 **Implementation** (`src/services/email-deduplication.ts`):
 
 **Content Hashing**:
+
 ```typescript
 private hashEmailContent(subject: string, body: string): string {
   const content = `${subject}||${body.substring(0, 1000)}`;
@@ -258,6 +280,7 @@ private hashEmailContent(subject: string, body: string): string {
 ```
 
 **Duplicate Detection**:
+
 ```typescript
 shouldProcess(sender: string, subject: string, body: string): { allowed: boolean } {
   const contentHash = this.hashEmailContent(subject, body);
@@ -274,11 +297,13 @@ shouldProcess(sender: string, subject: string, body: string): { allowed: boolean
 ```
 
 **How it prevents loops**:
+
 - Same email content (subject + body) hashed
 - If hash exists in cache (24-hour TTL), email is ignored
 - Prevents re-analyzing identical emails (common in loops)
 
 **Example**:
+
 ```
 Email 1: "Re: Suspicious email" + body → Hash: abc123...
 Email 2: "Re: Re: Suspicious email" + same body → Hash: def456... (different subject)
@@ -288,6 +313,7 @@ Email 3: "Re: Suspicious email" + same body → Hash: abc123... (DUPLICATE - ign
 ### Layer 5: Sender Cooldown
 
 **Implementation** (`src/services/email-deduplication.ts:59-67`):
+
 ```typescript
 // Check sender cooldown
 if (this.isSenderInCooldown(sender)) {
@@ -295,17 +321,19 @@ if (this.isSenderInCooldown(sender)) {
   const nextAllowed = new Date(lastReply + this.config.senderCooldownMs);
   return {
     allowed: false,
-    reason: `Sender in cooldown period (next allowed: ${nextAllowed.toISOString()})`
+    reason: `Sender in cooldown period (next allowed: ${nextAllowed.toISOString()})`,
   };
 }
 ```
 
 **Configuration**:
+
 - **Cooldown**: 24 hours per sender
 - **Purpose**: Max 1 reply per sender per day
 - **Storage**: In-memory Map (resets on restart)
 
 **How it prevents loops**:
+
 - Even if same sender forwards 100 emails, only 1 reply sent per day
 - Reduces user annoyance (no spam from agent)
 - Secondary defense if loop detection fails
@@ -317,6 +345,7 @@ if (this.isSenderInCooldown(sender)) {
 ### Pre-Deployment Testing (Added After Incident)
 
 **Test 1: Email Loop Simulation**
+
 ```typescript
 // tests/integration/email-loop.test.ts
 describe('Email Loop Prevention', () => {
@@ -324,7 +353,7 @@ describe('Email Loop Prevention', () => {
     const email = {
       from: 'phishing@chelseapiers.com',
       subject: 'Re: Your analysis',
-      body: 'Thanks for the analysis!'
+      body: 'Thanks for the analysis!',
     };
 
     const shouldProcess = monitor.shouldProcessEmail(email);
@@ -335,7 +364,7 @@ describe('Email Loop Prevention', () => {
     const email = {
       from: 'user@company.com',
       subject: 'Re: Re: Re: Re: Suspicious email',
-      body: 'Original body'
+      body: 'Original body',
     };
 
     // Process first email
@@ -350,6 +379,7 @@ describe('Email Loop Prevention', () => {
 ```
 
 **Test 2: Rate Limiter Validation**
+
 ```typescript
 describe('Rate Limiter', () => {
   it('should block after 100 emails in 1 hour', async () => {
@@ -377,12 +407,14 @@ describe('Rate Limiter', () => {
 ### Post-Deployment Monitoring
 
 **Metrics tracked** (should have been tracked from day 1):
+
 - Emails processed per hour/day
 - Rate limiter hits (hourly, daily, circuit breaker)
 - Deduplication hits (same content, same sender)
 - Self-reply detections (email loop prevention)
 
 **Alert thresholds**:
+
 - ⚠️ Warning: 50 emails in 1 hour (50% of limit)
 - 🔴 Critical: 90 emails in 1 hour (90% of limit)
 - 🚨 Emergency: Circuit breaker trips
@@ -438,23 +470,27 @@ describe('Rate Limiter', () => {
 ### Code Changes (Deployed Oct 20, 2025)
 
 **File**: `src/services/mailbox-monitor.ts`
+
 - Added `shouldProcessEmail()` method
 - Email loop detection logic
 - Self-reply prevention
 
 **File**: `src/services/rate-limiter.ts` (NEW)
+
 - Hourly limit: 100 emails
 - Daily limit: 1,000 emails
 - Circuit breaker: 50 emails/10 minutes
 - Sliding window algorithm
 
 **File**: `src/services/email-deduplication.ts` (NEW)
+
 - Content hashing (SHA-256)
 - Sender cooldown (24 hours)
 - TTL-based cache (24 hours)
 - Auto-cleanup every 5 minutes
 
 **Test Coverage Added**:
+
 - Email loop simulation tests (15 tests)
 - Rate limiter tests (63 tests)
 - Deduplication tests (28 tests)
@@ -463,6 +499,7 @@ describe('Rate Limiter', () => {
 ### Configuration Changes
 
 **Environment Variables Added**:
+
 ```bash
 # Rate Limiting
 RATE_LIMIT_ENABLED=true
@@ -480,11 +517,13 @@ SENDER_COOLDOWN_MS=86400000    # 24 hours
 ### Documentation Updates
 
 **New Documents**:
+
 - This incident report (`AZURE_EMAIL_LOOP_INCIDENT.md`)
 - Email loop prevention guide (`EMAIL_LOOP_PREVENTION.md`)
 - Updated lessons learned (`LESSONS_LEARNED.md`)
 
 **Updated Documents**:
+
 - `ARCHITECTURE.md`: Added prevention patterns
 - `roadmap.md`: Marked Issue #13 as completed
 - `STATUS.md`: Updated production enhancements section
@@ -496,6 +535,7 @@ SENDER_COOLDOWN_MS=86400000    # 24 hours
 ### Must-Have Safeguards (Day 1)
 
 1. **Email Loop Detection** ✅ CRITICAL
+
    ```typescript
    if (email.from === agentAddress) {
      return { ignored: true, reason: 'self-reply' };
@@ -538,6 +578,7 @@ Before deploying any email agent to production:
 ### Monitoring Requirements
 
 **Real-time metrics**:
+
 - Emails processed per hour/day
 - Rate limiter hits
 - Circuit breaker trips
@@ -545,6 +586,7 @@ Before deploying any email agent to production:
 - Duplicate email detections
 
 **Alerts**:
+
 - ⚠️ Warning: 50% of rate limit reached
 - 🔴 Critical: 90% of rate limit reached
 - 🚨 Emergency: Circuit breaker tripped
@@ -557,6 +599,7 @@ Before deploying any email agent to production:
 **Status**: Resolved
 **Date Closed**: October 20, 2025, 4:30 PM UTC
 **Final Actions**:
+
 1. ✅ Email loop detection deployed
 2. ✅ Rate limiting implemented (100/hr, 1000/day)
 3. ✅ Circuit breaker added (50 emails/10 min)
@@ -566,6 +609,7 @@ Before deploying any email agent to production:
 7. ✅ Documentation updated
 
 **Post-Incident Monitoring**:
+
 - **24 hours**: No loops detected
 - **7 days**: No rate limit hits
 - **14 days**: Normal operation confirmed

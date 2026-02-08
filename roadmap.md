@@ -41,87 +41,104 @@
 ### Features
 
 #### Issue #1: Core Analysis Engine
+
 **Status**: ✅ Completed (2025-10-16)
 **Priority**: P0 (Blocker)
 
 Implement the phishing analysis pipeline:
+
 - Header validator (SPF, DKIM, DMARC)
 - Content analyzer (URLs, keywords, patterns)
 - Risk scorer (0-10 scale with severity mapping)
 - Threat indicator aggregation
 
 **Acceptance Criteria**:
+
 - [x] All functions <25 lines
 - [x] Analysis completes in <5 seconds
 - [x] 90%+ test coverage (achieved: 93-100% on core modules)
 
 #### Issue #2: Mailbox Monitor Service
+
 **Status**: ✅ Completed (2025-10-16)
 **Priority**: P0 (Blocker)
 
 Monitor designated mailbox for new emails:
+
 - Graph API integration (app-only auth)
 - 60-second polling loop
 - Email parsing and extraction
 - Error handling and retry logic
 
 **Acceptance Criteria**:
+
 - [x] Polls mailbox every 60 seconds
 - [x] Handles up to 50 emails per check
 - [x] Graceful error recovery
 - [x] Health check endpoint
 
 #### Issue #3: Email Reply Functionality
+
 **Status**: ✅ Completed (2025-10-16)
 **Priority**: P0 (Blocker)
 
 Send HTML-formatted analysis results:
+
 - HTML email template with risk assessment
 - Color-coded severity badges
 - Threat indicators list
 - Recommended actions
 
 **Acceptance Criteria**:
+
 - [x] HTML rendering works in major email clients
 - [x] Mobile-responsive design
 - [x] Reply sent within 10 seconds of analysis
 - [x] Handles delivery failures gracefully
 
 #### Issue #4: Configuration Management
+
 **Status**: ✅ Completed (2025-10-16)
 **Priority**: P1 (High)
 
 Simple environment-based configuration:
+
 - Load from .env file
 - Validate required variables on startup
 - Type-safe configuration access
 - Secure secret handling
 
 **Acceptance Criteria**:
+
 - [x] All config in .env.example documented
 - [x] Fails fast on missing required vars
 - [x] No secrets in logs
 
 #### Issue #5: Logging & Monitoring
+
 **Status**: ✅ Completed (2025-10-16)
 **Priority**: P1 (High)
 
 Structured logging for observability:
+
 - Winston logger with JSON format
 - Log levels (info, warn, error, security)
 - Correlation IDs for request tracing
 - Health check endpoints
 
 **Acceptance Criteria**:
+
 - [x] All critical events logged
 - [x] No PII in logs
 - [x] Metrics tracked (emails processed, phishing detected)
 
 #### Issue #6: Threat Intel Integration
+
 **Status**: ✅ Completed (2025-10-16) - Implemented in MVP
 **Priority**: P0 (Blocker)
 
 Optional external reputation checks:
+
 - VirusTotal URL/domain scanning
 - AbuseIPDB IP reputation
 - URLScan.io screenshot capture
@@ -130,6 +147,7 @@ Optional external reputation checks:
 **Implementation Note**: Originally planned for Phase 2, but implemented in MVP using custom async orchestration with `Promise.allSettled()` for parallel API calls. See decision log for "Custom Async Orchestration for Threat Intel".
 
 **Acceptance Criteria**:
+
 - [x] Works with and without API keys
 - [x] Graceful degradation if APIs unavailable
 - [x] 5-minute cache TTL
@@ -146,10 +164,12 @@ Optional external reputation checks:
 ### Features
 
 #### Issue #13: Rate Limiting & Email Deduplication
+
 **Status**: ✅ Completed
 **Priority**: P0 (Blocker for production)
 
 Prevent mass email incidents and abuse:
+
 - Hourly and daily email sending limits
 - Circuit breaker for burst protection
 - Email content deduplication (SHA-256 hashing)
@@ -157,6 +177,7 @@ Prevent mass email incidents and abuse:
 - Configurable limits via environment variables
 
 **Acceptance Criteria**:
+
 - [x] Hourly rate limit enforced (default: 100 emails/hour)
 - [x] Daily rate limit enforced (default: 1,000 emails/day)
 - [x] Circuit breaker triggers on burst sending (default: 50 emails)
@@ -166,6 +187,7 @@ Prevent mass email incidents and abuse:
 - [x] Graceful handling when limits exceeded
 
 **Implementation**:
+
 - `RateLimiter` class with sliding window algorithm
 - `EmailDeduplicator` with SHA-256 content hashing
 - TTL-based cache for deduplication tracking
@@ -182,16 +204,19 @@ Prevent mass email incidents and abuse:
 ### Features
 
 #### Issue #7: Brand Impersonation Detection
+
 **Status**: ✅ Completed
 **Priority**: P2 (Medium)
 
 Detect common brand spoofing:
+
 - PayPal, Amazon, Microsoft, Apple
 - Bank impersonation (Chase, Bank of America, Wells Fargo)
 - Typosquatting detection (paypa1.com, micros0ft.com)
 - Logo/image analysis (optional - deferred)
 
 **Implementation Status**:
+
 - ✅ Brand impersonation detection (`src/analysis/content-analyzer.ts:357-372`)
 - ✅ Typosquatting detection (`src/analysis/content-analyzer.ts:386-402`)
 - ✅ **20 brands implemented** based on 2024-2025 phishing research:
@@ -203,44 +228,52 @@ Detect common brand spoofing:
 - ✅ Integrated into analysis pipeline (`src/agents/phishing-agent.ts:109-124`)
 
 **Acceptance Criteria**:
+
 - [x] Basic brand detection logic implemented
 - [x] Detects top 20 impersonated brands (20/20 complete)
 - [x] Identifies typosquatting patterns (6 patterns)
 - [x] <100ms analysis time (validated with performance tests)
 
 #### Issue #8: Attachment Analysis
+
 **Status**: ✅ Completed (2025-11-28)
 **Priority**: P2 (Medium)
 
 Basic attachment risk assessment:
+
 - File type validation (exe, scr, bat, vbs → high risk)
 - Macro-enabled documents (docm, xlsm → medium risk)
 - Suspicious filenames (invoice.pdf.exe)
 - File size anomalies
 
 **Acceptance Criteria**:
+
 - [x] Detects dangerous file extensions
 - [x] Flags macro-enabled documents
 - [x] Analyzes filename patterns
 - [x] All functions <25 lines (atomic design)
 
 #### Issue #9: Zod Runtime Validation
+
 **Status**: ✅ Completed (2025-10-18)
 **Priority**: P2 (Medium)
 
 Add Zod for production-grade runtime validation:
+
 - Configuration validation (environment variables)
 - External API response validation (Graph API, threat intel APIs)
 - Email header/body parsing validation
 - Type-safe error handling with detailed error messages
 
 **Rationale**: While TypeScript provides compile-time type safety, Zod adds critical runtime validation for external data sources. This is especially important for:
+
 - Validating untrusted email inputs
 - Catching malformed API responses early
 - Providing clear error messages for debugging
 - Ensuring data integrity throughout the pipeline
 
 **Acceptance Criteria**:
+
 - [x] All environment variables validated with Zod schemas
 - [x] Graph API responses validated before processing
 - [x] Threat intel API responses validated
@@ -249,6 +282,7 @@ Add Zod for production-grade runtime validation:
 - [x] 35 comprehensive schema tests with 100% coverage
 
 **Implementation**:
+
 - Added `zod` dependency (56KB minified)
 - Created comprehensive schemas in `src/lib/schemas.ts`
 - Implemented `safeParse()` and `validate()` helpers
@@ -258,10 +292,12 @@ Add Zod for production-grade runtime validation:
 - Maintained 94.62% overall test coverage
 
 #### Issue #12: Cloud Deployment Readiness
+
 **Status**: ✅ Completed
 **Priority**: P0 (Blocker)
 
 Prepare MVP for cloud deployment with comprehensive deployment guides:
+
 - Docker multi-stage build (node:18-alpine)
 - Container registry setup (Azure, AWS, GCP)
 - Container hosting configuration (ACA, ECS, Cloud Run)
@@ -269,6 +305,7 @@ Prepare MVP for cloud deployment with comprehensive deployment guides:
 - Deployment documentation and validation procedures
 
 **Acceptance Criteria**:
+
 - [x] Docker image builds successfully (linux/amd64 platform)
 - [x] Multi-cloud deployment guides created
 - [x] Health check endpoints implemented (/health, /ready)
@@ -278,6 +315,7 @@ Prepare MVP for cloud deployment with comprehensive deployment guides:
 - [x] Deployment documentation created (DEPLOYMENT_PLAN.md, DEPLOY_MANUAL.md)
 
 **Deployment Options**:
+
 - **Azure**: Container Apps, Container Instances
 - **AWS**: ECS, Fargate, App Runner
 - **GCP**: Cloud Run, GKE
@@ -293,16 +331,19 @@ Prepare MVP for cloud deployment with comprehensive deployment guides:
 **Status**: ✅ Completed (2025-11-28)
 
 ### Issue #4: LLM-Enhanced Analysis Hardening
+
 **Status**: ✅ Completed (2025-11-28)
 **Priority**: P1 (High)
 
 Claude API integration for borderline cases (implemented in llm-analyzer.ts):
+
 - Complex social engineering detection
 - Contextual risk assessment
 - Natural language explanations
 - Only triggers for borderline cases (score 4-6)
 
 **Implementation**:
+
 - [x] Test coverage (30 tests)
 - [x] Production hardening (retry with p-retry, circuit breaker with opossum)
 - [x] Config schema validation
@@ -310,10 +351,12 @@ Claude API integration for borderline cases (implemented in llm-analyzer.ts):
 - [x] Graceful degradation when LLM unavailable
 
 ### Issue #2: Attachment Analysis
+
 **Status**: ✅ Completed (2025-11-28)
 **Priority**: P1 (High)
 
 Attachment risk assessment:
+
 - [x] Dangerous file extension detection (.exe, .vbs, .scr, .bat)
 - [x] Macro-enabled document flagging (.docm, .xlsm)
 - [x] Double extension detection (invoice.pdf.exe)
@@ -321,10 +364,12 @@ Attachment risk assessment:
 - [x] Risk scoring integration (40/30/30 weighting)
 
 ### Issue #5: Reporting Dashboard
+
 **Status**: ✅ Completed (2025-11-28)
 **Priority**: P2 (Medium)
 
 Analytics and monitoring:
+
 - [x] Daily metrics tracking
 - [x] Top phishing senders/domains
 - [x] Severity trend analysis

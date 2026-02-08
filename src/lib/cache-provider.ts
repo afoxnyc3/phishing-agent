@@ -84,10 +84,7 @@ export async function createCacheProvider(): Promise<CacheProvider> {
  * @param redisUrl - Optional Redis URL (defaults to config.redis.url)
  * @param keyPrefix - Optional key prefix (defaults to config.redis.keyPrefix)
  */
-export async function createResilientCacheProvider(
-  redisUrl?: string,
-  keyPrefix?: string
-): Promise<CacheProvider> {
+export async function createResilientCacheProvider(redisUrl?: string, keyPrefix?: string): Promise<CacheProvider> {
   if (cacheProvider) {
     return cacheProvider;
   }
@@ -97,7 +94,9 @@ export async function createResilientCacheProvider(
 
   if (url) {
     const { ResilientCacheProvider } = await import('./resilient-cache-provider.js');
-    securityLogger.info('Creating resilient cache provider (Redis with fallback)', { keyPrefix: prefix });
+    securityLogger.info('Creating resilient cache provider (Redis with fallback)', {
+      keyPrefix: prefix,
+    });
     cacheProvider = new ResilientCacheProvider(url, prefix);
   } else {
     const { MemoryCacheProvider } = await import('./memory-cache-provider.js');

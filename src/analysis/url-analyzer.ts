@@ -15,9 +15,7 @@ export interface SuspiciousUrl {
 }
 
 export class UrlAnalyzer {
-  private static readonly SUSPICIOUS_DOMAINS = [
-    'bit.ly', 'tinyurl.com', 'goo.gl', 't.co', 'ow.ly', 'is.gd',
-  ];
+  private static readonly SUSPICIOUS_DOMAINS = ['bit.ly', 'tinyurl.com', 'goo.gl', 't.co', 'ow.ly', 'is.gd'];
 
   /**
    * Extract URLs from body
@@ -47,7 +45,12 @@ export class UrlAnalyzer {
       return { url, reason: 'URL shortener detected', severity: 'medium', isPhishing: true };
     }
     if (this.isIpAddress(url)) {
-      return { url, reason: 'IP address used instead of domain', severity: 'high', isPhishing: true };
+      return {
+        url,
+        reason: 'IP address used instead of domain',
+        severity: 'high',
+        isPhishing: true,
+      };
     }
     if (this.hasSuspiciousTld(urlObj.hostname)) {
       return { url, reason: 'Suspicious TLD', severity: 'medium', isPhishing: true };
@@ -63,7 +66,7 @@ export class UrlAnalyzer {
    * Check if hostname is URL shortener
    */
   private static isUrlShortener(hostname: string): boolean {
-    return this.SUSPICIOUS_DOMAINS.some(domain => hostname.includes(domain));
+    return this.SUSPICIOUS_DOMAINS.some((domain) => hostname.includes(domain));
   }
 
   /**
@@ -78,7 +81,7 @@ export class UrlAnalyzer {
    */
   private static hasSuspiciousTld(hostname: string): boolean {
     const suspiciousTlds = ['.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.win'];
-    return suspiciousTlds.some(tld => hostname.endsWith(tld));
+    return suspiciousTlds.some((tld) => hostname.endsWith(tld));
   }
 
   /**
@@ -123,7 +126,10 @@ export class UrlAnalyzer {
   /**
    * Analyze URLs and return indicators
    */
-  static analyzeUrls(body: string): { indicators: ThreatIndicator[]; suspiciousUrls: SuspiciousUrl[] } {
+  static analyzeUrls(body: string): {
+    indicators: ThreatIndicator[];
+    suspiciousUrls: SuspiciousUrl[];
+  } {
     const indicators: ThreatIndicator[] = [];
     const suspiciousUrls: SuspiciousUrl[] = [];
     const urls = this.extractUrls(body);
