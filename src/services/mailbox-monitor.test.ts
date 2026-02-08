@@ -193,6 +193,65 @@ describe('MailboxMonitor', () => {
       expect((await disabledMonitor.getStatus()).isRunning).toBe(false);
     });
 
+    it('should start without polling when pollingEnabled is false', async () => {
+      const config = {
+        tenantId: 'test-tenant',
+        clientId: 'test-client',
+        clientSecret: 'test-secret',
+        mailboxAddress: 'phishing@test.com',
+        enabled: true,
+        pollingEnabled: false,
+      };
+
+      const noPollingMonitor = new MailboxMonitor(config, mockPhishingAgent);
+      noPollingMonitor.start();
+
+      const status = await noPollingMonitor.getStatus();
+      expect(status.isRunning).toBe(true);
+      expect(status.pollingEnabled).toBe(false);
+
+      // No emails should be fetched since polling is off
+      expect(mockGraphGet).not.toHaveBeenCalled();
+
+      noPollingMonitor.stop();
+    });
+
+    it('should not set up interval when pollingEnabled is false', async () => {
+      const config = {
+        tenantId: 'test-tenant',
+        clientId: 'test-client',
+        clientSecret: 'test-secret',
+        mailboxAddress: 'phishing@test.com',
+        enabled: true,
+        pollingEnabled: false,
+        checkIntervalMs: 100,
+      };
+
+      const noPollingMonitor = new MailboxMonitor(config, mockPhishingAgent);
+      noPollingMonitor.start();
+
+      // Wait longer than the check interval
+      await new Promise((resolve) => setTimeout(resolve, 250));
+
+      // No polling calls should have been made
+      expect(mockGraphGet).not.toHaveBeenCalled();
+
+      noPollingMonitor.stop();
+    });
+
+    it('should default pollingEnabled to true', async () => {
+      const config = {
+        tenantId: 'test-tenant',
+        clientId: 'test-client',
+        clientSecret: 'test-secret',
+        mailboxAddress: 'phishing@test.com',
+      };
+
+      const defaultMonitor = new MailboxMonitor(config, mockPhishingAgent);
+      const status = await defaultMonitor.getStatus();
+      expect(status.pollingEnabled).toBe(true);
+    });
+
     it('should stop monitoring', async () => {
       mockGraphGet.mockResolvedValue({ value: [] });
 
@@ -234,6 +293,7 @@ describe('MailboxMonitor', () => {
       const status = await monitor.getStatus();
 
       expect(status).toHaveProperty('isRunning');
+      expect(status).toHaveProperty('pollingEnabled');
       expect(status).toHaveProperty('mailbox');
       expect(status).toHaveProperty('lastCheckTime');
       expect(status).toHaveProperty('checkInterval');

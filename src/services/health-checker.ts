@@ -90,11 +90,17 @@ export class HealthChecker {
     try {
       const status = await this.mailboxMonitor.getStatus();
       const healthy = await this.mailboxMonitor.healthCheck();
+      const pollingMsg = status.pollingEnabled ? '' : ' (polling disabled, webhook-driven)';
+      const message = healthy ? `Monitor operational${pollingMsg}` : 'Monitor unhealthy';
       return {
         healthy,
         component: 'mailboxMonitor',
-        message: healthy ? 'Monitor operational' : 'Monitor unhealthy',
-        details: { isRunning: status.isRunning, lastCheckTime: status.lastCheckTime.toISOString() },
+        message,
+        details: {
+          isRunning: status.isRunning,
+          pollingEnabled: status.pollingEnabled,
+          lastCheckTime: status.lastCheckTime.toISOString(),
+        },
       };
     } catch (error: unknown) {
       return {
@@ -145,11 +151,11 @@ export class HealthChecker {
     try {
       const status = getLlmServiceStatus();
       const healthy = await llmHealthCheck();
-      const msg = status.enabled
-        ? healthy
+      const msg = !status.enabled
+        ? 'LLM not configured (optional)'
+        : healthy
           ? 'LLM analyzer operational'
-          : 'LLM circuit breaker open'
-        : 'LLM not configured (optional)';
+          : 'LLM circuit breaker open';
       return {
         healthy,
         component: 'llmAnalyzer',
@@ -167,15 +173,11 @@ export class HealthChecker {
 
   private checkCache(): HealthStatus {
     if (!this.cacheProvider) {
-      return {
-        healthy: true,
-        component: 'cache',
-        message: 'Cache not configured (using in-memory)',
-      };
+      return { healthy: true, component: 'cache', message: 'Cache not configured (using in-memory)' };
     }
     const status: CacheStatus = this.cacheProvider.getStatus();
     const healthy = !status.degraded || status.mode === 'fallback';
-    const modeMessages: Record<string, string> = {
+    const msgs: Record<string, string> = {
       redis: 'Redis cache operational',
       fallback: 'Redis degraded - using memory fallback',
       memory: 'In-memory cache active',
@@ -183,7 +185,7 @@ export class HealthChecker {
     return {
       healthy,
       component: 'cache',
-      message: modeMessages[status.mode] || 'Unknown cache mode',
+      message: msgs[status.mode] || 'Unknown cache mode',
       details: {
         mode: status.mode,
         circuitState: status.circuitState,

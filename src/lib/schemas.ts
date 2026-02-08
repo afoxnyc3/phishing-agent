@@ -29,6 +29,9 @@ export const EnvConfigSchema = z
     MAILBOX_MAX_PAGES: z.coerce.number().int().positive().default(5),
     MAILBOX_PARALLEL_LIMIT: z.coerce.number().int().positive().default(5),
 
+    // Polling control (disable 60s polling when confident in webhooks)
+    POLLING_ENABLED: z.coerce.boolean().default(true),
+
     // Mail monitor timer fallback (safety net for missed webhooks)
     MAIL_MONITOR_ENABLED: z.coerce.boolean().default(true),
     MAIL_MONITOR_INTERVAL_MS: z.coerce.number().int().positive().default(3600000), // 1 hour

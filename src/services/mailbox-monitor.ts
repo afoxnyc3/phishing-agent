@@ -29,6 +29,7 @@ export interface MailboxMonitorConfig {
   mailboxAddress: string;
   checkIntervalMs?: number;
   enabled?: boolean;
+  pollingEnabled?: boolean;
   rateLimiter?: RateLimiterConfig;
   deduplication?: DeduplicationConfig;
   maxPages?: number;
@@ -61,7 +62,7 @@ export class MailboxMonitor {
   private deduplication!: IEmailDeduplication;
 
   constructor(config: MailboxMonitorConfig, phishingAgent: PhishingAgent) {
-    this.config = { checkIntervalMs: 60000, enabled: true, ...config };
+    this.config = { checkIntervalMs: 60000, enabled: true, pollingEnabled: true, ...config };
     this.phishingAgent = phishingAgent;
     this.lastCheckTime = new Date(Date.now() - 5 * 60 * 1000);
     this.client = createGraphClient({
@@ -115,12 +116,32 @@ export class MailboxMonitor {
       return;
     }
 
-    securityLogger.info('Starting mailbox monitor', {
+    this.isRunning = true;
+
+    if (!this.config.pollingEnabled) {
+      this.logPollingDisabled();
+      return;
+    }
+
+    this.startPollingLoop();
+  }
+
+  /** Log that polling is disabled and webhooks are primary */
+  private logPollingDisabled(): void {
+    securityLogger.info('Mailbox monitor started with polling disabled', {
+      mailbox: this.config.mailboxAddress,
+      pollingEnabled: false,
+      reason: 'POLLING_ENABLED=false; webhooks are primary, hourly timer fallback active',
+    });
+  }
+
+  /** Start the 60-second polling interval loop */
+  private startPollingLoop(): void {
+    securityLogger.info('Starting mailbox monitor with polling', {
       mailbox: this.config.mailboxAddress,
       checkInterval: this.config.checkIntervalMs,
     });
 
-    this.isRunning = true;
     this.checkForNewEmails().catch((error) => {
       securityLogger.error('Initial mailbox check failed', { error });
     });
@@ -212,6 +233,7 @@ export class MailboxMonitor {
   /** Get monitoring status */
   async getStatus(): Promise<{
     isRunning: boolean;
+    pollingEnabled: boolean;
     mailbox: string;
     lastCheckTime: Date;
     checkInterval: number;
@@ -220,6 +242,7 @@ export class MailboxMonitor {
   }> {
     return {
       isRunning: this.isRunning,
+      pollingEnabled: this.config.pollingEnabled ?? true,
       mailbox: this.config.mailboxAddress,
       lastCheckTime: this.lastCheckTime,
       checkInterval: this.config.checkIntervalMs!,
