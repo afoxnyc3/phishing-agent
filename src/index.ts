@@ -16,17 +16,16 @@ async function bootstrap(): Promise<{
   config: typeof import('./lib/config.js').config;
   PhishingAgent: typeof import('./agents/phishing-agent.js').PhishingAgent;
   MailboxMonitor: typeof import('./services/mailbox-monitor.js').MailboxMonitor;
+  MailMonitor: typeof import('./services/mail-monitor.js').MailMonitor;
   HttpServer: typeof import('./server.js').HttpServer;
   createResilientCacheProvider: typeof import('./lib/cache-provider.js').createResilientCacheProvider;
 }> {
-  // Load secrets from Key Vault if configured
   await loadSecretsFromKeyVault();
-
-  // Now dynamically import modules that depend on config
   const { securityLogger } = await import('./lib/logger.js');
   const { config } = await import('./lib/config.js');
   const { PhishingAgent } = await import('./agents/phishing-agent.js');
   const { MailboxMonitor } = await import('./services/mailbox-monitor.js');
+  const { MailMonitor } = await import('./services/mail-monitor.js');
   const { HttpServer } = await import('./server.js');
   const { createResilientCacheProvider } = await import('./lib/cache-provider.js');
 
@@ -35,6 +34,7 @@ async function bootstrap(): Promise<{
     config,
     PhishingAgent,
     MailboxMonitor,
+    MailMonitor,
     HttpServer,
     createResilientCacheProvider,
   };
@@ -50,6 +50,7 @@ class Application {
   private modules!: BootstrappedModules;
   private phishingAgent!: InstanceType<BootstrappedModules['PhishingAgent']>;
   private mailboxMonitor!: InstanceType<BootstrappedModules['MailboxMonitor']>;
+  private mailMonitor!: InstanceType<BootstrappedModules['MailMonitor']>;
   private httpServer!: InstanceType<BootstrappedModules['HttpServer']>;
   private cacheProvider?: Awaited<ReturnType<BootstrappedModules['createResilientCacheProvider']>>;
 
@@ -61,24 +62,29 @@ class Application {
    * Initialize application
    */
   async initialize(): Promise<void> {
-    const { securityLogger, config, PhishingAgent, MailboxMonitor, HttpServer, createResilientCacheProvider } =
-      this.modules;
+    const { securityLogger, config, PhishingAgent, createResilientCacheProvider } = this.modules;
 
     securityLogger.info('Initializing Phishing Agent...');
 
     // Initialize cache provider if Redis URL is configured
     if (config.redis.url) {
-      securityLogger.info('Initializing Redis cache provider...', {
-        keyPrefix: config.redis.keyPrefix,
-      });
+      securityLogger.info('Initializing Redis cache provider...', { keyPrefix: config.redis.keyPrefix });
       this.cacheProvider = await createResilientCacheProvider(config.redis.url, config.redis.keyPrefix);
     }
 
-    // Initialize phishing agent
     this.phishingAgent = new PhishingAgent();
     await this.phishingAgent.initialize();
 
-    // Initialize mailbox monitor
+    await this.initializeMailboxMonitor();
+    this.initializeMailMonitor();
+    await this.initializeHttpServer();
+
+    securityLogger.info('Phishing Agent initialized successfully');
+  }
+
+  private async initializeMailboxMonitor(): Promise<void> {
+    const { securityLogger, config, MailboxMonitor } = this.modules;
+
     this.mailboxMonitor = new MailboxMonitor(
       {
         tenantId: config.azure.tenantId,
@@ -94,28 +100,46 @@ class Application {
       this.phishingAgent
     );
 
-    // Only initialize if mailbox monitoring is enabled
     if (config.mailbox.enabled) {
       await this.mailboxMonitor.initialize();
     } else {
       securityLogger.info('Mailbox monitoring is disabled, skipping initialization');
     }
+  }
 
-    // Initialize HTTP server
+  private initializeMailMonitor(): void {
+    const { config, MailMonitor } = this.modules;
+
+    this.mailMonitor = new MailMonitor(
+      {
+        enabled: config.mailMonitor.enabled,
+        intervalMs: config.mailMonitor.intervalMs,
+        lookbackMs: config.mailMonitor.lookbackMs,
+        mailboxAddress: config.mailbox.address,
+        maxPages: config.mailbox.maxPages,
+      },
+      {
+        graphClient: this.mailboxMonitor.getGraphClient(),
+        phishingAgent: this.phishingAgent,
+        rateLimiter: this.mailboxMonitor.getRateLimiter(),
+        deduplication: this.mailboxMonitor.getDeduplication(),
+      }
+    );
+  }
+
+  private async initializeHttpServer(): Promise<void> {
+    const { config, HttpServer } = this.modules;
+
     this.httpServer = new HttpServer();
     this.httpServer.setPhishingAgent(this.phishingAgent);
     this.httpServer.setMailboxMonitor(this.mailboxMonitor);
 
-    // Set cache provider for health checks (only if Redis is configured)
     if (this.cacheProvider && config.redis.url) {
-      // Import ResilientCacheProvider type for casting
       const { ResilientCacheProvider } = await import('./lib/resilient-cache-provider.js');
       if (this.cacheProvider instanceof ResilientCacheProvider) {
         this.httpServer.setCacheProvider(this.cacheProvider);
       }
     }
-
-    securityLogger.info('Phishing Agent initialized successfully');
   }
 
   /**
@@ -129,8 +153,9 @@ class Application {
     // Start HTTP server
     await this.httpServer.start();
 
-    // Start mailbox monitoring
+    // Start mailbox monitoring and timer fallback
     this.mailboxMonitor.start();
+    this.mailMonitor.start();
 
     securityLogger.info('Phishing Agent started successfully', {
       port: config.server.port,
@@ -147,6 +172,7 @@ class Application {
 
     securityLogger.info('Stopping Phishing Agent...');
 
+    this.mailMonitor.stop();
     this.mailboxMonitor.stop();
     await this.phishingAgent.shutdown();
 
