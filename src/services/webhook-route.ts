@@ -11,6 +11,7 @@ import {
   validateClientState,
   extractMessageIds,
 } from './webhook-handler.js';
+import { webhookArrivalTimes } from './webhook-arrival-times.js';
 
 /** Create webhook router with clientState validation */
 export function createWebhookRouter(clientState: string): Router {
@@ -42,7 +43,9 @@ function handleWebhookNotification(req: Request, res: Response, clientState: str
 
 /** Accept valid notification and log message IDs */
 function acceptNotification(req: Request, res: Response): void {
+  const arrivalTime = Date.now();
   const messageIds = extractMessageIds(req.body);
+  messageIds.forEach((id) => webhookArrivalTimes.record(id, arrivalTime));
   securityLogger.info('Webhook notification accepted', {
     messageCount: messageIds.length,
     subscriptionId: req.body.value[0]?.subscriptionId,

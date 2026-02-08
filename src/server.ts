@@ -11,6 +11,7 @@ import { config, isProduction } from './lib/config.js';
 import { PhishingAgent } from './agents/phishing-agent.js';
 import { MailboxMonitor } from './services/mailbox-monitor.js';
 import { metrics } from './services/metrics.js';
+import { correlationMetrics } from './lib/correlation-metrics.js';
 import { healthChecker, SystemHealth } from './services/health-checker.js';
 import { NextFunction } from 'express';
 import { ResilientCacheProvider } from './lib/resilient-cache-provider.js';
@@ -169,11 +170,14 @@ export class HttpServer {
     const accept = req.headers.accept || '';
 
     if (accept.includes('application/json')) {
-      // Return JSON metrics
-      res.json(metrics.getMetrics());
+      res.json({
+        ...metrics.getMetrics(),
+        correlation: correlationMetrics.getSnapshot(),
+      });
     } else {
-      // Return Prometheus-formatted metrics
-      res.type('text/plain').send(metrics.getPrometheusMetrics());
+      const base = metrics.getPrometheusMetrics();
+      const corr = correlationMetrics.getPrometheusMetrics();
+      res.type('text/plain').send(`${base}\n\n${corr}`);
     }
   }
 

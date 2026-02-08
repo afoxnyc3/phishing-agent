@@ -8,6 +8,7 @@ import { RiskScorer } from '../analysis/risk-scorer.js';
 import { ThreatIntelService, ThreatIntelResult } from '../services/threat-intel.js';
 import { shouldRunLlmAnalysis, generateThreatExplanation } from '../services/llm-analyzer.js';
 import { getErrorMessage } from '../lib/errors.js';
+import { setProcessingStage } from '../lib/correlation.js';
 
 export class PhishingAgent {
   private initialized: boolean = false;
@@ -54,7 +55,9 @@ export class PhishingAgent {
     const contentResult = ContentAnalyzer.analyze(request.body || '', senderDomain);
     const attachmentResult = AttachmentAnalyzer.analyze(request.attachments);
 
+    setProcessingStage('threat-intel');
     const threatIntelResult = await this.enrichWithThreatIntel(request, contentResult.suspiciousUrls);
+    setProcessingStage('risk-scoring');
     const riskResult = RiskScorer.calculateRisk(headerResult, contentResult, attachmentResult);
     const enhancedScore = Math.min(10, riskResult.riskScore + threatIntelResult.riskContribution);
 
@@ -64,6 +67,7 @@ export class PhishingAgent {
       enhancedScore,
       threatIntelResult.riskContribution
     );
+    setProcessingStage('llm-analysis');
     const explanation = await this.generateExplanation(request, enhancedScore, allIndicators);
 
     securityLogger.info('Email analysis completed', {

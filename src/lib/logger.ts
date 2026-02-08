@@ -6,6 +6,7 @@ import winston from 'winston';
 import { PerformanceMetrics } from './types.js';
 import { getErrorMessage } from './errors.js';
 import { piiRedactor } from './pii-redactor.js';
+import { getCorrelationId } from './correlation.js';
 
 // Winston logger instance
 export const logger = winston.createLogger({
@@ -22,6 +23,19 @@ export const logger = winston.createLogger({
   ],
 });
 
+/** Enrich metadata with correlation ID from async context */
+function enrichWithCorrelation(meta?: Record<string, unknown>): Record<string, unknown> {
+  const correlationId = getCorrelationId();
+  const base = meta ? piiRedactor.redactObject(meta) : {};
+  if (correlationId === 'none') return meta ? base : {};
+  return { correlationId, ...base };
+}
+
+/** Check if enriched metadata has any keys beyond correlationId */
+function hasContent(enriched: Record<string, unknown>): boolean {
+  return Object.keys(enriched).length > 0;
+}
+
 /**
  * Security logger with specialized methods
  */
@@ -30,29 +44,40 @@ export class SecurityLogger {
   private maxMetrics = 1000;
 
   info(message: string, meta?: Record<string, unknown>): void {
-    logger.info(message, meta ? piiRedactor.redactObject(meta) : undefined);
+    const enriched = enrichWithCorrelation(meta);
+    logger.info(message, hasContent(enriched) ? enriched : undefined);
   }
 
   warn(message: string, meta?: Record<string, unknown>): void {
-    logger.warn(message, meta ? piiRedactor.redactObject(meta) : undefined);
+    const enriched = enrichWithCorrelation(meta);
+    logger.warn(message, hasContent(enriched) ? enriched : undefined);
   }
 
   error(message: string, error?: unknown): void {
+    const correlationId = getCorrelationId();
+    const corrMeta = correlationId !== 'none' ? { correlationId } : {};
+
     if (error instanceof Error) {
-      logger.error(message, piiRedactor.redactObject({ error: error.message, stack: error.stack }));
+      const base = piiRedactor.redactObject({ error: error.message, stack: error.stack });
+      logger.error(message, { ...corrMeta, ...base });
     } else if (error != null && typeof error === 'object') {
-      logger.error(message, piiRedactor.redactObject(error as Record<string, unknown>));
+      const base = piiRedactor.redactObject(error as Record<string, unknown>);
+      logger.error(message, { ...corrMeta, ...base });
     } else {
-      logger.error(message, error !== undefined ? { error: getErrorMessage(error) } : undefined);
+      const base = error !== undefined ? { error: getErrorMessage(error) } : {};
+      const merged = { ...corrMeta, ...base };
+      logger.error(message, Object.keys(merged).length > 0 ? merged : undefined);
     }
   }
 
   debug(message: string, meta?: Record<string, unknown>): void {
-    logger.debug(message, meta ? piiRedactor.redactObject(meta) : undefined);
+    const enriched = enrichWithCorrelation(meta);
+    logger.debug(message, hasContent(enriched) ? enriched : undefined);
   }
 
   security(message: string, meta?: Record<string, unknown>): void {
-    logger.info(`[SECURITY] ${message}`, meta ? piiRedactor.redactObject(meta) : undefined);
+    const enriched = enrichWithCorrelation(meta);
+    logger.info(`[SECURITY] ${message}`, hasContent(enriched) ? enriched : undefined);
   }
 
   addPerformanceMetric(metric: PerformanceMetrics): void {

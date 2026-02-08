@@ -50,6 +50,7 @@ const REDACTED_FIELDS = new Set([
 /** Fields that should never be redacted (safe metadata) */
 const SAFE_FIELDS = new Set([
   'analysisId',
+  'correlationId',
   'messageId',
   'timestamp',
   'duration',
