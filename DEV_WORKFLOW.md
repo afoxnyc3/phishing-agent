@@ -121,7 +121,7 @@ phishing-agent/
    ```bash
    npm run build      # Should compile without errors
    npm test           # Should pass all tests
-   npm run typecheck  # Should have no type errors
+   npm run type-check  # Should have no type errors
    npm run lint       # Should pass linting
    ```
 
@@ -325,7 +325,7 @@ type AnalysisResult = { ... }                   // type
 
 ### Test Coverage Target: 90-95%
 
-**Current**: 95.82% (277 passing tests)
+**Current**: 95%+ (661 passing tests)
 
 **Coverage by Module**:
 
@@ -390,12 +390,13 @@ describe('validateSpfRecord', () => {
 
 ### Mocking External Services
 
-**Use Jest mocks for Graph API and threat intel APIs**:
+**Use ESM-compatible Jest mocks for Graph API and threat intel APIs**:
 
 ```typescript
 import { jest } from '@jest/globals';
 
-jest.mock('@microsoft/microsoft-graph-client', () => ({
+// Must use unstable_mockModule for ESM (NOT jest.mock)
+jest.unstable_mockModule('@microsoft/microsoft-graph-client', () => ({
   Client: {
     init: jest.fn().mockReturnValue({
       api: jest.fn().mockReturnValue({
@@ -404,6 +405,9 @@ jest.mock('@microsoft/microsoft-graph-client', () => ({
     }),
   },
 }));
+
+// Dynamic import AFTER mock setup
+const { MyModule } = await import('./my-module.js');
 ```
 
 ### Integration Tests
@@ -466,7 +470,7 @@ Before committing, ensure:
 - [ ] `npm run build` succeeds
 - [ ] `npm test` passes (all tests)
 - [ ] `npm run lint` passes (no linting errors)
-- [ ] `npm run typecheck` passes (no type errors)
+- [ ] `npm run type-check` passes (no type errors)
 - [ ] All files formatted consistently
 - [ ] No console.log statements (use logger instead)
 - [ ] No commented-out code
@@ -819,7 +823,7 @@ npm run test:integration # Run integration tests (requires Azure creds)
 ```bash
 npm run lint          # Run ESLint
 npm run lint:fix      # Auto-fix linting issues
-npm run typecheck     # Run TypeScript type checking
+npm run type-check     # Run TypeScript type checking
 ```
 
 ### Docker

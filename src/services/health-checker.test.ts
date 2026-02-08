@@ -202,9 +202,20 @@ describe('HealthChecker', () => {
     it('should include component details', async () => {
       mockAgent.healthCheck.mockResolvedValue(true);
       mockMonitor.healthCheck.mockResolvedValue(true);
-      (mockMonitor.getStatus as jest.Mock).mockReturnValue({
+      mockMonitor.getStatus.mockResolvedValue({
         isRunning: true,
+        mailbox: 'test@example.com',
         lastCheckTime: new Date('2025-01-01T00:00:00Z'),
+        checkInterval: 60000,
+        rateLimitStats: {
+          lastHour: 0,
+          lastDay: 0,
+          last10Min: 0,
+          circuitBreakerTripped: false,
+          hourlyLimit: 100,
+          dailyLimit: 1000,
+        },
+        deduplicationStats: { processedEmailsCount: 0, uniqueSendersCount: 0, enabled: true },
       });
 
       checker.setPhishingAgent(mockAgent);
@@ -280,9 +291,20 @@ describe('HealthChecker', () => {
 
     it('should handle mailbox monitor health check errors', async () => {
       mockMonitor.healthCheck.mockRejectedValue(new Error('API error'));
-      (mockMonitor.getStatus as jest.Mock).mockReturnValue({
+      mockMonitor.getStatus.mockResolvedValue({
         isRunning: false,
+        mailbox: 'test@example.com',
         lastCheckTime: new Date(),
+        checkInterval: 60000,
+        rateLimitStats: {
+          lastHour: 0,
+          lastDay: 0,
+          last10Min: 0,
+          circuitBreakerTripped: false,
+          hourlyLimit: 100,
+          dailyLimit: 1000,
+        },
+        deduplicationStats: { processedEmailsCount: 0, uniqueSendersCount: 0, enabled: true },
       });
       checker.setMailboxMonitor(mockMonitor);
 

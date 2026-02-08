@@ -65,11 +65,16 @@ export class PhishingAgent {
     );
     const explanation = await this.generateExplanation(request, enhancedScore, allIndicators);
 
-    // prettier-ignore
-    securityLogger.info('Email analysis completed', { analysisId, messageId: request.messageId,
-      isPhishing: enhancedScore >= 5.0, finalRiskScore: enhancedScore, severity,
-      totalIndicators: allIndicators.length, attachmentRisk: attachmentResult.riskLevel,
-      hasExplanation: !!explanation });
+    securityLogger.info('Email analysis completed', {
+      analysisId,
+      messageId: request.messageId,
+      isPhishing: enhancedScore >= 5.0,
+      finalRiskScore: enhancedScore,
+      severity,
+      totalIndicators: allIndicators.length,
+      attachmentRisk: attachmentResult.riskLevel,
+      hasExplanation: !!explanation,
+    });
 
     return {
       messageId: request.messageId,
@@ -193,9 +198,13 @@ export class PhishingAgent {
 
   async healthCheck(): Promise<boolean> {
     try {
-      // prettier-ignore
-      const headers = { 'message-id': '<test@example.com>', from: 'test@example.com',
-        to: 'user@test.com', subject: 'Test', date: new Date().toISOString() };
+      const headers = {
+        'message-id': '<test@example.com>',
+        from: 'test@example.com',
+        to: 'user@test.com',
+        subject: 'Test',
+        date: new Date().toISOString(),
+      };
       HeaderValidator.validate(headers);
       ContentAnalyzer.analyze('test');
       AttachmentAnalyzer.analyze([]);

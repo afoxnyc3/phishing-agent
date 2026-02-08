@@ -182,7 +182,7 @@ docker buildx build --platform linux/amd64 -t $IMAGE_NAME .
 }
 ```
 
-**Root Cause**: Azure AD app registration had wrong permissions (AuditLog._ instead of Mail._).
+**Root Cause**: Azure AD app registration had wrong permissions (`AuditLog.*` instead of `Mail.*`).
 
 **Diagnosis Process**:
 

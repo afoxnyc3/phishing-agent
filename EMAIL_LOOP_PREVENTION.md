@@ -35,7 +35,7 @@ Step 4: Agent analyzes its own reply → Sends another reply
 Step 5: REPEAT STEPS 3-4 INFINITELY ♾️
 ```
 
-###Subject Line Evolution
+### Subject Line Evolution
 
 ```
 Original:    "Suspicious email from PayPal"

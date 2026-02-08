@@ -2,6 +2,30 @@
 
 All notable changes to the phishing-agent project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Standardized npm scripts** (Issue #31): Consistent script naming and organization
+  - `test:unit` - Run unit tests only
+  - `test:integration` - Run integration tests with --passWithNoTests
+  - `test:coverage` - Run tests with coverage reporting
+  - `docker:up` / `docker:down` - Docker Compose service management
+  - `status` - Health check for running service
+  - `validate` - Full validation pipeline (type-check, lint, format, test)
+- **Prettier formatting**: Configured with lint-staged integration
+  - `format` / `format:check` scripts for code formatting
+
+### Changed
+
+- Converted 4 test suites to ESM-compatible mock pattern (`unstable_mockModule`)
+- Updated lint-staged configuration for Prettier integration
+
+### Fixed
+
+- ESM mocking issues in test files requiring dynamic imports
+- Environment variable format in LLM config documentation
+
 ## [0.3.2] - 2025-11-29
 
 ### Changed
