@@ -4,6 +4,7 @@
 
 import winston from 'winston';
 import { PerformanceMetrics } from './types.js';
+import { piiRedactor } from './pii-redactor.js';
 
 // Winston logger instance
 export const logger = winston.createLogger({
@@ -28,11 +29,11 @@ export class SecurityLogger {
   private maxMetrics = 1000;
 
   info(message: string, meta?: Record<string, unknown>): void {
-    logger.info(message, meta);
+    logger.info(message, meta ? piiRedactor.redactObject(meta) : undefined);
   }
 
   warn(message: string, meta?: Record<string, unknown>): void {
-    logger.warn(message, meta);
+    logger.warn(message, meta ? piiRedactor.redactObject(meta) : undefined);
   }
 
   error(message: string, error?: unknown): void {
@@ -41,11 +42,11 @@ export class SecurityLogger {
   }
 
   debug(message: string, meta?: Record<string, unknown>): void {
-    logger.debug(message, meta);
+    logger.debug(message, meta ? piiRedactor.redactObject(meta) : undefined);
   }
 
   security(message: string, meta?: Record<string, unknown>): void {
-    logger.info(`[SECURITY] ${message}`, meta);
+    logger.info(`[SECURITY] ${message}`, meta ? piiRedactor.redactObject(meta) : undefined);
   }
 
   addPerformanceMetric(metric: PerformanceMetrics): void {
