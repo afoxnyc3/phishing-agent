@@ -95,6 +95,7 @@ export const config = {
   // Mailbox monitoring
   mailbox: {
     enabled: env.MAILBOX_MONITOR_ENABLED,
+    pollingEnabled: env.POLLING_ENABLED,
     address: env.PHISHING_MAILBOX_ADDRESS,
     checkIntervalMs: env.MAILBOX_CHECK_INTERVAL_MS,
     maxPages: env.MAILBOX_MAX_PAGES,

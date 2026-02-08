@@ -93,6 +93,7 @@ class Application {
         mailboxAddress: config.mailbox.address,
         checkIntervalMs: config.mailbox.checkIntervalMs,
         enabled: config.mailbox.enabled,
+        pollingEnabled: config.mailbox.pollingEnabled,
         rateLimiter: config.rateLimit,
         deduplication: config.deduplication,
         cacheProvider: this.cacheProvider,

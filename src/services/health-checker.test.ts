@@ -68,6 +68,7 @@ describe('HealthChecker', () => {
       getStatus: vi.fn<
         () => Promise<{
           isRunning: boolean;
+          pollingEnabled: boolean;
           mailbox: string;
           lastCheckTime: Date;
           checkInterval: number;
@@ -115,6 +116,7 @@ describe('HealthChecker', () => {
       mockMonitor.healthCheck.mockResolvedValue(true);
       mockMonitor.getStatus.mockResolvedValue({
         isRunning: true,
+        pollingEnabled: true,
         mailbox: 'test@example.com',
         lastCheckTime: new Date(),
         checkInterval: 60000,
@@ -204,6 +206,7 @@ describe('HealthChecker', () => {
       mockMonitor.healthCheck.mockResolvedValue(true);
       mockMonitor.getStatus.mockResolvedValue({
         isRunning: true,
+        pollingEnabled: true,
         mailbox: 'test@example.com',
         lastCheckTime: new Date('2025-01-01T00:00:00Z'),
         checkInterval: 60000,
@@ -224,9 +227,40 @@ describe('HealthChecker', () => {
       const health = await checker.checkHealth();
 
       expect(health.components.mailboxMonitor.details).toHaveProperty('isRunning');
+      expect(health.components.mailboxMonitor.details).toHaveProperty('pollingEnabled');
       expect(health.components.mailboxMonitor.details).toHaveProperty('lastCheckTime');
       expect(health.components.memory.details).toHaveProperty('heapUsedMB');
       expect(health.components.memory.details).toHaveProperty('percentUsed');
+    });
+
+    it('should report polling disabled in health check message', async () => {
+      mockAgent.healthCheck.mockResolvedValue(true);
+      mockMonitor.healthCheck.mockResolvedValue(true);
+      mockMonitor.getStatus.mockResolvedValue({
+        isRunning: true,
+        pollingEnabled: false,
+        mailbox: 'test@example.com',
+        lastCheckTime: new Date(),
+        checkInterval: 60000,
+        rateLimitStats: {
+          lastHour: 0,
+          lastDay: 0,
+          last10Min: 0,
+          circuitBreakerTripped: false,
+          hourlyLimit: 100,
+          dailyLimit: 1000,
+        },
+        deduplicationStats: { processedEmailsCount: 0, uniqueSendersCount: 0, enabled: true },
+      });
+
+      checker.setPhishingAgent(mockAgent);
+      checker.setMailboxMonitor(mockMonitor);
+
+      const health = await checker.checkHealth();
+
+      expect(health.components.mailboxMonitor.healthy).toBe(true);
+      expect(health.components.mailboxMonitor.message).toContain('polling disabled');
+      expect(health.components.mailboxMonitor.details?.pollingEnabled).toBe(false);
     });
   });
 
@@ -293,6 +327,7 @@ describe('HealthChecker', () => {
       mockMonitor.healthCheck.mockRejectedValue(new Error('API error'));
       mockMonitor.getStatus.mockResolvedValue({
         isRunning: false,
+        pollingEnabled: true,
         mailbox: 'test@example.com',
         lastCheckTime: new Date(),
         checkInterval: 60000,
