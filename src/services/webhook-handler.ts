@@ -36,10 +36,20 @@ export function validateClientState(notifications: GraphNotification[], expected
   return notifications.every((n) => n.clientState === expectedState);
 }
 
+/** Validate token contains only safe characters (alphanumeric, base64, URL-safe) */
+function isSafeToken(token: string): boolean {
+  return /^[\w\-.~+/=%]+$/.test(token) && token.length <= 4096;
+}
+
 /** Handle validation handshake from Graph API */
 export function handleValidationHandshake(req: Request, res: Response): boolean {
   const validationToken = req.query.validationToken as string | undefined;
   if (validationToken) {
+    if (!isSafeToken(validationToken)) {
+      securityLogger.warn('Rejected validation token with unsafe characters');
+      res.status(400).type('text/plain').send('Invalid validation token');
+      return true;
+    }
     securityLogger.info('Webhook validation handshake received');
     res.status(200).type('text/plain').send(validationToken);
     return true;
