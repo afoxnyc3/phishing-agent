@@ -6,13 +6,14 @@
 
 import crypto from 'crypto';
 import { CacheProvider } from '../lib/cache-provider.js';
+import { CacheKeys } from '../lib/cache-keys.js';
 import { securityLogger } from '../lib/logger.js';
 import { DeduplicationConfig } from './email-deduplication.js';
 
-/** Redis key prefixes */
+/** Versioned Redis key builders */
 const KEYS = {
-  hash: (h: string) => `dedup:hash:${h}`,
-  sender: (s: string) => `dedup:sender:${s.toLowerCase()}`,
+  hash: (h: string) => CacheKeys.dedup.hash(h),
+  sender: (s: string) => CacheKeys.dedup.sender(s.toLowerCase()),
 };
 
 /** Stats returned by getStats() */
