@@ -37,8 +37,13 @@ export class SecurityLogger {
   }
 
   error(message: string, error?: unknown): void {
-    const err = error instanceof Error ? error : undefined;
-    logger.error(message, { error: error !== undefined ? getErrorMessage(error) : undefined, stack: err?.stack });
+    if (error instanceof Error) {
+      logger.error(message, { error: error.message, stack: error.stack });
+    } else if (error != null && typeof error === 'object') {
+      logger.error(message, error as Record<string, unknown>);
+    } else {
+      logger.error(message, error !== undefined ? { error: getErrorMessage(error) } : undefined);
+    }
   }
 
   debug(message: string, meta?: Record<string, unknown>): void {

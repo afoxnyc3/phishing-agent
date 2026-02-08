@@ -81,10 +81,7 @@ describe('Logger Module', () => {
       it('should log error messages without error object', () => {
         testLogger.error('Generic error');
 
-        expect(mockWinstonLogger.error).toHaveBeenCalledWith('Generic error', {
-          error: undefined,
-          stack: undefined,
-        });
+        expect(mockWinstonLogger.error).toHaveBeenCalledWith('Generic error', undefined);
       });
 
       it('should log error with string instead of Error object', () => {
@@ -92,8 +89,14 @@ describe('Logger Module', () => {
 
         expect(mockWinstonLogger.error).toHaveBeenCalledWith('Error occurred', {
           error: 'String error',
-          stack: undefined,
         });
+      });
+
+      it('should preserve structured metadata objects in error()', () => {
+        const meta = { analysisId: 'abc', messageId: 'msg-1', error: 'something failed' };
+        testLogger.error('Analysis failed', meta);
+
+        expect(mockWinstonLogger.error).toHaveBeenCalledWith('Analysis failed', meta);
       });
 
       it('should log debug messages', () => {
