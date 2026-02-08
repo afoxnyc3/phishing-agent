@@ -242,7 +242,7 @@ export class MailboxMonitor {
   }> {
     return {
       isRunning: this.isRunning,
-      pollingEnabled: this.config.pollingEnabled!,
+      pollingEnabled: this.config.pollingEnabled ?? true,
       mailbox: this.config.mailboxAddress,
       lastCheckTime: this.lastCheckTime,
       checkInterval: this.config.checkIntervalMs!,
