@@ -92,6 +92,13 @@ describe('Logger Module', () => {
         });
       });
 
+      it('should preserve structured metadata objects in error()', () => {
+        const meta = { analysisId: 'abc', messageId: 'msg-1', error: 'something failed' };
+        testLogger.error('Analysis failed', meta);
+
+        expect(mockWinstonLogger.error).toHaveBeenCalledWith('Analysis failed', meta);
+      });
+
       it('should log debug messages', () => {
         testLogger.debug('Debug message');
 

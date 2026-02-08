@@ -4,6 +4,7 @@
 
 import winston from 'winston';
 import { PerformanceMetrics } from './types.js';
+import { getErrorMessage } from './errors.js';
 import { piiRedactor } from './pii-redactor.js';
 
 // Winston logger instance
@@ -42,7 +43,7 @@ export class SecurityLogger {
     } else if (error != null && typeof error === 'object') {
       logger.error(message, piiRedactor.redactObject(error as Record<string, unknown>));
     } else {
-      logger.error(message, error !== undefined ? { error: String(error) } : undefined);
+      logger.error(message, error !== undefined ? { error: getErrorMessage(error) } : undefined);
     }
   }
 

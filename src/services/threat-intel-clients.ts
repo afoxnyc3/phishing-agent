@@ -10,6 +10,7 @@ import NodeCache from 'node-cache';
 import { securityLogger } from '../lib/logger.js';
 import { config } from '../lib/config.js';
 import { validate, VirusTotalUrlResponseSchema, AbuseIPDBResponseSchema } from '../lib/schemas.js';
+import { getErrorMessage } from '../lib/errors.js';
 
 /** Circuit breaker configuration */
 const CIRCUIT_BREAKER_OPTIONS = {
@@ -75,7 +76,7 @@ export class VirusTotalClient {
       return this.parseResponse(url, response, cacheKey);
     } catch (error: unknown) {
       securityLogger.warn('VirusTotal failed', {
-        error: error instanceof Error ? error.message : String(error),
+        error: getErrorMessage(error),
         url,
       });
       return null;
@@ -142,7 +143,7 @@ export class AbuseIPDBClient {
       return this.parseResponse(ip, response, cacheKey);
     } catch (error: unknown) {
       securityLogger.warn('AbuseIPDB failed', {
-        error: error instanceof Error ? error.message : String(error),
+        error: getErrorMessage(error),
         ip,
       });
       return null;

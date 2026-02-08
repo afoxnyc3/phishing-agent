@@ -7,6 +7,7 @@
 import { DefaultAzureCredential } from '@azure/identity';
 import { SecretClient } from '@azure/keyvault-secrets';
 import { securityLogger } from './logger.js';
+import { getErrorMessage } from './errors.js';
 
 /** Secret names in Key Vault (kebab-case) mapped to env var names */
 const SECRET_MAPPINGS: Record<string, string> = {
@@ -75,9 +76,9 @@ export async function loadSecretsFromKeyVault(): Promise<void> {
     securityLogger.info('All secrets loaded successfully from Key Vault');
   } catch (error) {
     securityLogger.error('Failed to load secrets from Key Vault', {
-      error: (error as Error).message,
+      error: getErrorMessage(error),
     });
-    throw new Error(`Key Vault initialization failed: ${(error as Error).message}`);
+    throw new Error(`Key Vault initialization failed: ${getErrorMessage(error)}`);
   }
 }
 

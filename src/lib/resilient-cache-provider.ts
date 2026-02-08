@@ -9,6 +9,7 @@ import { CacheProvider, CachePipeline } from './cache-provider.js';
 import { MemoryCacheProvider } from './memory-cache-provider.js';
 import { RedisCacheProvider } from './redis-cache-provider.js';
 import { securityLogger } from './logger.js';
+import { getErrorMessage } from './errors.js';
 
 /** Circuit breaker configuration for Redis operations */
 const CIRCUIT_BREAKER_OPTIONS = {
@@ -84,7 +85,7 @@ export class ResilientCacheProvider implements CacheProvider {
       const result = await this.breaker.fire(redisOp);
       return result as T;
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
+      const msg = getErrorMessage(error);
       this.lastError = msg;
       securityLogger.debug(`Redis ${operationName} failed, using memory`, { error: msg });
       return memoryOp();
