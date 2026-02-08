@@ -11,7 +11,7 @@ export type LifecycleEventType = 'subscriptionRemoved' | 'missed' | 'reauthoriza
 
 /** Interface for the subscription manager methods needed by lifecycle handlers */
 export interface SubscriptionManagerRef {
-  createSubscription(): Promise<void>;
+  createSubscription(): Promise<boolean>;
   renewSubscription(): Promise<void>;
 }
 

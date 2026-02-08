@@ -97,7 +97,7 @@ describe('SubscriptionManager', () => {
       expect(state.isActive).toBe(true);
     });
 
-    it('should log error and not throw when initialization fails', async () => {
+    it('should log error and schedule retry when initialization fails', async () => {
       client.api.mockReturnValue({
         get: vi.fn<any>().mockRejectedValue(new Error('Network error')),
       });
@@ -106,6 +106,10 @@ describe('SubscriptionManager', () => {
       expect(securityLogger.error).toHaveBeenCalledWith(
         'Subscription initialization failed',
         expect.objectContaining({ error: 'Network error' })
+      );
+      expect(securityLogger.warn).toHaveBeenCalledWith(
+        'Scheduling subscription retry',
+        expect.objectContaining({ retryMs: 60000 })
       );
     });
 
@@ -147,25 +151,27 @@ describe('SubscriptionManager', () => {
       );
     });
 
-    it('should set active state after creation', async () => {
+    it('should return true and set active state after creation', async () => {
       const mockPost = vi.fn<any>().mockResolvedValue(mockSubscriptionResponse());
       client.api.mockReturnValue({ post: mockPost });
 
-      await manager.createSubscription();
+      const result = await manager.createSubscription();
 
+      expect(result).toBe(true);
       const state = manager.getState();
       expect(state.subscriptionId).toBe('sub-123');
       expect(state.isActive).toBe(true);
       expect(state.expirationDateTime).toBeInstanceOf(Date);
     });
 
-    it('should log error when creation fails', async () => {
+    it('should return false and log error when creation fails', async () => {
       client.api.mockReturnValue({
         post: vi.fn<any>().mockRejectedValue(new Error('Forbidden')),
       });
 
-      await manager.createSubscription();
+      const result = await manager.createSubscription();
 
+      expect(result).toBe(false);
       expect(securityLogger.error).toHaveBeenCalledWith(
         'Failed to create subscription',
         expect.objectContaining({ error: 'Forbidden' })
@@ -222,6 +228,26 @@ describe('SubscriptionManager', () => {
 
       expect(securityLogger.error).toHaveBeenCalledWith('Failed to renew subscription', expect.any(Object));
       expect(securityLogger.warn).toHaveBeenCalledWith('Renewal failed, attempting to recreate subscription');
+    });
+
+    it('should schedule retry when both renewal and recreation fail', async () => {
+      // First create
+      const mockPost = vi.fn<any>().mockResolvedValue(mockSubscriptionResponse('sub-1'));
+      client.api.mockReturnValue({ post: mockPost });
+      await manager.createSubscription();
+
+      // Both renewal and recreation fail
+      client.api.mockReturnValue({
+        patch: vi.fn<any>().mockRejectedValue(new Error('Not found')),
+        post: vi.fn<any>().mockRejectedValue(new Error('Service unavailable')),
+      });
+
+      await manager.renewSubscription();
+
+      expect(securityLogger.warn).toHaveBeenCalledWith(
+        'Scheduling subscription retry',
+        expect.objectContaining({ retryMs: 60000 })
+      );
     });
   });
 

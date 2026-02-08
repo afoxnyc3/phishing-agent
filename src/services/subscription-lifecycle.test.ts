@@ -14,7 +14,7 @@ const { securityLogger } = await import('../lib/logger.js');
 
 function createMockManager() {
   return {
-    createSubscription: vi.fn<any>().mockResolvedValue(undefined),
+    createSubscription: vi.fn<any>().mockResolvedValue(true),
     renewSubscription: vi.fn<any>().mockResolvedValue(undefined),
   };
 }

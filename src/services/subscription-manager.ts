@@ -28,6 +28,9 @@ const MAX_SUBSCRIPTION_MINUTES = 4230;
 /** Default renewal margin: renew 2 hours before expiry */
 const DEFAULT_RENEWAL_MARGIN_MS = 2 * 60 * 60 * 1000;
 
+/** Retry delay for failed initialization or renewal recreation (60 seconds) */
+const RETRY_DELAY_MS = 60_000;
+
 export class SubscriptionManager {
   private graphClient: Client;
   private config: SubscriptionConfig;
@@ -58,11 +61,12 @@ export class SubscriptionManager {
       await this.createSubscription();
     } catch (error: unknown) {
       securityLogger.error('Subscription initialization failed', { error: getErrorMessage(error) });
+      this.scheduleRetry();
     }
   }
 
   /** Create a new Graph API subscription */
-  async createSubscription(): Promise<void> {
+  async createSubscription(): Promise<boolean> {
     const expiration = this.calculateExpiration();
     try {
       const subscription = await this.graphClient.api('/subscriptions').post({
@@ -77,8 +81,10 @@ export class SubscriptionManager {
         id: subscription.id,
         expirationDateTime: subscription.expirationDateTime,
       });
+      return true;
     } catch (error: unknown) {
       securityLogger.error('Failed to create subscription', { error: getErrorMessage(error) });
+      return false;
     }
   }
 
@@ -180,6 +186,21 @@ export class SubscriptionManager {
     securityLogger.warn('Renewal failed, attempting to recreate subscription');
     this.state.subscriptionId = null;
     this.state.isActive = false;
-    await this.createSubscription();
+    const success = await this.createSubscription();
+    if (!success) {
+      this.scheduleRetry();
+    }
+  }
+
+  /** Schedule a delayed retry for subscription creation */
+  private scheduleRetry(): void {
+    securityLogger.warn('Scheduling subscription retry', { retryMs: RETRY_DELAY_MS });
+    this.clearRenewalTimer();
+    this.renewalTimer = setTimeout(() => {
+      this.createSubscription().catch((err: unknown) => {
+        securityLogger.error('Subscription retry failed', { error: getErrorMessage(err) });
+      });
+    }, RETRY_DELAY_MS);
+    this.renewalTimer.unref();
   }
 }
