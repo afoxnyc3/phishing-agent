@@ -101,6 +101,13 @@ export const config = {
     parallelLimit: env.MAILBOX_PARALLEL_LIMIT,
   },
 
+  // Mail monitor timer fallback
+  mailMonitor: {
+    enabled: env.MAIL_MONITOR_ENABLED,
+    intervalMs: env.MAIL_MONITOR_INTERVAL_MS,
+    lookbackMs: env.MAIL_MONITOR_LOOKBACK_MS,
+  },
+
   // Threat intelligence
   threatIntel: {
     enabled: env.THREAT_INTEL_ENABLED,

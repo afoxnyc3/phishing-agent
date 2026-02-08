@@ -228,6 +228,11 @@ export class MailboxMonitor {
     };
   }
 
+  /** Get Graph API client instance */
+  getGraphClient(): Client {
+    return this.client;
+  }
+
   /** Get rate limiter instance */
   getRateLimiter(): IRateLimiter {
     return this.rateLimiter;

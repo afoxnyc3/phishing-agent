@@ -29,6 +29,11 @@ export const EnvConfigSchema = z
     MAILBOX_MAX_PAGES: z.coerce.number().int().positive().default(5),
     MAILBOX_PARALLEL_LIMIT: z.coerce.number().int().positive().default(5),
 
+    // Mail monitor timer fallback (safety net for missed webhooks)
+    MAIL_MONITOR_ENABLED: z.coerce.boolean().default(true),
+    MAIL_MONITOR_INTERVAL_MS: z.coerce.number().int().positive().default(3600000), // 1 hour
+    MAIL_MONITOR_LOOKBACK_MS: z.coerce.number().int().positive().default(7200000), // 2 hours
+
     // Threat Intel configuration
     THREAT_INTEL_ENABLED: z.coerce.boolean().default(true),
     THREAT_INTEL_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
