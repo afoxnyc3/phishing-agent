@@ -5,6 +5,7 @@
 
 import { config as dotenvConfig } from 'dotenv';
 import { EnvConfigSchema } from './schemas.js';
+import { getErrorMessage } from './errors.js';
 
 // Load environment variables
 dotenvConfig();
@@ -61,8 +62,8 @@ function validateEnvironment(): ReturnType<typeof EnvConfigSchema.parse> {
     return validated;
   } catch (error) {
     // eslint-disable-next-line no-console -- avoid circular dependency with logger
-    console.error('Environment validation failed:', (error as Error).message);
-    throw new Error(`Invalid environment configuration: ${(error as Error).message}`);
+    console.error('Environment validation failed:', getErrorMessage(error));
+    throw new Error(`Invalid environment configuration: ${getErrorMessage(error)}`);
   }
 }
 

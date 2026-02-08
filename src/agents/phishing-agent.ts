@@ -7,6 +7,7 @@ import { AttachmentAnalyzer } from '../analysis/attachment-analyzer.js';
 import { RiskScorer, RiskScoringResult } from '../analysis/risk-scorer.js';
 import { ThreatIntelService, ThreatIntelResult } from '../services/threat-intel.js';
 import { shouldRunLlmAnalysis, generateThreatExplanation } from '../services/llm-analyzer.js';
+import { getErrorMessage } from '../lib/errors.js';
 
 export class PhishingAgent {
   private initialized: boolean = false;
@@ -133,8 +134,7 @@ export class PhishingAgent {
     try {
       return await this.threatIntel.enrichEmail(request.sender, senderIp, urls);
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'Unknown error';
-      securityLogger.warn('Threat intel enrichment failed', { error: msg });
+      securityLogger.warn('Threat intel enrichment failed', { error: getErrorMessage(error) });
       return { indicators: [], riskContribution: 0 };
     }
   }
@@ -172,7 +172,7 @@ export class PhishingAgent {
     analysisId: string,
     error: unknown
   ): PhishingAnalysisResult {
-    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorMsg = getErrorMessage(error);
     securityLogger.error('Email analysis failed', { analysisId, messageId: request.messageId, error: errorMsg });
     const indicator: ThreatIndicator = {
       type: 'behavioral',
@@ -212,8 +212,7 @@ export class PhishingAgent {
       await this.threatIntel.healthCheck();
       return true;
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      securityLogger.error('Health check failed', { error: msg });
+      securityLogger.error('Health check failed', { error: getErrorMessage(error) });
       return false;
     }
   }

@@ -5,6 +5,7 @@
 
 import { config as dotenvConfig } from 'dotenv';
 import { loadSecretsFromKeyVault } from './lib/keyvault.js';
+import { getErrorMessage } from './lib/errors.js';
 
 // Load .env first (for local dev and AZURE_KEY_VAULT_NAME)
 dotenvConfig();
@@ -211,7 +212,7 @@ async function main(): Promise<void> {
 
     securityLogger.info('Phishing Agent is running');
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
     // eslint-disable-next-line no-console -- Top-level error before logger may be available
     console.error('Failed to start Phishing Agent:', errorMessage, errorStack);

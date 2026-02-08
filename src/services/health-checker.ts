@@ -7,6 +7,7 @@ import { IRateLimiter } from '../services/rate-limiter.js';
 import { IEmailDeduplication } from '../services/email-deduplication.js';
 import { getLlmServiceStatus, healthCheck as llmHealthCheck } from '../services/llm-analyzer.js';
 import { ResilientCacheProvider, CacheStatus } from '../lib/resilient-cache-provider.js';
+import { getErrorMessage } from '../lib/errors.js';
 
 export interface HealthStatus {
   healthy: boolean;
@@ -78,8 +79,7 @@ export class HealthChecker {
         message: healthy ? 'Agent operational' : 'Agent unhealthy',
       };
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'Unknown error';
-      return { healthy: false, component: 'phishingAgent', message: `Health check failed: ${msg}` };
+      return { healthy: false, component: 'phishingAgent', message: `Health check failed: ${getErrorMessage(error)}` };
     }
   }
 
@@ -97,11 +97,10 @@ export class HealthChecker {
         details: { isRunning: status.isRunning, lastCheckTime: status.lastCheckTime.toISOString() },
       };
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'Unknown error';
       return {
         healthy: false,
         component: 'mailboxMonitor',
-        message: `Health check failed: ${msg}`,
+        message: `Health check failed: ${getErrorMessage(error)}`,
       };
     }
   }
@@ -162,8 +161,7 @@ export class HealthChecker {
         },
       };
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'Unknown error';
-      return { healthy: true, component: 'llmAnalyzer', message: `Health check failed: ${msg}` };
+      return { healthy: true, component: 'llmAnalyzer', message: `Health check failed: ${getErrorMessage(error)}` };
     }
   }
 

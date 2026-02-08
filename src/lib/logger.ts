@@ -4,6 +4,7 @@
 
 import winston from 'winston';
 import { PerformanceMetrics } from './types.js';
+import { getErrorMessage } from './errors.js';
 
 // Winston logger instance
 export const logger = winston.createLogger({
@@ -36,8 +37,8 @@ export class SecurityLogger {
   }
 
   error(message: string, error?: unknown): void {
-    const err = error as { message?: string; stack?: string } | undefined;
-    logger.error(message, { error: err?.message || error, stack: err?.stack });
+    const err = error instanceof Error ? error : undefined;
+    logger.error(message, { error: error !== undefined ? getErrorMessage(error) : undefined, stack: err?.stack });
   }
 
   debug(message: string, meta?: Record<string, unknown>): void {

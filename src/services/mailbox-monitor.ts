@@ -17,6 +17,7 @@ import {
 import { processEmail } from './email-processor.js';
 import { createGraphClient, AzureAuthMethod } from './azure-auth.js';
 import { CacheProvider } from '../lib/cache-provider.js';
+import { getErrorMessage } from '../lib/errors.js';
 
 export type { AzureAuthMethod };
 
@@ -101,7 +102,7 @@ export class MailboxMonitor {
       await this.client.api(`/users/${this.config.mailboxAddress}/messages`).top(1).get();
       securityLogger.info('Mailbox monitor initialized successfully');
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'Unknown error';
+      const msg = getErrorMessage(error);
       securityLogger.error('Mailbox monitor initialization failed', { error: msg });
       throw new Error(`Mailbox monitor initialization failed: ${msg}`);
     }
@@ -174,8 +175,7 @@ export class MailboxMonitor {
       await this.processEmails(emails);
       this.lastCheckTime = checkTime;
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'Unknown error';
-      securityLogger.error('Failed to check for new emails', { error: msg });
+      securityLogger.error('Failed to check for new emails', { error: getErrorMessage(error) });
       throw error;
     }
   }
@@ -198,11 +198,10 @@ export class MailboxMonitor {
           rateLimiter: this.rateLimiter,
           deduplication: this.deduplication,
         }).catch((error: unknown) => {
-          const msg = error instanceof Error ? error.message : 'Unknown error';
           securityLogger.error('Failed to process email', {
             emailId: email.id,
             subject: email.subject,
-            error: msg,
+            error: getErrorMessage(error),
           });
         })
       )

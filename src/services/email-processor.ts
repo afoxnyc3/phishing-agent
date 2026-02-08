@@ -15,6 +15,7 @@ import { IEmailDeduplication } from './email-deduplication.js';
 import { buildReplyHtml, buildErrorReplyHtml, createReplyMessage } from './email-reply-builder.js';
 import { metrics } from './metrics.js';
 import { evaluateEmailGuards, __testResetMessageIdCache } from './email-guards.js';
+import { getErrorMessage } from '../lib/errors.js';
 
 // Re-export guards for backwards compatibility
 export { evaluateEmailGuards, __testResetMessageIdCache };
@@ -123,11 +124,10 @@ async function handleProcessingError(
   config: EmailProcessorConfig
 ): Promise<void> {
   metrics.recordAnalysisError();
-  const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+  const errorMessage = getErrorMessage(error);
   securityLogger.error('Failed to process email', { processingId, error: errorMessage });
   await sendErrorReply(graphEmail, processingId, config).catch((replyError: unknown) => {
-    const msg = replyError instanceof Error ? replyError.message : 'Unknown error';
-    securityLogger.error('Failed to send error reply', { processingId, error: msg });
+    securityLogger.error('Failed to send error reply', { processingId, error: getErrorMessage(replyError) });
   });
 }
 
@@ -183,8 +183,7 @@ async function sendAnalysisReply(
     });
   } catch (error: unknown) {
     metrics.recordReplyFailed();
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-    securityLogger.error('Failed to send analysis reply', { processingId, error: msg });
+    securityLogger.error('Failed to send analysis reply', { processingId, error: getErrorMessage(error) });
     throw error;
   }
 }

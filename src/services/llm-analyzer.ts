@@ -16,6 +16,7 @@ import pRetry from 'p-retry';
 import { ThreatIndicator } from '../lib/types.js';
 import { securityLogger } from '../lib/logger.js';
 import { config } from '../lib/config.js';
+import { getErrorMessage } from '../lib/errors.js';
 
 export interface LlmAnalysisRequest {
   subject: string;
@@ -179,7 +180,7 @@ export async function generateThreatExplanation(request: LlmAnalysisRequest): Pr
     const breaker = getCircuitBreaker();
     return await breaker.fire(request);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
 
     // Check if circuit is open
     if (errorMessage.includes('Breaker is open')) {
