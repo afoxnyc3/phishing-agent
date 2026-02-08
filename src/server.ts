@@ -14,6 +14,7 @@ import { metrics } from './services/metrics.js';
 import { healthChecker, SystemHealth } from './services/health-checker.js';
 import { NextFunction } from 'express';
 import { ResilientCacheProvider } from './lib/resilient-cache-provider.js';
+import { createWebhookRouter } from './services/webhook-route.js';
 
 // Health check cache for /health/deep to avoid Graph API rate limiting
 let deepHealthCache: { result: SystemHealth; timestamp: number } | null = null;
@@ -84,6 +85,8 @@ export class HttpServer {
    * Setup routes
    */
   private setupRoutes(): void {
+    this.setupWebhookRoute();
+
     const securedRouter = express.Router();
     securedRouter.use(this.authenticateRequest.bind(this));
     securedRouter.use(this.rateLimit.bind(this));
@@ -95,6 +98,15 @@ export class HttpServer {
 
     this.app.use(securedRouter);
     this.app.get('/', this.handleRoot.bind(this));
+  }
+
+  /** Register webhook route (public, no auth — Graph API must reach it) */
+  private setupWebhookRoute(): void {
+    const clientState = process.env.WEBHOOK_CLIENT_STATE || '';
+    if (clientState) {
+      this.app.use(createWebhookRouter(clientState));
+      securityLogger.info('Webhook route registered at POST /webhooks/mail');
+    }
   }
 
   /**
