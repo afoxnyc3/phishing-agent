@@ -52,12 +52,14 @@ describe('Redis Rate Limiter Integration', () => {
     await rateLimiter.reset();
   });
 
-  it.skipIf(!available)('should allow sending within limits', async () => {
+  it('should allow sending within limits', async ({ skip }) => {
+    if (!available) skip();
     const result = await rateLimiter.canSendEmail();
     expect(result.allowed).toBe(true);
   });
 
-  it.skipIf(!available)('should record sends and track counts', async () => {
+  it('should record sends and track counts', async ({ skip }) => {
+    if (!available) skip();
     await rateLimiter.recordEmailSent();
     await rateLimiter.recordEmailSent();
 
@@ -67,7 +69,8 @@ describe('Redis Rate Limiter Integration', () => {
     expect(stats.circuitBreakerTripped).toBe(false);
   });
 
-  it.skipIf(!available)('should enforce hourly limit', async () => {
+  it('should enforce hourly limit', async ({ skip }) => {
+    if (!available) skip();
     for (let i = 0; i < 5; i++) {
       await rateLimiter.recordEmailSent();
     }
@@ -77,7 +80,8 @@ describe('Redis Rate Limiter Integration', () => {
     expect(result.reason).toContain('Hourly');
   });
 
-  it.skipIf(!available)('should trip circuit breaker on burst', async () => {
+  it('should trip circuit breaker on burst', async ({ skip }) => {
+    if (!available) skip();
     // Create a rate limiter with very low circuit breaker threshold
     const burstLimiter = new RedisRateLimiter(cacheProvider, {
       enabled: true,
@@ -115,12 +119,14 @@ describe('Redis Email Deduplication Integration', () => {
     if (keys.length > 0) await redis.del(...keys);
   });
 
-  it.skipIf(!available)('should allow first email from sender', async () => {
+  it('should allow first email from sender', async ({ skip }) => {
+    if (!available) skip();
     const result = await dedup.shouldProcess('sender@example.com', 'Test Subject', 'Test body content');
     expect(result.allowed).toBe(true);
   });
 
-  it.skipIf(!available)('should block duplicate content hash', async () => {
+  it('should block duplicate content hash', async ({ skip }) => {
+    if (!available) skip();
     const sender = 'dedup-test@example.com';
     const subject = 'Duplicate Test';
     const body = 'This is duplicate content';
@@ -132,7 +138,8 @@ describe('Redis Email Deduplication Integration', () => {
     expect(result.reason).toContain('Duplicate');
   });
 
-  it.skipIf(!available)('should enforce sender cooldown', async () => {
+  it('should enforce sender cooldown', async ({ skip }) => {
+    if (!available) skip();
     const sender = 'cooldown-test@example.com';
 
     await dedup.recordProcessed(sender, 'Subject 1', 'Body 1');
@@ -142,7 +149,8 @@ describe('Redis Email Deduplication Integration', () => {
     expect(result.reason).toContain('cooldown');
   });
 
-  it.skipIf(!available)('should allow different content from different sender', async () => {
+  it('should allow different content from different sender', async ({ skip }) => {
+    if (!available) skip();
     await dedup.recordProcessed('sender-a@example.com', 'Subject A', 'Body A');
     const result = await dedup.shouldProcess('sender-b@example.com', 'Subject B', 'Body B');
 
