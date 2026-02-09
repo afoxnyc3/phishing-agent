@@ -53,7 +53,9 @@ function handleWebhookNotification(
 function acceptNotification(req: Request, res: Response, onNotification?: NotificationCallback): void {
   const arrivalTime = Date.now();
   const messageIds = extractMessageIds(req.body);
-  messageIds.forEach((id) => webhookArrivalTimes.record(id, arrivalTime));
+  messageIds.forEach((id) => {
+    webhookArrivalTimes.record(id, arrivalTime);
+  });
 
   if (onNotification && messageIds.length > 0) {
     onNotification(messageIds);

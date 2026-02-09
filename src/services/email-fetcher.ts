@@ -10,7 +10,7 @@ import { validateGraphEmailListResponse } from './graph-email-parser.js';
 
 const EMAIL_SELECT_FIELDS =
   'id,subject,from,toRecipients,receivedDateTime,sentDateTime,' +
-  'internetMessageId,internetMessageHeaders,body,hasAttachments';
+  'internetMessageId,internetMessageHeaders,body,bodyPreview,hasAttachments';
 
 export interface EmailFetcherConfig {
   mailboxAddress: string;

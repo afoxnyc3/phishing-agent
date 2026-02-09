@@ -64,6 +64,7 @@ describe('NotificationQueue', () => {
   describe('enqueue', () => {
     it('should add items to the queue', () => {
       queue = new NotificationQueue(createConfig(), createDeps());
+      queue.start();
       queue.enqueue(['msg-1', 'msg-2']);
       const metrics = queue.getMetrics();
       expect(metrics.pending).toBe(2);
@@ -72,6 +73,7 @@ describe('NotificationQueue', () => {
 
     it('should deduplicate message IDs', () => {
       queue = new NotificationQueue(createConfig(), createDeps());
+      queue.start();
       queue.enqueue(['msg-1', 'msg-1', 'msg-2']);
       expect(queue.getMetrics().pending).toBe(2);
       expect(queue.getMetrics().totalEnqueued).toBe(2);
@@ -79,9 +81,17 @@ describe('NotificationQueue', () => {
 
     it('should not re-enqueue pending items', () => {
       queue = new NotificationQueue(createConfig(), createDeps());
+      queue.start();
       queue.enqueue(['msg-1']);
       queue.enqueue(['msg-1']);
       expect(queue.getMetrics().totalEnqueued).toBe(1);
+    });
+
+    it('should reject enqueue when stopped', () => {
+      queue = new NotificationQueue(createConfig(), createDeps());
+      queue.enqueue(['msg-1']);
+      expect(queue.getMetrics().pending).toBe(0);
+      expect(queue.getMetrics().totalEnqueued).toBe(0);
     });
   });
 
@@ -164,13 +174,15 @@ describe('NotificationQueue', () => {
   });
 
   describe('lifecycle', () => {
-    it('should not process when stopped', async () => {
+    it('should not process after stop', async () => {
       queue = new NotificationQueue(createConfig(), createDeps());
+      queue.start();
+      queue.stop();
       queue.enqueue(['msg-1']);
-      // Don't start — wait a bit and verify no processing
+      // Enqueue after stop should be rejected
       await new Promise((r) => setTimeout(r, 100));
       expect(queue.getMetrics().totalProcessed).toBe(0);
-      expect(queue.getMetrics().pending).toBe(1);
+      expect(queue.getMetrics().pending).toBe(0);
     });
 
     it('should stop cleanly', () => {

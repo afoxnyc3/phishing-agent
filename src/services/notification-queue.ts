@@ -10,6 +10,8 @@ import { fetchEmailById } from './email-fetcher.js';
 import { processEmail, EmailProcessorConfig } from './email-processor.js';
 import { getErrorMessage } from '../lib/errors.js';
 
+const PROCESS_TIMEOUT_MS = 30_000;
+
 export interface NotificationQueueConfig {
   enabled: boolean;
   maxRetries: number;
@@ -56,12 +58,18 @@ export class NotificationQueue {
 
   /** Add message IDs to the queue for processing */
   enqueue(messageIds: string[]): void {
+    if (!this.running) {
+      securityLogger.warn('Enqueue called while queue is stopped; items will not be processed', {
+        count: messageIds.length,
+      });
+      return;
+    }
     for (const id of messageIds) {
       if (this.pending.has(id)) continue;
       this.pending.set(id, { messageId: id, enqueuedAt: Date.now(), attempts: 0 });
       this.totalEnqueued++;
     }
-    if (this.running && messageIds.length > 0) {
+    if (messageIds.length > 0) {
       this.scheduleDrain(0);
     }
   }
@@ -139,8 +147,14 @@ export class NotificationQueue {
     item.lastAttemptAt = Date.now();
     try {
       const { graphClient, mailboxAddress } = this.deps.processorConfig;
-      const email = await fetchEmailById(graphClient, mailboxAddress, item.messageId);
-      await processEmail(email, this.deps.processorConfig);
+      const timeout = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Processing timed out')), PROCESS_TIMEOUT_MS).unref();
+      });
+      const work = async (): Promise<void> => {
+        const email = await fetchEmailById(graphClient, mailboxAddress, item.messageId);
+        await processEmail(email, this.deps.processorConfig);
+      };
+      await Promise.race([work(), timeout]);
       this.pending.delete(item.messageId);
       this.totalProcessed++;
     } catch (error: unknown) {
@@ -150,7 +164,7 @@ export class NotificationQueue {
   }
 
   private handleFailure(item: QueueItem): void {
-    if (item.attempts >= this.config.maxRetries) {
+    if (item.attempts > this.config.maxRetries) {
       this.pending.delete(item.messageId);
       this.deadLetter.push(item);
       this.totalFailed++;
