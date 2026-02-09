@@ -193,16 +193,31 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Validate Azure deploy secrets
+        env:
+          CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          SUB_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          APP_NAME: ${{ secrets.CONTAINER_APP_NAME }}
+          RG: ${{ secrets.AZURE_RESOURCE_GROUP }}
+        run: |
+          missing=""
+          [ -z "$CLIENT_ID" ] && missing="$missing AZURE_CLIENT_ID"
+          [ -z "$CLIENT_SECRET" ] && missing="$missing AZURE_CLIENT_SECRET"
+          [ -z "$TENANT_ID" ] && missing="$missing AZURE_TENANT_ID"
+          [ -z "$SUB_ID" ] && missing="$missing AZURE_SUBSCRIPTION_ID"
+          [ -z "$APP_NAME" ] && missing="$missing CONTAINER_APP_NAME"
+          [ -z "$RG" ] && missing="$missing AZURE_RESOURCE_GROUP"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing required secrets:$missing"
+            exit 1
+          fi
+
       - name: Log in to Azure
         uses: azure/login@v2
         with:
-          creds: |
-            {
-              "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
-              "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
-              "tenantId": "${{ secrets.AZURE_TENANT_ID }}",
-              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-            }
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
 
       - name: Deploy to Azure Container Apps
         uses: azure/container-apps-deploy-action@v2
@@ -213,8 +228,10 @@ jobs:
           imageToDeploy: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
       - name: Post-deploy health check
+        env:
+          CONTAINER_APP_URL: ${{ secrets.CONTAINER_APP_URL }}
         run: |
-          HEALTH_URL="${{ secrets.CONTAINER_APP_URL }}/health"
+          HEALTH_URL="${CONTAINER_APP_URL}/health"
           echo "Checking health at: $HEALTH_URL"
 
           for i in $(seq 1 12); do
