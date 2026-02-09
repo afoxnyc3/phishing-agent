@@ -20,6 +20,7 @@ async function bootstrap(): Promise<{
   HttpServer: typeof import('./server.js').HttpServer;
   createResilientCacheProvider: typeof import('./lib/cache-provider.js').createResilientCacheProvider;
   createSubscriptionManager: typeof import('./services/subscription-factory.js').createSubscriptionManager;
+  createNotificationQueue: typeof import('./services/notification-queue-factory.js').createNotificationQueue;
 }> {
   await loadSecretsFromKeyVault();
   const { securityLogger } = await import('./lib/logger.js');
@@ -30,6 +31,7 @@ async function bootstrap(): Promise<{
   const { HttpServer } = await import('./server.js');
   const { createResilientCacheProvider } = await import('./lib/cache-provider.js');
   const { createSubscriptionManager } = await import('./services/subscription-factory.js');
+  const { createNotificationQueue } = await import('./services/notification-queue-factory.js');
 
   return {
     securityLogger,
@@ -40,6 +42,7 @@ async function bootstrap(): Promise<{
     HttpServer,
     createResilientCacheProvider,
     createSubscriptionManager,
+    createNotificationQueue,
   };
 }
 
@@ -57,6 +60,7 @@ class Application {
   private httpServer!: InstanceType<BootstrappedModules['HttpServer']>;
   private cacheProvider?: Awaited<ReturnType<BootstrappedModules['createResilientCacheProvider']>>;
   private subscriptionManager?: Awaited<ReturnType<BootstrappedModules['createSubscriptionManager']>>;
+  private notificationQueue?: NonNullable<ReturnType<BootstrappedModules['createNotificationQueue']>>;
 
   constructor(modules: BootstrappedModules) {
     this.modules = modules;
@@ -72,7 +76,6 @@ class Application {
 
     // Initialize cache provider if Redis URL is configured
     if (config.redis.url) {
-      securityLogger.info('Initializing Redis cache provider...', { keyPrefix: config.redis.keyPrefix });
       this.cacheProvider = await createResilientCacheProvider(config.redis.url, config.redis.keyPrefix);
     }
 
@@ -81,15 +84,20 @@ class Application {
 
     await this.initializeMailboxMonitor();
     this.initializeMailMonitor();
+    this.notificationQueue =
+      this.modules.createNotificationQueue(
+        config.notificationQueue,
+        config.mailbox.address,
+        this.mailboxMonitor,
+        this.phishingAgent
+      ) ?? undefined;
     await this.initializeSubscriptionManager();
     await this.initializeHttpServer();
-
     securityLogger.info('Phishing Agent initialized successfully');
   }
 
   private async initializeMailboxMonitor(): Promise<void> {
     const { securityLogger, config, MailboxMonitor } = this.modules;
-
     this.mailboxMonitor = new MailboxMonitor(
       {
         tenantId: config.azure.tenantId,
@@ -115,7 +123,6 @@ class Application {
 
   private initializeMailMonitor(): void {
     const { config, MailMonitor } = this.modules;
-
     this.mailMonitor = new MailMonitor(
       {
         enabled: config.mailMonitor.enabled,
@@ -150,13 +157,12 @@ class Application {
   }
 
   private async initializeHttpServer(): Promise<void> {
-    const { config, HttpServer } = this.modules;
-
+    const { HttpServer } = this.modules;
     this.httpServer = new HttpServer();
     this.httpServer.setPhishingAgent(this.phishingAgent);
     this.httpServer.setMailboxMonitor(this.mailboxMonitor);
-
-    if (this.cacheProvider && config.redis.url) {
+    if (this.notificationQueue) this.httpServer.setNotificationQueue(this.notificationQueue);
+    if (this.cacheProvider) {
       const { ResilientCacheProvider } = await import('./lib/resilient-cache-provider.js');
       if (this.cacheProvider instanceof ResilientCacheProvider) {
         this.httpServer.setCacheProvider(this.cacheProvider);
@@ -169,16 +175,11 @@ class Application {
    */
   async start(): Promise<void> {
     const { securityLogger, config } = this.modules;
-
     securityLogger.info('Starting Phishing Agent...');
-
-    // Start HTTP server
     await this.httpServer.start();
-
-    // Start mailbox monitoring and timer fallback
     this.mailboxMonitor.start();
     this.mailMonitor.start();
-
+    this.notificationQueue?.start();
     securityLogger.info('Phishing Agent started successfully', {
       port: config.server.port,
       mailbox: config.mailbox.address,
@@ -191,20 +192,13 @@ class Application {
    */
   async stop(): Promise<void> {
     const { securityLogger } = this.modules;
-
     securityLogger.info('Stopping Phishing Agent...');
-
+    this.notificationQueue?.stop();
     this.subscriptionManager?.stop();
     this.mailMonitor.stop();
     this.mailboxMonitor.stop();
     await this.phishingAgent.shutdown();
-
-    // Shutdown cache provider if initialized
-    if (this.cacheProvider) {
-      securityLogger.info('Shutting down cache provider...');
-      await this.cacheProvider.shutdown();
-    }
-
+    if (this.cacheProvider) await this.cacheProvider.shutdown();
     securityLogger.info('Phishing Agent stopped');
   }
 
@@ -212,29 +206,21 @@ class Application {
    * Setup signal handlers
    */
   setupSignalHandlers(): void {
-    const { securityLogger } = this.modules;
-
     const shutdown = async (signal: string): Promise<void> => {
-      securityLogger.info(`Received ${signal}, shutting down gracefully...`);
+      this.modules.securityLogger.info(`Received ${signal}, shutting down gracefully...`);
       await this.stop();
       process.exit(0);
     };
-
     process.on('SIGTERM', () => shutdown('SIGTERM'));
     process.on('SIGINT', () => shutdown('SIGINT'));
   }
 
-  /**
-   * Handle errors
-   */
   setupErrorHandlers(): void {
     const { securityLogger } = this.modules;
-
     process.on('uncaughtException', (error) => {
       securityLogger.error('Uncaught exception', { error: error.message, stack: error.stack });
       process.exit(1);
     });
-
     process.on('unhandledRejection', (reason) => {
       securityLogger.error('Unhandled rejection', { reason });
       process.exit(1);
@@ -242,32 +228,20 @@ class Application {
   }
 }
 
-/**
- * Main function
- */
 async function main(): Promise<void> {
   try {
-    // Bootstrap: load Key Vault secrets and import modules
     const modules = await bootstrap();
-    const { securityLogger } = modules;
-
     const app = new Application(modules);
-
     app.setupSignalHandlers();
     app.setupErrorHandlers();
-
     await app.initialize();
     await app.start();
-
-    securityLogger.info('Phishing Agent is running');
+    modules.securityLogger.info('Phishing Agent is running');
   } catch (error: unknown) {
-    const errorMessage = getErrorMessage(error);
-    const errorStack = error instanceof Error ? error.stack : undefined;
     // eslint-disable-next-line no-console -- Top-level error before logger may be available
-    console.error('Failed to start Phishing Agent:', errorMessage, errorStack);
+    console.error('Failed to start Phishing Agent:', getErrorMessage(error));
     process.exit(1);
   }
 }
 
-// Run application
 main();

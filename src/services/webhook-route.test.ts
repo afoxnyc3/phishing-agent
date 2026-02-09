@@ -24,8 +24,8 @@ function mockRes() {
   return res;
 }
 
-function getRouteHandler(clientState: string) {
-  const router = createWebhookRouter(clientState);
+function getRouteHandler(clientState: string, onNotification?: (ids: string[]) => void) {
+  const router = createWebhookRouter(clientState, onNotification);
   // Extract the POST /webhooks/mail handler from the router stack
   const layer = router.stack.find((l: any) => l.route?.path === '/webhooks/mail' && l.route?.methods?.post);
   return layer?.route?.stack?.[0]?.handle;
@@ -125,5 +125,51 @@ describe('Webhook Route', () => {
     handler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(202);
+  });
+
+  describe('notification callback', () => {
+    it('should call onNotification with message IDs', () => {
+      const callback = vi.fn();
+      const cbHandler = getRouteHandler(CLIENT_STATE, callback);
+      const req = mockReq({ body: validPayload() });
+      const res = mockRes();
+
+      cbHandler(req, res);
+
+      expect(callback).toHaveBeenCalledWith(['msg-1']);
+      expect(res.status).toHaveBeenCalledWith(202);
+    });
+
+    it('should not call onNotification for empty message IDs', () => {
+      const callback = vi.fn();
+      const cbHandler = getRouteHandler(CLIENT_STATE, callback);
+      const payload = {
+        value: [
+          {
+            subscriptionId: 's1',
+            clientState: CLIENT_STATE,
+            changeType: 'updated',
+            resource: 'r1',
+            resourceData: { '@odata.id': 'o1', id: 'msg-1' },
+          },
+        ],
+      };
+      const req = mockReq({ body: payload });
+      const res = mockRes();
+
+      cbHandler(req, res);
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('should not fail when no callback is provided', () => {
+      const noCallbackHandler = getRouteHandler(CLIENT_STATE);
+      const req = mockReq({ body: validPayload() });
+      const res = mockRes();
+
+      noCallbackHandler(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(202);
+    });
   });
 });

@@ -5,8 +5,12 @@
 
 import { Client } from '@microsoft/microsoft-graph-client';
 import { securityLogger } from '../lib/logger.js';
-import { GraphEmail, GraphEmailListResponse } from '../lib/schemas.js';
+import { GraphEmail, GraphEmailSchema, GraphEmailListResponse, safeParse } from '../lib/schemas.js';
 import { validateGraphEmailListResponse } from './graph-email-parser.js';
+
+const EMAIL_SELECT_FIELDS =
+  'id,subject,from,toRecipients,receivedDateTime,sentDateTime,' +
+  'internetMessageId,internetMessageHeaders,body,bodyPreview,hasAttachments';
 
 export interface EmailFetcherConfig {
   mailboxAddress: string;
@@ -52,6 +56,18 @@ export async function fetchNewEmails(
   return allEmails;
 }
 
+/**
+ * Fetch a single email by ID from Graph API
+ */
+export async function fetchEmailById(client: Client, mailboxAddress: string, messageId: string): Promise<GraphEmail> {
+  const response = await client
+    .api(`/users/${mailboxAddress}/messages/${messageId}`)
+    .select(EMAIL_SELECT_FIELDS)
+    .expand('attachments($select=name,contentType,size)')
+    .get();
+  return safeParse(GraphEmailSchema, response, 'Graph email by ID');
+}
+
 async function fetchEmailPage(
   client: Client,
   mailboxAddress: string,
@@ -66,10 +82,7 @@ async function fetchEmailPage(
     .filter(`receivedDateTime ge ${sinceDate}`)
     .orderby('receivedDateTime asc')
     .top(50)
-    .select(
-      'id,subject,from,toRecipients,receivedDateTime,sentDateTime,' +
-        'internetMessageId,internetMessageHeaders,body,hasAttachments'
-    )
+    .select(EMAIL_SELECT_FIELDS)
     .expand('attachments($select=name,contentType,size)')
     .get();
 }

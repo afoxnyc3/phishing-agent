@@ -13,17 +13,25 @@ import {
 } from './webhook-handler.js';
 import { webhookArrivalTimes } from './webhook-arrival-times.js';
 
-/** Create webhook router with clientState validation */
-export function createWebhookRouter(clientState: string): Router {
+/** Callback invoked with extracted message IDs after validation */
+export type NotificationCallback = (messageIds: string[]) => void;
+
+/** Create webhook router with clientState validation and optional processing callback */
+export function createWebhookRouter(clientState: string, onNotification?: NotificationCallback): Router {
   const router = Router();
   router.post('/webhooks/mail', (req: Request, res: Response) => {
-    handleWebhookNotification(req, res, clientState);
+    handleWebhookNotification(req, res, clientState, onNotification);
   });
   return router;
 }
 
 /** Handle incoming webhook notification */
-function handleWebhookNotification(req: Request, res: Response, clientState: string): void {
+function handleWebhookNotification(
+  req: Request,
+  res: Response,
+  clientState: string,
+  onNotification?: NotificationCallback
+): void {
   if (handleValidationHandshake(req, res)) return;
 
   if (!isValidPayload(req.body)) {
@@ -38,17 +46,25 @@ function handleWebhookNotification(req: Request, res: Response, clientState: str
     return;
   }
 
-  acceptNotification(req, res);
+  acceptNotification(req, res, onNotification);
 }
 
-/** Accept valid notification and log message IDs */
-function acceptNotification(req: Request, res: Response): void {
+/** Accept valid notification, record arrival times, and enqueue for processing */
+function acceptNotification(req: Request, res: Response, onNotification?: NotificationCallback): void {
   const arrivalTime = Date.now();
   const messageIds = extractMessageIds(req.body);
-  messageIds.forEach((id) => webhookArrivalTimes.record(id, arrivalTime));
+  messageIds.forEach((id) => {
+    webhookArrivalTimes.record(id, arrivalTime);
+  });
+
+  if (onNotification && messageIds.length > 0) {
+    onNotification(messageIds);
+  }
+
   securityLogger.info('Webhook notification accepted', {
     messageCount: messageIds.length,
     subscriptionId: req.body.value[0]?.subscriptionId,
+    queued: !!onNotification,
   });
 
   res.status(202).json({ status: 'accepted' });
