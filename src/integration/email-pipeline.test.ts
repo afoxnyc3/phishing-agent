@@ -1,11 +1,12 @@
 /**
  * Integration Tests: Email Processing Pipeline
- * Tests the full email processing flow with all 5 guard layers:
- *   1. Dedup hash prevents reprocessing
- *   2. Rate limiter throttles burst
- *   3. Recipient filter blocks external
- *   4. Reply-to-self guard prevents loops
- *   5. Message ID dedup (in-memory cache)
+ * Tests the full email processing flow through guards and rate limiting:
+ *   - Self-sender / missing sender detection
+ *   - Message ID dedup (in-memory cache)
+ *   - Content dedup (sender + body hash)
+ *   - Auto-responder detection
+ *   - Sender allowlist filtering
+ *   - Rate limiter throttle on reply sending
  *
  * Uses in-memory services (no Redis required).
  */
@@ -68,7 +69,7 @@ const MAILBOX = 'test@example.com';
 function createEmail(overrides: Partial<GraphEmail> = {}): GraphEmail {
   return {
     id: `graph-id-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    internetMessageId: `<msg-${Date.now()}@external.com>`,
+    internetMessageId: `<msg-${Date.now()}-${Math.random().toString(36).slice(2)}@external.com>`,
     subject: 'Suspicious email test',
     from: { emailAddress: { address: 'external-sender@somecompany.com' } },
     toRecipients: [{ emailAddress: { address: MAILBOX } }],
@@ -192,6 +193,60 @@ describe('Email Processing Pipeline Integration', () => {
 
       await processEmail(email, config);
       expect(mockPhishingAgent.analyzeEmail).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('guard layer: sender allowlist', () => {
+    it('should block senders not on the allowlist in production mode', async () => {
+      process.env.NODE_ENV = 'production';
+      process.env.ALLOWED_SENDER_DOMAINS = 'trusted.com';
+
+      const email = createEmail({
+        from: { emailAddress: { address: 'hacker@untrusted.com' } },
+      });
+
+      await processEmail(email, config);
+      expect(mockPhishingAgent.analyzeEmail).not.toHaveBeenCalled();
+
+      // Restore
+      process.env.NODE_ENV = 'test';
+      delete process.env.ALLOWED_SENDER_DOMAINS;
+    });
+  });
+
+  describe('rate limiter: reply throttle', () => {
+    it('should block reply when rate limit is exceeded', async () => {
+      const tightConfig = {
+        ...config,
+        rateLimiter: new RateLimiterWrapper(
+          new RateLimiter({
+            enabled: true,
+            maxEmailsPerHour: 1,
+            maxEmailsPerDay: 1,
+            circuitBreakerThreshold: 50,
+            circuitBreakerWindowMs: 600000,
+          })
+        ),
+      };
+
+      // First email should process and send reply
+      const email1 = createEmail();
+      await processEmail(email1, tightConfig);
+      expect(mockPhishingAgent.analyzeEmail).toHaveBeenCalledTimes(1);
+      expect(mockGraphClient.api).toHaveBeenCalledTimes(1);
+
+      vi.clearAllMocks();
+      __testResetMessageIdCache();
+
+      // Second email: different sender+content to bypass dedup, but reply blocked by rate limiter
+      const email2 = createEmail({
+        from: { emailAddress: { address: 'other-sender@somecompany.com' } },
+        subject: 'Different subject',
+        body: { content: 'Different body content to avoid dedup.' },
+      });
+      await processEmail(email2, tightConfig);
+      expect(mockPhishingAgent.analyzeEmail).toHaveBeenCalledTimes(1);
+      expect(mockGraphClient.api).not.toHaveBeenCalled();
     });
   });
 });
