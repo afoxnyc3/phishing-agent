@@ -15,6 +15,8 @@
 
 **Performance Target**: < 1 second typical analysis time, 5 seconds maximum.
 
+**Visual Diagrams**: See [docs/diagrams/](./docs/diagrams/) for system architecture and workflow diagrams.
+
 ---
 
 ## Technology Stack
